@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>백약산 3D — 약초꾼의 길</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@700;800&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2b28; --paper:#f4efe3; --hanji:#ece4d0; --moss:#4c6b3c; --clay:#8a5a3c; --gold:#c9a24a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;background:#cfdcdc;font-family:'Gowun Dodum',system-ui,sans-serif;color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
+  canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+  .hide{display:none!important}
+
+  /* Intro */
+  #intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14vh;pointer-events:none;z-index:5}
+  #title{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:clamp(44px,9vw,96px);letter-spacing:.18em;color:#1d2a27;opacity:0;transition:opacity 2.2s ease, transform 2.2s ease;transform:translateY(10px);text-shadow:0 2px 24px rgba(255,255,255,.6)}
+  #title.on{opacity:1;transform:none}
+  #subtitle{margin-top:10px;font-family:'Nanum Myeongjo',serif;font-size:clamp(14px,2.4vw,20px);letter-spacing:.3em;color:#2c3d39;opacity:0;transition:opacity 2s ease .6s}
+  #subtitle.on{opacity:.85}
+  #startBtn{pointer-events:auto;position:fixed;left:50%;bottom:12vh;transform:translateX(-50%);font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:20px;letter-spacing:.3em;padding:16px 34px 16px 40px;background:rgba(244,239,227,.92);color:var(--ink);border:1.5px solid #1f2b28;border-radius:2px;cursor:pointer;opacity:0;transition:opacity 1.2s ease, background .2s;box-shadow:0 10px 30px rgba(20,30,28,.18)}
+  #startBtn.on{opacity:1}
+  #startBtn:hover{background:#fff}
+  #skip{position:fixed;right:18px;bottom:16px;font-size:13px;color:#2c3d39;opacity:.6;pointer-events:none}
+
+  #fade{position:fixed;inset:0;background:#f6f4ee;opacity:0;pointer-events:none;transition:opacity 1s ease;z-index:20}
+  #fade.on{opacity:1}
+
+  /* HUD */
+  #hud{position:fixed;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:6}
+  .plate{background:rgba(244,239,227,.88);border:1px solid rgba(31,43,40,.25);border-radius:10px;padding:8px 14px;box-shadow:0 6px 18px rgba(20,30,28,.12);backdrop-filter:blur(4px)}
+  #alt{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:22px;letter-spacing:.04em}
+  #alt small{font-family:'Gowun Dodum';font-weight:400;font-size:12px;opacity:.7;margin-right:6px;letter-spacing:.1em}
+  #count{font-size:13px;opacity:.8;margin-top:2px}
+  .btns{display:flex;gap:8px;pointer-events:auto}
+  .btn{pointer-events:auto;cursor:pointer;font-family:'Gowun Dodum';font-size:14px;padding:9px 14px;border-radius:10px;border:1px solid rgba(31,43,40,.3);background:rgba(244,239,227,.92);color:var(--ink);box-shadow:0 6px 18px rgba(20,30,28,.12)}
+  .btn:hover{background:#fff}
+
+  #toast{position:fixed;left:50%;top:76px;transform:translate(-50%,-10px);font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:16px;letter-spacing:.08em;padding:10px 20px;border-radius:6px;background:rgba(244,239,227,.95);border:1px solid rgba(31,43,40,.3);opacity:0;transition:opacity .4s, transform .4s;pointer-events:none;z-index:7}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+
+  /* found card */
+  #found{position:fixed;left:50%;top:40%;transform:translate(-50%,-46%) scale(.92);width:min(320px,86vw);background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:18px 18px 20px;text-align:center;opacity:0;pointer-events:none;transition:opacity .35s ease, transform .45s cubic-bezier(.2,1.4,.4,1);z-index:9;box-shadow:0 30px 60px rgba(20,30,28,.28)}
+  #found.on{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
+  #found .tag{font-size:12px;letter-spacing:.3em;opacity:.65}
+  #found h2{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:34px;letter-spacing:.12em;margin:4px 0 2px}
+  #found .rar{color:var(--gold);letter-spacing:.2em;font-size:14px}
+  #found p{font-size:14px;line-height:1.6;margin-top:8px;opacity:.85}
+  #found canvas{position:static;width:180px;height:150px;margin:6px auto 0;display:block;background:radial-gradient(circle at 50% 60%, #fffaf0 0%, #ece4d0 70%);border-radius:50%}
+  #found.legend{border-color:#b8892b;box-shadow:0 0 0 4px rgba(201,162,74,.35),0 30px 60px rgba(20,30,28,.28)}
+  #found.legend h2{color:#8a2a1a}
+
+  /* bag */
+  #bag{position:fixed;inset:0;background:rgba(20,28,26,.45);display:flex;align-items:center;justify-content:center;z-index:10}
+  #bag .sheet{width:min(720px,94vw);max-height:86vh;overflow:auto;background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:20px}
+  #bag h3{font-family:'Nanum Myeongjo',serif;font-size:24px;letter-spacing:.2em;display:flex;justify-content:space-between;align-items:center}
+  #bag h4{font-size:13px;letter-spacing:.3em;opacity:.6;margin:16px 0 8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+  .card{background:var(--hanji);border-radius:6px;padding:8px 6px 10px;text-align:center;border:1px solid rgba(31,43,40,.12)}
+  .card canvas,.card img{position:static;width:96px;height:80px;display:block;margin:0 auto;object-fit:contain}
+  .card.unk img{filter:brightness(0) opacity(.22)}
+  .card .hb{font-size:10.5px;opacity:.6;margin-top:3px;line-height:1.35}
+  .card .n{font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:15px;margin-top:2px}
+  .card .c{font-size:12px;opacity:.7}
+  .card.unk .n{opacity:.4}
+
+  /* touch pad */
+  #pad{position:fixed;bottom:18px;left:14px;right:14px;display:flex;justify-content:space-between;pointer-events:none;z-index:6}
+  #pad button{pointer-events:auto;width:64px;height:64px;border-radius:50%;border:1px solid rgba(31,43,40,.35);background:rgba(244,239,227,.8);font-size:24px;color:var(--ink);box-shadow:0 6px 18px rgba(20,30,28,.15)}
+  #pad button:active{background:#fff}
+
+  body{background:linear-gradient(#b9d3df,#eef1e7)}
+  #startPanel{pointer-events:auto;position:fixed;left:50%;bottom:9vh;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:12px;opacity:0;transition:opacity 1.2s ease}
+  #startPanel.on{opacity:1}
+  #startPanel .row{display:flex;gap:10px;align-items:center;background:rgba(244,239,227,.88);padding:8px 12px;border-radius:999px;border:1px solid rgba(31,43,40,.25)}
+  #nick{font-family:'Gowun Dodum';font-size:15px;border:none;background:transparent;outline:none;width:150px;color:var(--ink)}
+  .sw{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.8);cursor:pointer;box-shadow:0 0 0 1px rgba(31,43,40,.3)}
+  .sw.on{box-shadow:0 0 0 2px #1f2b28}
+  #startBtn{position:static;transform:none;opacity:1}
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:4}
+  .wl{position:absolute;left:0;top:0;white-space:nowrap;font-family:'Gowun Dodum';font-size:14px;color:#1f2b28;text-shadow:0 0 4px #fff,0 0 8px #fff}
+  .wl.pip{font-size:15px;letter-spacing:2px;color:#2f4a3a}
+  .wl.msg{font-family:'Nanum Myeongjo',serif;font-weight:700;background:rgba(244,239,227,.92);padding:4px 10px;border-radius:6px;text-shadow:none;border:1px solid rgba(31,43,40,.2)}
+  .nametag{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;padding:3px 8px;border-radius:999px;background:rgba(31,43,40,.7);color:#f4efe3}
+  #people{margin-top:6px;font-size:12px;opacity:.85}
+  #joy{position:fixed;left:22px;bottom:26px;width:120px;height:120px;border-radius:50%;background:rgba(244,239,227,.35);border:1.5px solid rgba(244,239,227,.8);z-index:6;touch-action:none}
+  #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(244,239,227,.9);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  #help{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,28,26,.4);z-index:11}
+  #help .sheet{background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:20px 24px;max-width:420px;line-height:1.9;font-size:14px}
+  #help h3{font-family:'Nanum Myeongjo',serif;letter-spacing:.2em;margin-bottom:6px}
+  #help b{display:inline-block;min-width:110px}
+
+  #mapView{position:fixed;inset:0;background:rgba(20,28,26,.45);display:flex;align-items:center;justify-content:center;z-index:10}
+  .mapsheet{background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:10px;max-width:96vw;max-height:96vh}
+  .mhead{display:flex;align-items:center;gap:12px}.mhead b{font-family:'Nanum Myeongjo',serif;font-size:22px;letter-spacing:.2em}.mhead .mkey{font-size:12px;opacity:.55;flex:1}
+  .mwrap{position:relative}#mapC{position:static;display:block;width:min(680px,92vw,calc(96vh - 90px));height:auto;aspect-ratio:1;border:1px solid rgba(31,43,40,.4);border-radius:3px}
+  #found{z-index:12}
+  .card.click{cursor:pointer;transition:transform .15s,box-shadow .15s}.card.click:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(31,43,40,.15)}
+
+  #clock{font-size:12.5px;opacity:.85;margin-top:2px;letter-spacing:.02em}
+  #ecoBtn.on{background:#2f4a3a;color:#f4efe3;border-color:#2f4a3a}
+  #jumpBtn{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(36px + env(safe-area-inset-bottom));width:78px;height:78px;border-radius:50%;border:1.5px solid rgba(244,239,227,.85);background:rgba(244,239,227,.42);color:#1f2b28;font-family:'Gowun Dodum';font-size:15px;font-weight:700;z-index:6;touch-action:none;box-shadow:0 6px 16px rgba(0,0,0,.18)}
+  #jumpBtn:active{background:rgba(244,239,227,.85)}
+  #hud{top:calc(14px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));right:calc(14px + env(safe-area-inset-right))}
+  #joy{left:calc(22px + env(safe-area-inset-left));bottom:calc(26px + env(safe-area-inset-bottom))}
+  @media (max-width:760px),(pointer:coarse){
+    #hud{top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:calc(8px + env(safe-area-inset-right));gap:6px}
+    .plate{padding:6px 10px;border-radius:9px}#alt{font-size:18px}#clock,#count{font-size:11px}
+    .btns{gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:58vw}.btn{font-size:12.5px;padding:9px 11px;min-height:40px;border-radius:9px}
+    #joy{width:132px;height:132px}#knob{width:58px;height:58px;margin:-29px 0 0 -29px}
+    #toast{top:calc(64px + env(safe-area-inset-top));font-size:13px;max-width:88vw;white-space:normal;text-align:center}
+    #found{width:min(320px,88vw);padding:14px 14px 16px}#found canvas{width:160px;height:133px}#found h2{font-size:28px}#found p{font-size:13px}
+    #bag .sheet{width:100vw;max-height:none;height:100%;border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom))}
+    #bag{align-items:stretch}.grid{grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
+    .mapsheet{width:100vw;max-width:none;max-height:none;height:100%;border:none;border-radius:0;padding:calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));align-items:center}
+    .mhead{width:100%}#mapC{width:min(96vw,calc(100vh - 120px))}
+    .wl{font-size:13px}#startPanel{width:92vw}#startPanel .row{flex-wrap:wrap;justify-content:center;border-radius:14px}#nick{width:130px}
+  }
+  @media (pointer:coarse){.mkey{display:none}#mapView .mapsheet{justify-content:flex-start}.mwrap{margin-top:auto;margin-bottom:auto}.card .c{font-size:11px}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+
+<div id="intro">
+  <div id="title">백약산</div>
+  <div id="subtitle">구름이 걷히면, 산이 길을 연다</div>
+  <div id="startPanel">
+    <div class="row"><input id="nick" maxlength="12" placeholder="별호 (닉네임)"><span style="font-size:12px;opacity:.7">바람막이</span><div id="swatches" style="display:flex;gap:6px"></div></div>
+    <button id="startBtn">산에 오르다</button>
+  </div>
+  <div id="skip">화면을 누르면 건너뜁니다</div>
+</div>
+
+<div id="hud" class="hide">
+  <div class="plate">
+    <div id="alt"><small>해발</small>0m</div>
+    <div id="clock"></div>
+    <div id="count">채집 0</div>
+    <div id="people" class="hide"></div>
+  </div>
+  <div class="btns">
+    <button class="btn" id="ecoBtn">절전</button>
+    <button class="btn" id="mapBtn">지도</button>
+    <button class="btn" id="bagBtn">가방 · 도감</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="joy" class="hide"><div id="knob"></div></div>
+<button id="jumpBtn" class="hide">점프</button>
+
+<div id="found">
+  <div class="tag" id="fTag">채집 성공</div>
+  <canvas id="fCanvas" width="360" height="300"></canvas>
+  <h2 id="fName">도라지</h2>
+  <div class="rar" id="fRar">★</div>
+  <p id="fDesc"></p><p id="fMeta" style="font-size:12px;opacity:.65;margin-top:4px"></p><button class="btn hide" id="fClose" style="margin-top:12px">닫기</button>
+</div>
+
+<div id="bag" class="hide">
+  <div class="sheet">
+    <h3>가방 · 도감 <button class="btn" id="bagClose">닫기</button></h3>
+    <div id="bagBody"></div>
+  </div>
+</div>
+
+
+
+<div id="mapView" class="hide"><div class="sheet mapsheet">
+  <div class="mhead"><b>지도</b><span class="mkey">M 키로 열고 닫기</span><button class="btn" id="mapClose">닫기</button></div>
+  <div class="mwrap"><canvas id="mapC" width="680" height="680"></canvas></div>
+</div></div>
+<div id="fade"></div>
+<script>
+(()=>{
+'use strict';
+if(!window.THREE){document.body.innerHTML='<p style="padding:40px;font-family:sans-serif">3D 엔진을 불러오지 못했습니다. 새로고침해 주세요.</p>';return}
+/* ================= DATA ================= */
+const HERBS = {
+  sansam:  {name:'산삼',  w:1.6, need:6, rar:5, root:true,  desc:'깊은 그늘에서 수십 년을 버틴 뿌리. 붉은 열매가 신호다. 심봤다!'},
+  deodeok: {name:'더덕',  w:8,   need:4, rar:3, root:true,  desc:'덩굴을 살짝 당기면 쌉싸름한 향이 먼저 올라온다.'},
+  doraji:  {name:'도라지',w:9,   need:4, rar:3, root:true,  desc:'보랏빛 별꽃 아래 하얀 뿌리. 목이 칼칼할 때 달여 먹던 약초.'},
+  dunggule:{name:'둥굴레',w:7,   need:4, rar:3, root:true,  desc:'휘어진 줄기 아래 종처럼 매달린 꽃. 뿌리는 구수한 차가 된다.'},
+  gomchwi: {name:'곰취',  w:9,   need:3, rar:2, root:false, desc:'곰이 즐겨 먹는다는 넓은 잎. 쌈 한 장에 산 냄새가 가득하다.'},
+  chamchwi:{name:'참취',  w:10,  need:3, rar:2, root:false, desc:'나물 중의 으뜸. 데쳐서 들기름에 무치면 봄이 입안에 핀다.'},
+  gosari:  {name:'고사리',w:12,  need:3, rar:1, root:false, desc:'주먹 쥔 새순. 봄 산이 가장 먼저 내미는 인사.'},
+  dallae:  {name:'달래',  w:11,  need:3, rar:1, root:true,  desc:'알싸한 작은 알뿌리. 간장에 송송 썰어 넣으면 달래장.'},
+  naengi:  {name:'냉이',  w:13,  need:3, rar:1, root:true,  desc:'언 땅을 뚫고 나온 첫 향기. 된장국에 한 줌.'},
+  ssuk:    {name:'쑥',    w:14,  need:3, rar:1, root:false, desc:'단군 신화의 그 풀. 떡에도, 국에도, 뜸에도.'},
+};
+const MUSH = {
+  pyogo:    {name:'표고버섯',  w:10, need:3, rar:2, desc:'참나무 둥치에서 자란 갈색 갓. 갈라진 흰 무늬가 상품의 증거.'},
+  neutari:  {name:'느타리버섯',w:10, need:3, rar:1, desc:'겹겹이 포개진 회색 부채. 결대로 찢어 볶으면 쫄깃하다.'},
+  mogi:     {name:'목이버섯',  w:9,  need:3, rar:1, desc:'나무의 귀를 닮은 검은 버섯. 꼬들꼬들한 식감.'},
+  yeongji:  {name:'영지버섯',  w:4,  need:5, rar:4, desc:'옻칠한 듯 윤이 나는 붉은 갓. 예부터 불로초라 불렸다.'},
+  sanghwang:{name:'상황버섯',  w:1.6,need:6, rar:5, desc:'뽕나무에 말발굽처럼 붙은 노란 버섯. 산에서도 만나기 어렵다.'},
+};
+const HERB_KEYS = Object.keys(HERBS), MUSH_KEYS = Object.keys(MUSH);
+
+
+/* ================= UTIL ================= */
+const $ = id => document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+function rngOf(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function pickW(table, keys, r, boost){
+  let tot=0; const ws=keys.map(k=>{let w=table[k].w; if(table[k].rar>=4) w*=boost; tot+=w; return w});
+  let x=r*tot; for(let i=0;i<keys.length;i++){x-=ws[i]; if(x<=0) return keys[i]} return keys[keys.length-1];
+}
+function mixHex(a,b,t){const pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);
+  const r=Math.round(lerp(pa>>16,pb>>16,t)),g=Math.round(lerp(pa>>8&255,pb>>8&255,t)),bl=Math.round(lerp(pa&255,pb&255,t));
+  return '#'+((1<<24)|(r<<16)|(g<<8)|bl).toString(16).slice(1)}
+
+
+/* ================= AUDIO ================= */
+let AC=null, soundOn=true;
+function ac(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}} return AC }
+function tone(f,dur,type='sine',vol=.12,slide=0,delay=0){
+  if(!soundOn) return; const a=ac(); if(!a) return;
+  const t=a.currentTime+delay, o=a.createOscillator(), g=a.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,t); if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(30,f*slide),t+dur);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.01);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur+.05);
+}
+function thud(){ if(!soundOn) return; const a=ac(); if(!a) return;
+  const t=a.currentTime, n=a.sampleRate*.12, b=a.createBuffer(1,n,a.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3);
+  const s=a.createBufferSource(), f=a.createBiquadFilter(), g=a.createGain(); f.type='lowpass';f.frequency.value=700; g.gain.value=.35;
+  s.buffer=b;s.connect(f);f.connect(g);g.connect(a.destination);s.start(t); tone(110,.12,'triangle',.12,.6);
+}
+function chime(rar){const base=[523,659,784,1047,1319]; const n=rar>=4?5:3; for(let i=0;i<n;i++) tone(base[i],.5,'sine',.09,1,i*.09); if(rar>=4) tone(1568,1.1,'triangle',.05,1,.5)}
+
+
+/* ================= 3D MAIN ================= */
+const SAVE3='baekyaksan3d-v1';
+let save={inv:{},taken:{},nick:'',color:0,pos:null};
+try{const s=JSON.parse(localStorage.getItem(SAVE3)||'null'); if(s&&s.inv) save=Object.assign(save,s)}catch(e){}
+function persist(){try{localStorage.setItem(SAVE3,JSON.stringify(save))}catch(e){}}
+const totalCount=()=>Object.values(save.inv).reduce((a,b)=>a+b,0);
+
+const JACKETS=[0x2f56b0,0xc0392b,0x2e7d4f,0xe08a1e,0x6a4a9a,0x4a4e55];
+const ALT_K=2.5;                      // world unit → displayed metres
+const CLOUD_Y=240;                    // sea of clouds height (world units)
+
+/* ---------- noise / terrain ---------- */
+function h2(ix,iz){let h=(Math.imul(ix,374761393)+Math.imul(iz,668265263))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967295}
+function vn(x,z){const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz,ux=fx*fx*(3-2*fx),uz=fz*fz*(3-2*fz);
+  return lerp(lerp(h2(ix,iz),h2(ix+1,iz),ux),lerp(h2(ix,iz+1),h2(ix+1,iz+1),ux),uz)*2-1}
+function fbm(x,z){let s=0,a=.5,f=1;for(let i=0;i<4;i++){s+=vn(x*f,z*f)*a;f*=2.03;a*=.5}return s}
+function pathX(z){return Math.sin(z*.011)*34+Math.sin(z*.027+1.3)*13+Math.sin(z*.063)*3.5}
+function H(x,z){
+  const f=-z;
+  const base=f>0? f*.22+Math.sin(f*.009)*6*Math.min(1,f/80) : f*.05;
+  const d=x-pathX(z), ad=Math.abs(d);
+  const cross=.26*Math.sin(z*.0065+.7)+.12;
+  let side=d*cross+Math.pow(Math.max(0,ad-48),2)*.07;
+  const groove=0;
+  const k=1;
+  const n=fbm(x*.025,z*.025)*9+fbm(x*.11,z*.11)*1.3+fbm(x*.4,z*.4)*.18+Math.max(0,fbm(x*.05+40,z*.05)-.25)*7;
+  return base+side+groove+n-streamCarve(x,z);
+}
+
+/* ---------- renderer ---------- */
+const canvas=$('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x000000,0);
+const camera=new THREE.PerspectiveCamera(55,1,.1,4000);
+let W=innerWidth,Hh=innerHeight;
+function onResize(){W=innerWidth;Hh=innerHeight;renderer.setSize(W,Hh,false);camera.aspect=W/Hh;camera.fov=W<Hh?68:55;camera.updateProjectionMatrix();iCam.aspect=W/Hh;iCam.fov=W<Hh?66:42;iCam.updateProjectionMatrix()}
+const matCache={};
+function M(c,o){const k=c+'|'+(o?JSON.stringify(o):'');if(!matCache[k])matCache[k]=new THREE.MeshPhongMaterial(Object.assign({color:c,flatShading:true,shininess:0,specular:0x000000},o||{}));return matCache[k]}
+function keep(g){g.userData.keep=true;return g}
+
+/* ---------- textures ---------- */
+function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);return t}
+const puffTex=canvasTex(128,128,(g)=>{const r=g.createRadialGradient(64,64,4,64,64,62);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.5,'rgba(255,255,255,.75)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,128,128)});
+const sparkTex=canvasTex(64,64,(g)=>{const r=g.createRadialGradient(32,32,0,32,32,30);r.addColorStop(0,'rgba(255,255,230,1)');r.addColorStop(.25,'rgba(255,240,170,.6)');r.addColorStop(1,'rgba(255,240,170,0)');g.fillStyle=r;g.fillRect(0,0,64,64);g.strokeStyle='rgba(255,255,240,.9)';g.lineWidth=2;g.beginPath();g.moveTo(32,4);g.lineTo(32,60);g.moveTo(4,32);g.lineTo(60,32);g.stroke()});
+const zigTex=canvasTex(256,32,(g)=>{g.fillStyle='#2e3033';g.fillRect(0,0,256,32);g.strokeStyle='#8fc63a';g.lineWidth=3;g.beginPath();for(let x=0;x<=256;x+=16)g.lineTo(x,x%32?8:24);g.stroke()});
+const heartTex=canvasTex(64,64,(g)=>{g.fillStyle='#e2665a';g.font='52px serif';g.textAlign='center';g.textBaseline='middle';g.fillText('♥',32,36)});
+const weaveTex=canvasTex(64,64,(g)=>{g.fillStyle='#b48a4e';g.fillRect(0,0,64,64);g.strokeStyle='#7d5a2c';g.lineWidth=2;for(let y=0;y<64;y+=8){g.beginPath();g.moveTo(0,y);g.lineTo(64,y+3);g.stroke()}for(let x=0;x<64;x+=10){g.strokeStyle='rgba(90,60,30,.5)';g.beginPath();g.moveTo(x,0);g.lineTo(x,64);g.stroke()}});
+const cloudSeaTex=canvasTex(512,512,(g)=>{g.clearRect(0,0,512,512);const r=rngOf(9);for(let i=0;i<260;i++){const x=r()*512,y=r()*512,s=20+r()*70;for(const [ox,oy] of [[0,0],[512,0],[-512,0],[0,512],[0,-512]]){const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,s);gr.addColorStop(0,`rgba(255,255,255,${.35+r()*.3})`);gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(x+ox-s,y+oy-s,s*2,s*2)}}});
+cloudSeaTex.wrapS=cloudSeaTex.wrapT=THREE.RepeatWrapping;cloudSeaTex.repeat.set(5,5);
+function textTex(txt,w=256,h=96,bg='#d9c49a',fg='#3a2a1a',font='bold 44px "Nanum Myeongjo",serif'){return canvasTex(w,h,(g)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);g.strokeStyle='#6b4a2a';g.lineWidth=6;g.strokeRect(3,3,w-6,h-6);g.fillStyle=fg;g.font=font;g.textAlign='center';g.textBaseline='middle';g.fillText(txt,w/2,h/2+2)})}
+
+/* ---------- mountains (shared by intro + far scenery) ---------- */
+function makeMountain(radius,height,seed,col,snowCol,opts={}){
+  const seg=opts.seg||14, hs=opts.hs||8;
+  const geo=new THREE.ConeGeometry(radius,height,seg,hs,true);
+  geo.translate(0,height/2,0);
+  const pos=geo.attributes.position, r=rngOf(seed), cols=new Float32Array(pos.count*3);
+  const cA=new THREE.Color(col), cS=new THREE.Color(snowCol||0xf4f4ef), cB=new THREE.Color(col).multiplyScalar(.75);
+  for(let i=0;i<pos.count;i++){
+    let x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
+    const k=y/height; const ang=Math.atan2(z,x);
+    if(k<.999){const n=1+.18*Math.sin(ang*3+seed)+.12*Math.sin(ang*7+seed*2)+.08*(r()-.5);const rr=Math.sqrt(x*x+z*z)*n;x=Math.cos(ang)*rr;z=Math.sin(ang)*rr;y+=(r()-.5)*height*.04*(1-k)}
+    pos.setXYZ(i,x,y,z);
+    const c=cB.clone().lerp(cA,k); if(snowCol&&k>(opts.snowLine||.78)) c.lerp(cS,clamp((k-(opts.snowLine||.78))*6,0,1));
+    cols[i*3]=c.r;cols[i*3+1]=c.g;cols[i*3+2]=c.b;
+  }
+  geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
+  const m=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:0,specular:0x000000,fog:opts.fog!==false}));
+  return m;
+}
+
+/* ================= INTRO SCENE ================= */
+const iScene=new THREE.Scene();iScene.fog=new THREE.Fog(0xe3ebe8,700,3400);
+const iCam=new THREE.PerspectiveCamera(42,1,1,5000);
+iScene.add(new THREE.HemisphereLight(0xeef4f2,0x3a4f4a,.7));
+const iSun=new THREE.DirectionalLight(0xfff1dc,.55);iSun.position.set(300,500,400);iScene.add(iSun);
+{
+  const r=rngOf(3);
+  const rows=[{z:-900,n:9,h:[260,420],c:0x9fb3b0},{z:-600,n:8,h:[200,320],c:0x7f9993},{z:-320,n:7,h:[140,240],c:0x5f7b72},{z:-90,n:6,h:[90,160],c:0x46625a}];
+  rows.forEach((row,ri)=>{for(let i=0;i<row.n;i++){const x=(i/(row.n-1)-.5)*1900+(r()-.5)*120;if(Math.abs(x)<150&&ri<3)continue;const h=lerp(row.h[0],row.h[1],r());const m=makeMountain(h*1.15,h,ri*40+i,row.c,ri<2?0xeef0ea:null,{snowLine:.85});m.position.set(x,-20,row.z+(r()-.5)*80);iScene.add(m)}});
+  const peak=makeMountain(380,880,777,0x2f4a45,0xf6f6f0,{seg:18,hs:12,snowLine:.74});peak.position.set(0,-20,-520);iScene.add(peak);
+}
+const iClouds=[];
+{const r=rngOf(21);for(let i=0;i<70;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.95,fog:false}));
+  const x=(r()-.5)*900,y=(r()-.1)*520,z=380+r()*220;sp.position.set(x,y,z);const s=180+r()*260;sp.scale.set(s*1.6,s,1);sp.userData={x0:x,side:x<0?-1:1,sp:.6+r()*.8};iScene.add(sp);iClouds.push(sp)}}
+let introT=0, zoomT=-1, mode='intro';
+function drawIntro(dt){
+  introT+=dt;const t=introT;
+  const part=ease(clamp((t-.8)/3.6,0,1));
+  for(const c of iClouds){c.position.x=c.userData.x0+c.userData.side*part*(700+300*c.userData.sp)+Math.sin(t*.3+c.userData.sp*9)*8;c.material.opacity=.95*(1-part*.5)}
+  const z=zoomT>=0?ease(clamp(zoomT/1.8,0,1)):0;
+  iCam.position.set(0,lerp(170,60,z)+Math.sin(t*.25)*3,lerp(1150,60,z)-Math.min(t,8)*6*(1-z));
+  iCam.lookAt(0,lerp(260,120,z),-520);
+  renderer.render(iScene,iCam);
+  if(t>2.7)$('title').classList.add('on');
+  if(t>3.2)$('subtitle').classList.add('on');
+  if(t>4)$('startPanel').classList.add('on');
+  if(zoomT>=0){zoomT+=dt;if(zoomT>1.2)$('fade').classList.add('on');if(zoomT>2.2)beginGame()}
+}
+
+/* ================= GAME SCENE ================= */
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0xdfe8e4,45,175);
+const hemi=new THREE.HemisphereLight(0xeef2ea,0x3d4a34,.55);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff0d8,.72);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45,near:1,far:260});sun.shadow.bias=-.0006;scene.add(sun);scene.add(sun.target);
+
+/* far scenery: ring of mountains that never gets closer (they sink below you as you climb), and the summit that is always ahead */
+const farGroup=new THREE.Group();scene.add(farGroup);
+const farMts=[];
+{const r=rngOf(55);for(let i=0;i<26;i++){const a=i/26*Math.PI*2+(r()-.5)*.15,dist=900+r()*500,h=160+r()*300;
+  const m=makeMountain(h*1.3,h,100+i,[0x8fa6a2,0x7d958f,0x9db2ae][i%3],0xeef0ea,{fog:false,snowLine:.8});m.userData={a,dist,y0:-60-r()*40};farGroup.add(m);farMts.push(m)}}
+const summit=makeMountain(900,1700,999,0x3a544e,0xf8f8f4,{seg:20,hs:14,fog:false,snowLine:.7});scene.add(summit);
+const cloudSea=[0,1].map(i=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshBasicMaterial({map:i?cloudSeaTex.clone():cloudSeaTex,transparent:true,opacity:i?.7:.95,depthWrite:false,fog:false}));
+  if(i){m.material.map.wrapS=m.material.map.wrapT=THREE.RepeatWrapping;m.material.map.repeat.set(3,3);m.material.map.needsUpdate=true}
+  m.rotation.x=-Math.PI/2;m.position.y=CLOUD_Y+i*10;m.renderOrder=2;scene.add(m);return m});
+const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);skyPuffs.push(sp)}}
+const stars=(()=>{const n=600,p=new Float32Array(n*3),r=rngOf(4);for(let i=0;i<n;i++){const u=r()*2-1,a=r()*Math.PI*2,s=Math.sqrt(1-u*u);p[i*3]=Math.cos(a)*s*1500;p[i*3+1]=Math.abs(u)*1500+100;p[i*3+2]=Math.sin(a)*s*1500}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xfffff0,size:2.2,sizeAttenuation:false,transparent:true,opacity:0,fog:false,depthWrite:false}));scene.add(m);return m})();
+
+/* ---------- shared geometries ---------- */
+const LEAF=keep(new THREE.SphereGeometry(1,6,4));LEAF.translate(0,0,1);
+const BALL=keep(new THREE.SphereGeometry(1,8,6));
+const CYL=keep(new THREE.CylinderGeometry(1,1,1,6));CYL.translate(0,.5,0);
+const pineTrunk=keep(new THREE.CylinderGeometry(.16,.42,12,7));pineTrunk.translate(0,6,0);
+const pineC=[[2.7,3.4,9.0],[2.3,3.0,11.0],[1.8,2.6,12.9],[1.25,2.2,14.6],[.65,1.6,16.1]].map(([r,h,y])=>{const g=keep(new THREE.ConeGeometry(r,h,8));g.translate(0,y,0);return g});
+const oakTrunk=keep(new THREE.CylinderGeometry(.2,.46,9.5,7));oakTrunk.translate(0,4.75,0);
+const oakF1=keep(new THREE.IcosahedronGeometry(3.3,0));oakF1.translate(0,10.4,0);
+const oakF2=keep(new THREE.IcosahedronGeometry(2.4,0));oakF2.translate(1.7,12.2,.7);
+const oakF3=keep(new THREE.IcosahedronGeometry(2.1,0));oakF3.translate(-1.6,11.5,-.9);
+const STONE=keep(new THREE.DodecahedronGeometry(1,0));const ROCK2=keep(new THREE.IcosahedronGeometry(1,1));{const p=ROCK2.attributes.position;for(let i=0;i<p.count;i++){const f=1+(h2(Math.round(p.getX(i)*50),Math.round(p.getZ(i)*50+p.getY(i)*30))-.5)*.35;p.setXYZ(i,p.getX(i)*f,p.getY(i)*f,p.getZ(i)*f)}ROCK2.computeVertexNormals()}
+const BUSH=keep(new THREE.IcosahedronGeometry(1,0));
+
+function leafM(parent,x,y,z,len,wid,yaw,pitch,mat){const m=new THREE.Mesh(LEAF,mat);m.position.set(x,y,z);m.rotation.order='YXZ';m.rotation.y=yaw;m.rotation.x=-pitch;m.scale.set(wid,.012,len/2);parent.add(m);return m}
+function stemM(parent,x,y,z,h,r,mat,rx=0,rz=0){const m=new THREE.Mesh(CYL,mat);m.position.set(x,y,z);m.scale.set(r,h,r);m.rotation.set(rx,0,rz);parent.add(m);return m}
+function ballM(parent,x,y,z,r,mat,sx=1,sy=1,sz=1){const m=new THREE.Mesh(BALL,mat);m.position.set(x,y,z);m.scale.set(r*sx,r*sy,r*sz);parent.add(m);return m}
+
+/* ---------- 3D herbs ---------- */
+function herb3D(type){
+  const g=new THREE.Group();const G1=M(0x4f7d36),G2=M(0x6b9a45),ST=M(0x5d7c3a);
+  switch(type){
+    case 'sansam':stemM(g,0,0,0,.42,.012,M(0x6f7f3a));for(let i=0;i<3;i++){const a=i*2.1;for(let k=0;k<5;k++)leafM(g,0,.4,0,.14+(k===2?.03:0),.045,a+(k-2)*.38,.25,k%2?G2:G1)}
+      for(let i=0;i<7;i++)ballM(g,Math.cos(i)*.025,.47+Math.sin(i*2)*.02,Math.sin(i)*.025,.022,M(0xd8382a,{flatShading:false}));break;
+    case 'doraji':{stemM(g,0,0,0,.48,.011,ST);for(let i=0;i<3;i++)for(const s of [0,Math.PI])leafM(g,0,.12+i*.11,0,.12,.035,s+i*.8,.3,G1);
+      const shp=new THREE.Shape();for(let i=0;i<10;i++){const rr=i%2?.04:.1,a=i*Math.PI/5;shp[i?'lineTo':'moveTo'](Math.cos(a)*rr,Math.sin(a)*rr)}
+      const f=new THREE.Mesh(new THREE.ShapeGeometry(shp),M(0x7b5cc7,{side:THREE.DoubleSide}));f.rotation.x=-1.1;f.position.set(0,.49,.02);g.add(f);ballM(g,0,.49,.02,.018,M(0xefe6ff));
+      ballM(g,.07,.42,0,.035,M(0x9a82d6));break}
+    case 'deodeok':{for(let i=0;i<6;i++)stemM(g,Math.sin(i*1.4)*.03,i*.07,Math.cos(i*1.4)*.03,.08,.008,M(0x6b8a3c),Math.cos(i)*.4,Math.sin(i)*.4);
+      for(let w=0;w<3;w++)for(let k=0;k<4;k++)leafM(g,0,.14+w*.12,0,.09,.035,k*1.57+w,.15,k%2?G2:G1);
+      const b=new THREE.Mesh(new THREE.ConeGeometry(.05,.09,8,1,true),M(0xcfdcb8,{side:THREE.DoubleSide}));b.position.set(.08,.3,0);g.add(b);ballM(g,.08,.26,0,.03,M(0x7d5a9a),1,.35,1);break}
+    case 'gosari':for(const [x,h,a] of [[-.05,.3,0],[.03,.38,2],[.07,.26,4]]){stemM(g,x,0,0,h,.01,M(0x7c6c35));const t=new THREE.Mesh(new THREE.TorusGeometry(.04,.012,5,10,Math.PI*1.6),M(0x6f8b34));t.position.set(x+.04,h,0);t.rotation.y=a;g.add(t)}break;
+    case 'gomchwi':for(const [a,h,m] of [[0,.2,G1],[2.1,.26,M(0x3c6630)],[4.2,.16,G2]]){stemM(g,0,0,0,h,.01,M(0x5f8640),Math.cos(a)*.3,Math.sin(a)*.3);
+      const lf=new THREE.Mesh(new THREE.CircleGeometry(.13,10),M(m.color.getHex(),{side:THREE.DoubleSide}));lf.position.set(Math.sin(a)*.08,h,Math.cos(a)*.08);lf.rotation.set(-1.0,a,0);g.add(lf)}break;
+    case 'chamchwi':stemM(g,0,0,0,.44,.011,ST);for(let i=0;i<4;i++)leafM(g,0,.06+i*.08,0,.14,.05,i*1.9,.25,i%2?G2:G1);
+      for(let i=0;i<6;i++){const a=i*1.05;ballM(g,Math.cos(a)*.05,.46+Math.sin(i*3)*.02,Math.sin(a)*.05,.02,M(0xfdfbf3),1,.4,1);ballM(g,Math.cos(a)*.05,.465,Math.sin(a)*.05,.008,M(0xe7c23a))}break;
+    case 'naengi':for(let i=0;i<9;i++)leafM(g,0,.01,0,.14,.04,i*.7,.05,i%2?G1:G2);stemM(g,0,0,0,.24,.006,M(0x6c8a46));for(let i=0;i<5;i++)ballM(g,Math.sin(i)*.012,.2+i*.012,Math.cos(i)*.012,.01,M(0xffffff));break;
+    case 'ssuk':for(let i=0;i<8;i++)leafM(g,0,0,0,.2+(i%3)*.05,.04,i*.8,1.0+(i%2)*.2,M(i%2?0x7f9c6c:0x93ae84));break;
+    case 'dallae':for(let i=0;i<9;i++){const a=i*.7;stemM(g,0,0,0,.34+(i%3)*.06,.005,M(i%2?0x5f8b38:0x79a44a),Math.cos(a)*.35,Math.sin(a)*.35)}break;
+    case 'dunggule':{let x=0,y=0;for(let i=0;i<6;i++){const nx=x+.05,ny=y+(i<3?.09:.02);stemM(g,x,y,0,.1,.009,M(0x5d7c3a),0,-(.3+i*.25));leafM(g,nx,ny,0,.1,.035,1.57+(i%2?.6:-.6),.1,i%2?G2:G1);if(i>1)ballM(g,nx,ny-.05,0,.018,M(0xf2f4df),1,1.6,1);x=nx;y=ny}break}
+  }
+  g.traverse(o=>{if(o.isMesh)o.castShadow=true});
+  return g;
+}
+function mush3D(type){
+  const g=new THREE.Group();
+  switch(type){
+    case 'pyogo':for(const [y,x,s] of [[0,0,1],[.1,.05,.8]]){ballM(g,x,y,.06,.08*s,M(0x6e4127),1,.45,1);ballM(g,x,y-.02,.06,.075*s,M(0xd6c4a0),1,.12,1)}break;
+    case 'neutari':for(const [y,c] of [[-.05,0x8f969a],[.03,0xa3aaad],[.1,0xb7bdbf]])ballM(g,0,y,.07,.1,M(c),1,.18,.8);break;
+    case 'mogi':for(const [y,x] of [[0,0],[.08,.05],[-.06,-.04]])ballM(g,x,y,.05,.065,M(0x3a2420),1,.6,.35);break;
+    case 'yeongji':ballM(g,0,0,.08,.11,M(0x8a2a17),1.2,.22,1);ballM(g,0,-.01,.08,.12,M(0xe2973a),1.25,.12,1.05);ballM(g,0,.02,.07,.05,M(0xffffff,{transparent:true,opacity:.35}),1.2,.1,.6);break;
+    case 'sanghwang':ballM(g,0,0,.07,.12,M(0x5a3a1c),1,.4,.9);ballM(g,0,-.03,.075,.12,M(0xe0b23a),1.03,.15,.95);break;
+  }
+  g.traverse(o=>{if(o.isMesh)o.castShadow=true});return g;
+}
+
+/* ---------- hiker avatar ---------- */
+function makeHiker(jacket){
+  // 한국 등산 아저씨: 버킷햇, 분홍 목도리, 투톤 바람막이, 카고 등산바지, 등산화, 빨간 코팅 목장갑, 지팡이, 연두색 등산가방
+  const T=(c,o)=>{const k='toon'+c+(o?JSON.stringify(o):'');if(!matCache[k])matCache[k]=new THREE.MeshToonMaterial(Object.assign({color:c},o||{}));return matCache[k]};
+  const root=new THREE.Group(),body=new THREE.Group();root.add(body);
+  const jk=T(jacket),navy=T(0x1f2a5c),pants=T(0x3a3d42),pantsD=T(0x2a2c30),boot=T(0x6e6253),sole=T(0x2b2622),lace=T(0xe07a2a),
+        skin=T(0xd59a72),hair=T(0x1c1a19),hat=T(0x3b3d40),pink=T(0xe0447f),glove=T(0xf1efe8),red=T(0xd8342c),
+        pack=T(0x9ccf2a),packD=T(0x86b521),grey=T(0x8b9096),greyD=T(0x5d6268),black=T(0x232528),wood=T(0xa47a4a);
+  const mk=(geo,mat,parent,x=0,y=0,z=0)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m};
+  const box=(w,h,d,mat,parent,x,y,z)=>mk(new THREE.BoxGeometry(w,h,d),mat,parent,x,y,z);
+  // legs (hip pivot)
+  const legL=new THREE.Group(),legR=new THREE.Group();legL.position.set(-.1,.9,0);legR.position.set(.1,.9,0);
+  for(const [lg,s] of [[legL,-1],[legR,1]]){
+    mk(new THREE.CylinderGeometry(.085,.07,.8,8),pants,lg,0,-.4,0);
+    box(.13,.2,.03,pantsD,lg,0,-.5,.07);                                  // knee panel
+    box(.04,.16,.12,pantsD,lg,s*.085,-.22,.0);                             // cargo pocket
+    box(.13,.1,.27,boot,lg,0,-.82,.04);box(.14,.035,.29,sole,lg,0,-.885,.045);
+    for(let i=0;i<3;i++)box(.07,.008,.01,lace,lg,0,-.8+i*.025,.175-i*.015);
+    body.add(lg)}
+  // torso
+  const torso=new THREE.Group();torso.position.y=.9;body.add(torso);
+  mk(new THREE.CylinderGeometry(.215,.235,.62,12),jk,torso,0,.33,0);
+  mk(new THREE.CylinderGeometry(.226,.226,.15,12),navy,torso,0,.57,0);          // navy yoke
+  mk(new THREE.CylinderGeometry(.24,.24,.06,12),navy,torso,0,.04,0);            // hem band
+  for(const s of [-1,1])box(.05,.4,.2,navy,torso,s*.2,.28,0);                    // side panels
+  box(.012,.5,.01,black,torso,.02,.32,.232);                                     // main zipper
+  box(.09,.012,.01,black,torso,.1,.46,.225);box(.012,.04,.012,lace,torso,.06,.44,.23); // chest pocket + orange pull
+  for(const s of [-1,1]){const zp=box(.01,.16,.01,greyD,torso,s*.12,.17,.215);zp.rotation.z=s*.25}  // hand-warmer zips
+  mk(new THREE.CylinderGeometry(.085,.1,.1,10),navy,torso,0,.66,0);              // collar stand
+  // pink scarf: loop + two hanging ends with fringe
+  const sc=mk(new THREE.TorusGeometry(.1,.04,8,16),pink,torso,0,.66,.01);sc.rotation.x=Math.PI/2;
+  for(const [x,len,rz] of [[-.035,.3,.06],[.05,.24,-.1]]){const e=box(.07,len,.025,pink,torso,x,.62-len/2,.235);e.rotation.z=rz;for(let f=0;f<4;f++)box(.008,.05,.008,pink,torso,x-.025+f*.017+rz*.1,.6-len-.02,.24)}
+  // head
+  const head=new THREE.Group();head.position.y=.86;torso.add(head);
+  mk(new THREE.CylinderGeometry(.055,.06,.1,8),skin,torso,0,.72,0);             // neck
+  mk(new THREE.SphereGeometry(.125,16,14),skin,head,0,0,0).scale.set(1,1.12,1.02);
+  const hr=mk(new THREE.SphereGeometry(.128,16,12,0,Math.PI*2,0,Math.PI*.5),hair,head,0,.02,-.008);hr.scale.set(1,1.05,1.03);
+  mk(new THREE.SphereGeometry(.126,14,10,Math.PI,Math.PI,Math.PI*.3,Math.PI*.42),hair,head,0,-.005,-.006);   // back of head hair
+  for(const s of [-1,1]){mk(new THREE.SphereGeometry(.03,8,6),skin,head,s*.125,-.01,0).scale.set(.5,1,.8);   // ears
+    mk(new THREE.SphereGeometry(.014,6,5),black,head,s*.045,.01,.118);box(.045,.01,.01,hair,head,s*.047,.04,.118)} // eyes, brows
+  mk(new THREE.ConeGeometry(.018,.04,5),skin,head,0,-.02,.13).rotation.x=Math.PI/2;
+  const mouth=mk(new THREE.TorusGeometry(.025,.006,4,8,Math.PI),T(0x7a3a2a),head,0,-.065,.115);mouth.rotation.z=Math.PI;
+  // bucket hat with green zigzag band and chin strap
+  const hatG=new THREE.Group();hatG.position.y=.09;head.add(hatG);
+  mk(new THREE.CylinderGeometry(.12,.138,.11,16),hat,hatG,0,.04,0);
+  mk(new THREE.CylinderGeometry(.122,.122,.012,16),hat,hatG,0,.1,0);
+  const band=mk(new THREE.CylinderGeometry(.14,.14,.035,16,1,true),new THREE.MeshToonMaterial({map:zigTex,side:THREE.DoubleSide}),hatG,0,0,0);
+  mk(new THREE.CylinderGeometry(.14,.255,.06,20,1,true),T(0x34363a,{side:THREE.DoubleSide}),hatG,0,-.035,0);       // drooping brim
+  const strap=mk(new THREE.TorusGeometry(.118,.005,4,16,Math.PI),black,head,0,-.01,.035);strap.rotation.set(-.35,0,Math.PI);strap.scale.set(1.02,1.2,1);
+  // backpack (lime with grey panels, lid, mesh side pocket, straps)
+  const bp=new THREE.Group();bp.position.set(0,.36,-.34);bp.rotation.x=.06;torso.add(bp);
+  box(.36,.56,.22,pack,bp,0,0,0);
+  for(const s of [-1,1]){box(.04,.56,.2,grey,bp,s*.175,0,0);box(.05,.12,.035,greyD,bp,s*.1,-.05,-.12)}
+  box(.26,.3,.04,packD,bp,0,-.04,-.125);box(.28,.02,.045,grey,bp,0,.115,-.128);box(.02,.3,.045,grey,bp,-.13,-.04,-.128);box(.02,.3,.045,grey,bp,.13,-.04,-.128);
+  box(.015,.26,.05,black,bp,0,-.04,-.135);                                        // front zip
+  const logo=mk(new THREE.ConeGeometry(.03,.035,3),T(0xf2f2ee),bp,0,.17,-.115);logo.rotation.x=-Math.PI/2;logo.scale.set(1,.2,1); // simple mountain mark
+  box(.34,.09,.24,pack,bp,0,.31,-.01);box(.35,.02,.25,grey,bp,0,.27,-.01);       // top lid
+  box(.34,.05,.2,black,bp,0,-.29,0);                                              // bottom
+  for(const s of [-1,1]){const mesh=box(.05,.2,.16,T(0x4a4f55,{transparent:true,opacity:.85}),bp,s*.205,-.15,.0);
+    for(const y of [.12,-.02])box(.05,.016,.23,greyD,bp,s*.18,y,0)}               // side mesh pockets, compression straps
+  box(.2,.06,.03,grey,bp,0,.36,.08);                                              // haul loop
+  for(const s of [-1,1]){const st=box(.06,.5,.03,grey,torso,s*.12,.45,.2);st.rotation.x=-.12;const st2=box(.06,.16,.08,grey,torso,s*.12,.65,.08)}  // shoulder straps
+  box(.44,.05,.05,greyD,torso,0,.1,-.24);                                         // hip belt
+  const greens=new THREE.Group();greens.position.set(.2,-.06,0);bp.add(greens);   // herbs poke out of the side pocket
+  // arms with work gloves
+  const mkArm=(sx)=>{const a=new THREE.Group();a.position.set(sx*.29,.58,0);
+    mk(new THREE.SphereGeometry(.07,10,8),navy,a,0,0,0);mk(new THREE.CylinderGeometry(.064,.056,.3,8),jk,a,0,-.15,0);mk(new THREE.CylinderGeometry(.056,.05,.27,8),navy,a,0,-.4,0);mk(new THREE.CylinderGeometry(.052,.052,.04,8),black,a,0,-.53,0);
+    mk(new THREE.SphereGeometry(.055,10,8),glove,a,0,-.6,0).scale.set(1,1.15,1);
+    const palm=mk(new THREE.SphereGeometry(.056,10,8,0,Math.PI*2,0,Math.PI*.5),red,a,0,-.6,.01);palm.rotation.x=Math.PI/2+.3;palm.scale.set(1,1.1,.9);
+    torso.add(a);return a};
+  const armL=mkArm(-1),armR=mkArm(1);
+  // 지팡이 in the left hand
+  const stick=new THREE.Group();stick.position.set(0,-.6,.05);armL.add(stick);
+  mk(new THREE.CylinderGeometry(.018,.014,1.15,6),wood,stick,0,-.35,0);
+  mk(new THREE.CylinderGeometry(.022,.022,.05,6),black,stick,0,-.94,0);
+  const crook=mk(new THREE.TorusGeometry(.05,.016,6,10,Math.PI),T(0x6a6560),stick,.05,.22,0);
+  // 호미 in the right hand
+  const hoe=new THREE.Group();hoe.position.set(0,-.6,.02);armR.add(hoe);
+  const handle=mk(new THREE.CylinderGeometry(.022,.026,.3,8),wood,hoe,0,0,.1);handle.rotation.x=Math.PI/2;
+  mk(new THREE.CylinderGeometry(.01,.01,.09,5),T(0x5a5a5a),hoe,0,-.02,.27).rotation.x=.5;
+  const blade=mk(new THREE.ConeGeometry(.075,.15,3),T(0x9aa0a6),hoe,0,-.08,.3);blade.rotation.x=Math.PI;blade.scale.z=.3;
+  return {root,body,legL,legR,torso,head,armL,armR,greens,mouth,phase:0,mode:'idle',t:0,nGreens:-1};
+}
+function setGreens(h,n){n=Math.min(6,n);if(h.nGreens===n)return;h.nGreens=n;while(h.greens.children.length)h.greens.remove(h.greens.children[0]);
+  for(let i=0;i<n;i++){leafM(h.greens,0,0,(i-2.5)*.025,.2,.05,i*.5,1.3,M(i%2?0x5a8a3a:0x6fa046))}}
+const DIG_T=.55;
+function poseHiker(h,dt,speed){
+  h.t+=dt;let lL=0,lR=0,aL=.08,aR=.08,aLz=.12,aRz=-.12,by=0,lean=0,hd=0;
+  if(h.mode==='walk'){h.phase+=dt*(2.6+speed*1.6);const s=Math.sin(h.phase);lL=s*.6;lR=-s*.6;aL=-s*.45;aR=s*.45;by=Math.abs(Math.cos(h.phase))*.035;lean=.1;h.torso.rotation.z=Math.sin(h.phase)*.03}
+  else if(h.mode==='dig'){const k=h.t/DIG_T;aR=k<.5?lerp(.1,-2.7,ease(k/.5)):k<.7?lerp(-2.7,-.55,(k-.5)/.2):-.55;aL=k<.5?lerp(0,-1.2,k*2):-.4;lean=k>.5?.45:.1;lL=.3;lR=-.2;hd=.2}
+  else if(h.mode==='joy'){const k=h.t;by=Math.abs(Math.sin(k*7))*.42*Math.max(0,1-k/2.2);aL=-2.85+Math.sin(k*16)*.15;aR=-2.85-Math.sin(k*16)*.15;aLz=-.45;aRz=.45;lL=-.5*Math.abs(Math.sin(k*7));lR=lL;lean=-.12;hd=-.25}
+  const f=1-Math.exp(-dt*(h.mode==='dig'?40:14));
+  h.legL.rotation.x=lerp(h.legL.rotation.x,lL,f);h.legR.rotation.x=lerp(h.legR.rotation.x,lR,f);
+  h.armL.rotation.x=lerp(h.armL.rotation.x,aL,f);h.armR.rotation.x=lerp(h.armR.rotation.x,aR,f);
+  h.armL.rotation.z=lerp(h.armL.rotation.z,aLz,f);h.armR.rotation.z=lerp(h.armR.rotation.z,aRz,f);
+  h.body.position.y=lerp(h.body.position.y,by,h.mode==='joy'?1:f);h.torso.rotation.x=lerp(h.torso.rotation.x,lean,f);h.head.rotation.x=lerp(h.head.rotation.x,hd,f);
+  if(h.mode!=='walk')h.torso.rotation.z*=.85;h.mouth.scale.setScalar(h.mode==='joy'?1.7:1);if(h.mode==='idle'){h.head.rotation.y=Math.sin(h.t*.5)*.35;h.head.rotation.z=0;h.body.scale.y=1+Math.sin(h.t*2)*.006}else{h.head.rotation.y*=.9;h.body.scale.y=1}
+}
+
+/* ================= FLORA: 한국 자생 약초·나물 50종 =================
+   (법정 멸종위기종인 산작약·석곡 등은 제외)
+   alt: 자라는 해발(m) / L: sun 양지 · half 반그늘 · shade 그늘 / W: dry · mid · moist · wet(물가 습지) · water(물속 가장자리)
+   ab: 상대 개체수(한국 기준 흔함→귀함) / need: 캐는 데 필요한 호미질 / m: 지상부 모양 / root: 땅속 부위 */
+const SPECIES=[
+// ── 뿌리·덩이 약초 (땅속에 묻혀 있음) ──
+{id:'sansam',n:'산삼',cat:'root',part:'뿌리',hab:'해발 400m 이상 북향의 서늘한 활엽수림 그늘',alt:[400,1500],L:'shade',W:'mid',ab:.05,need:9,
+ m:{k:'up',h:.45,st:0x6f7f3a,lv:{shape:'palm5',n:3,arr:'whorl',at:.82,len:.14,col:0x3f7a34,pitch:.2},fl:{t:'berries',col:0xd8382a,s:.03}},root:{k:'fork',col:0xe8d2a2,len:.17,w:.03},
+ d:'수십 년을 그늘에서 버틴 뿌리. 붉은 열매 한 송이가 유일한 신호다. 심봤다!'},
+{id:'doraji',n:'도라지',cat:'root',part:'뿌리',hab:'볕 잘 드는 산비탈 풀밭',alt:[0,900],L:'sun',W:'mid',ab:6,need:4,
+ m:{k:'up',h:.7,st:0x5e8a3a,lv:{n:8,len:.07,col:0x4f7d36},fl:{t:'star',col:0x7b5cc7,s:.035,n:2}},root:{k:'tap',col:0xf4ecdb,len:.24,w:.025},
+ d:'보랏빛 별꽃 아래 하얀 뿌리. 목이 칼칼할 때 달여 먹던 약초.'},
+{id:'deodeok',n:'더덕',cat:'root',part:'뿌리',hab:'숲 가장자리 반그늘, 덩굴로 덤불을 감고 오름',alt:[100,1200],L:'half',W:'mid',ab:3,need:5,
+ m:{k:'vine',n:3,len:.9,h:.75,st:0x6b8a3c,leaf:{len:.06,wid:.025,col:0x4f7d36},fl:{t:'bell',col:0xcfdcb8,s:.025}},root:{k:'tap',col:0xd8bd8f,len:.22,w:.035,wrinkle:1},
+ d:'덩굴을 살짝 당기면 쌉싸름한 향이 먼저 올라온다.'},
+{id:'dunggule',n:'둥굴레',cat:'root',part:'뿌리줄기',hab:'낙엽 쌓인 숲 속 반그늘',alt:[0,1200],L:'half',W:'mid',ab:6,need:4,
+ m:{k:'arch',h:.42,st:0x5d7c3a,n:7,len:.08,col:0x4f7d36,fl:{t:'bell',col:0xf2f4df,s:.012}},root:{k:'rhizome',col:0xe6cc84,len:.16,w:.022},
+ d:'휘어진 줄기 아래 종처럼 매달린 흰 꽃. 뿌리줄기로 구수한 차를 끓인다.'},
+{id:'cheonma',n:'천마',cat:'root',part:'덩이줄기',hab:'참나무 낙엽이 썩어 쌓인 숲, 잎 없이 꽃대만 잠깐 올라옴',alt:[300,1100],L:'half',W:'moist',oak:1,ab:.12,need:7,
+ m:{k:'stalk',h:.7,st:0x9a7a52,fl:{t:'bell',col:0xc8a878,s:.014}},root:{k:'tuber',col:0xe9dcb0,len:.16,w:.04},
+ d:'잎도 엽록소도 없이 버섯균과 함께 사는 난초. 꽃대 하나 말고는 흔적이 없다.'},
+{id:'keunjorong',n:'백하수오(큰조롱)',cat:'root',part:'덩이뿌리',hab:'양지바른 산기슭 덤불',alt:[0,800],L:'sun',W:'mid',ab:.6,need:6,
+ m:{k:'vine',n:3,len:1.0,h:.9,st:0x5f7d3a,leaf:{len:.07,wid:.05,col:0x4a7a34,shape:'heart'},fl:{t:'umbel',col:0xdfe6b0,s:.02}},root:{k:'tuber',col:0xd9c29a,len:.2,w:.045,deep:1},
+ d:'하트 모양 잎이 덩굴째 엉킨다. 굵은 덩이뿌리가 땅속 깊이 숨어 있다.'},
+{id:'chik',n:'칡',cat:'root',part:'뿌리',hab:'볕 드는 숲 가장자리, 무엇이든 타고 뒤덮음',alt:[0,900],L:'sun',W:'mid',ab:7,need:6,
+ m:{k:'vine',n:5,len:1.4,h:1.1,st:0x6b5a3a,leaf:{len:.14,wid:.06,col:0x4a7d34,shape:'tri'},fl:{t:'spike',col:0x8a4a9a,s:.02}},root:{k:'big',col:0x7a5a3a,len:.7,w:.07},
+ d:'세 갈래 큰 잎이 산자락을 덮는다. 뿌리는 팔뚝보다 굵게 땅을 파고든다.'},
+{id:'ma',n:'마',cat:'root',part:'덩이뿌리',hab:'숲 가장자리 반그늘 덩굴',alt:[0,900],L:'half',W:'mid',ab:1.5,need:7,
+ m:{k:'vine',n:3,len:1.1,h:1.0,st:0x6b7a3a,leaf:{len:.08,wid:.05,col:0x3f6f30,shape:'heart'},fl:{t:'berries',col:0x6b5a3a,s:.012}},root:{k:'long',col:0xe8dcc4,len:.55,w:.03},
+ d:'줄기에 콩알 같은 주아가 달린다. 길쭉한 뿌리를 부러뜨리지 않고 캐는 게 일.'},
+{id:'jandae',n:'잔대',cat:'root',part:'뿌리',hab:'양지바른 산 풀밭',alt:[0,1200],L:'sun',W:'mid',ab:3,need:4,
+ m:{k:'up',h:.8,st:0x5e8a3a,lv:{n:9,arr:'opp',len:.06,col:0x4f7d36},fl:{t:'bell',col:0x8f7ad0,s:.018,n:6}},root:{k:'tap',col:0xf0e6d0,len:.2,w:.025},
+ d:'층층이 매달린 연보라 종꽃. 뿌리는 도라지와 닮았지만 더 단단하다.'},
+{id:'danggwi',n:'참당귀',cat:'root',part:'뿌리',hab:'해발 높은 계곡가 습한 숲 가장자리',alt:[600,1600],L:'half',W:'moist',ab:1,need:5,
+ m:{k:'up',h:1.3,st:0x6a4a5a,sw:.012,lv:{n:5,len:.3,col:0x3f6f30,shape:'compound',to:.55},fl:{t:'umbel',col:0x7a2a5a,s:.06}},root:{k:'fork',col:0xb08a5a,len:.25,w:.035},
+ d:'자줏빛 꽃우산이 계곡 바람에 흔들린다. 뿌리에서 진한 한약 냄새가 난다.'},
+{id:'siho',n:'시호',cat:'root',part:'뿌리',hab:'메마른 양지 풀밭',alt:[200,1200],L:'sun',W:'dry',ab:.8,need:5,
+ m:{k:'up',h:.6,st:0x6f8a3a,lv:{n:7,len:.09,wid:.01,col:0x5f8a40},fl:{t:'umbel',col:0xe8c83a,s:.02,n:3}},root:{k:'tap',col:0x8a6a44,len:.16,w:.014},
+ d:'가는 잎에 좁쌀 같은 노란 꽃. 가늘고 단단한 뿌리를 쓴다.'},
+{id:'sapju',n:'삽주(백출)',cat:'root',part:'뿌리줄기',hab:'건조한 소나무 숲 양지',alt:[100,1100],L:'sun',W:'dry',pine:1,ab:1.5,need:5,
+ m:{k:'up',h:.6,st:0x6a5a3a,lv:{n:6,len:.08,wid:.035,col:0x3f6a34},fl:{t:'thistle',col:0xf0ece0,s:.025}},root:{k:'rhizome',col:0xa88a5a,len:.14,w:.03},
+ d:'가시 돋은 꽃받침 속 흰 꽃. 울퉁불퉁한 뿌리줄기가 백출이다.'},
+{id:'jichi',n:'지치',cat:'root',part:'뿌리',hab:'양지바른 마른 풀밭, 점점 보기 어려워짐',alt:[0,1000],L:'sun',W:'dry',ab:.3,need:6,
+ m:{k:'up',h:.5,st:0x6f8a4a,lv:{n:8,len:.06,wid:.02,col:0x5a7f44},fl:{t:'star',col:0xffffff,s:.012,n:4}},root:{k:'tap',col:0x6a1f4a,len:.18,w:.02},
+ d:'하얀 꽃은 수수하지만 뿌리를 캐면 손이 자줏빛으로 물든다.'},
+{id:'dokhwal',n:'독활(땅두릅)',cat:'root',part:'뿌리·새순',hab:'계곡 주변 습한 숲 가장자리',alt:[200,1400],L:'half',W:'moist',ab:2,need:5,
+ m:{k:'up',h:1.4,st:0x5a7a3a,sw:.014,lv:{n:4,len:.38,col:0x3f6f30,shape:'compound',to:.5},fl:{t:'globe',col:0xd8e0b0,s:.025,n:3}},root:{k:'fork',col:0x9a7a5a,len:.24,w:.04},
+ d:'사람 키만큼 자라는 풀. 봄 새순은 땅두릅, 뿌리는 독활이라 부른다.'},
+{id:'useul',n:'쇠무릎(우슬)',cat:'root',part:'뿌리',hab:'숲 가장자리 반그늘',alt:[0,700],L:'half',W:'mid',ab:7,need:3,
+ m:{k:'up',h:.7,st:0x7a5a4a,knee:1,lv:{n:8,arr:'opp',len:.07,col:0x4f7d36},fl:{t:'spike',col:0x8a9a5a,s:.01}},root:{k:'fib',col:0xc8b08a,len:.2,w:.008},
+ d:'마디가 소 무릎처럼 불룩하다. 씨앗이 옷에 잘 달라붙는다.'},
+{id:'maekmun',n:'맥문동',cat:'root',part:'덩이뿌리',hab:'그늘진 숲 바닥',alt:[0,700],L:'shade',W:'mid',ab:5,need:4,
+ m:{k:'grass',n:14,h:.3,strap:.012,col:0x2f5a2a,stalk:{h:.3,fl:{t:'spike',col:0x7a5ab0,s:.012}}},root:{k:'tubers',col:0xe8dcc0,len:.12,w:.012},
+ d:'사철 푸른 띠 같은 잎. 수염뿌리 끝에 콩알만 한 덩이가 달린다.'},
+{id:'dallae',n:'달래',cat:'root',part:'비늘줄기',hab:'양지바른 풀밭과 밭둑',alt:[0,800],L:'sun',W:'mid',ab:6,need:3,
+ m:{k:'grass',n:7,h:.25,w:.003,col:0x5f8b38},root:{k:'bulb',col:0xfbf6ea,len:.04,w:.012},
+ d:'알싸한 작은 알뿌리. 송송 썰어 간장에 넣으면 달래장.'},
+{id:'naengi',n:'냉이',cat:'root',part:'뿌리·잎',hab:'볕 드는 빈터',alt:[0,500],L:'sun',W:'mid',ab:9,need:2,
+ m:{k:'ros',n:9,len:.07,wid:.02,col:0x5f8b3f,pitch:.06,stalk:{h:.2,fl:{t:'spike',col:0xffffff,s:.006}}},root:{k:'tap',col:0xf3eadb,len:.1,w:.008},
+ d:'언 땅을 뚫고 나온 첫 향기. 된장국에 한 줌.'},
+{id:'godeul',n:'고들빼기',cat:'root',part:'뿌리·잎',hab:'양지바른 숲 가장자리',alt:[0,800],L:'sun',W:'mid',ab:5,need:3,
+ m:{k:'ros',n:8,len:.08,wid:.025,col:0x5a7f3a,pitch:.1,stalk:{h:.3,fl:{t:'daisy',col:0xf0d03a,s:.012,n:4}}},root:{k:'tap',col:0xeee2c8,len:.12,w:.012},
+ d:'쌉쌀한 맛이 입맛을 깨운다. 김치로 담그면 별미.'},
+{id:'sanmaneul',n:'산마늘(명이)',cat:'leaf',part:'잎·비늘줄기',hab:'해발 1,000m 넘는 서늘하고 습한 숲, 남획으로 귀해짐',alt:[1000,2200],L:'half',W:'moist',ab:.3,need:4,
+ m:{k:'big',n:2,h:.12,shape:'lance',size:.22,col:0x3f7a34,stalk:{h:.35,fl:{t:'globe',col:0xf4f2e4,s:.02}}},root:{k:'bulb',col:0xe8dcd0,len:.06,w:.02},
+ d:'넓은 잎 두세 장에서 마늘 향이 난다. 높은 산에서만 겨우 만난다.'},
+// ── 산나물 (지상부) ──
+{id:'gosari',n:'고사리',cat:'leaf',part:'새순',hab:'볕 잘 드는 산비탈',alt:[0,1200],L:'sun',W:'mid',ab:8,need:2,
+ m:{k:'fern',n:4,h:.4,curl:1,st:0x7c6c35,col:0x6f8b34},root:{k:'fib',col:0x5a4a30,len:.08,w:.006},
+ d:'주먹 쥔 새순. 봄 산이 가장 먼저 내미는 인사.'},
+{id:'gobi',n:'고비',cat:'leaf',part:'새순',hab:'계곡 주변 습한 곳',alt:[0,1200],L:'half',W:'moist',ab:3,need:2,
+ m:{k:'fern',n:6,h:.45,curl:1,wool:1,st:0x8a7a4a,col:0x7a8a3a},root:{k:'fib',col:0x4a3a28,len:.1,w:.008},
+ d:'솜털을 뒤집어쓴 통통한 새순. 고사리보다 귀하게 쳤다.'},
+{id:'chamchwi',n:'참취',cat:'leaf',part:'잎',hab:'숲 가장자리 반그늘',alt:[0,1400],L:'half',W:'mid',ab:7,need:2,
+ m:{k:'up',h:.9,st:0x5f8640,lv:{n:6,len:.14,wid:.07,col:0x4f7d36,taper:1},fl:{t:'daisy',col:0xffffff,s:.014,n:6}},
+ d:'나물 중의 으뜸. 데쳐서 들기름에 무치면 산 냄새가 난다.'},
+{id:'gomchwi',n:'곰취',cat:'leaf',part:'잎',hab:'높은 산 습한 숲과 풀밭',alt:[800,1900],L:'half',W:'moist',ab:2,need:2,
+ m:{k:'big',n:5,h:.3,shape:'heart',size:.16,col:0x3c6a30,stalk:{h:1.0,fl:{t:'spike',col:0xf0c020,s:.02}}},
+ d:'곰이 즐겨 먹는다는 넓은 잎. 쌈 한 장에 산 향이 가득하다.'},
+{id:'gondre',n:'곤드레',cat:'leaf',part:'잎',hab:'산지의 볕 드는 비탈',alt:[500,1500],L:'sun',W:'mid',ab:2.5,need:2,
+ m:{k:'up',h:1.0,st:0x5f7a40,lv:{n:7,len:.14,wid:.05,col:0x4a7a3a,taper:1},fl:{t:'thistle',col:0x9a4ab0,s:.025,n:3}},
+ d:'고려엉겅퀴의 다른 이름. 곤드레밥 한 그릇이면 든든하다.'},
+{id:'dureup',n:'두릅',cat:'leaf',part:'새순',hab:'볕 드는 숲 가장자리 작은 나무',alt:[0,1200],L:'sun',W:'mid',ab:3,need:3,
+ m:{k:'shrub',h:2.4,stems:1,bark:0x7a6a5a,tw:.035,thorn:1,tip:'bud',col:0x6a9a3a},
+ d:'가시 돋친 줄기 끝의 새순. 봄 산나물의 왕.'},
+{id:'eumnamu',n:'음나무순(개두릅)',cat:'leaf',part:'새순',hab:'숲 속 큰 가시나무',alt:[200,1000],L:'half',W:'mid',ab:.8,need:3,
+ m:{k:'shrub',h:3.2,stems:1,bark:0x6a5a4a,tw:.06,thorn:2,tip:'palm',col:0x5a8a34},
+ d:'굵은 가시로 잡귀를 막는다던 나무. 순은 두릅보다 향이 진하다.'},
+{id:'ogapi',n:'오가피순',cat:'leaf',part:'새순',hab:'그늘진 숲 속 떨기나무',alt:[200,1200],L:'shade',W:'mid',ab:1.5,need:3,
+ m:{k:'shrub',h:1.8,stems:3,bark:0x5a5048,tw:.02,thorn:0,tip:'palm5',col:0x4a7d34},
+ d:'다섯 장 손바닥 잎. 쌉쌀한 순은 장아찌로, 줄기는 약으로.'},
+{id:'darae',n:'다래순',cat:'leaf',part:'새순',hab:'계곡 숲의 덩굴',alt:[200,1300],L:'half',W:'moist',ab:2.5,need:2,
+ m:{k:'vine',n:4,len:1.6,h:1.5,st:0x6a5a3a,leaf:{len:.09,wid:.06,col:0x4f8a3a},fl:{t:'berries',col:0x8aa040,s:.02}},
+ d:'계곡 나무를 타고 오르는 덩굴. 순은 묵나물, 열매는 작은 키위 맛.'},
+{id:'wonchuri',n:'원추리',cat:'leaf',part:'새순',hab:'양지바른 산 풀밭',alt:[0,1300],L:'sun',W:'mid',ab:5,need:2,
+ m:{k:'grass',n:10,h:.55,strap:.022,col:0x4f8a3a,stalk:{h:.8,fl:{t:'lily',col:0xf08a20,s:.05,n:2}}},
+ d:'근심을 잊게 한다는 꽃. 어린순은 데쳐서 나물로.'},
+{id:'meowi',n:'머위',cat:'leaf',part:'잎·줄기',hab:'계곡가 축축한 땅',alt:[0,900],L:'half',W:'wet',ab:5,need:2,
+ m:{k:'big',n:5,h:.4,shape:'round',size:.17,col:0x4a7a34},
+ d:'둥근 잎이 우산처럼 넓다. 쌉싸름한 줄기를 들깨에 볶는다.'},
+{id:'minari',n:'돌미나리',cat:'leaf',part:'줄기·잎',hab:'계곡 물가',alt:[0,800],L:'half',W:'water',ab:6,need:2,
+ m:{k:'up',h:.35,stems:4,st:0x6a9a40,lv:{n:3,len:.1,col:0x5a9a3a,shape:'compound'},fl:{t:'umbel',col:0xffffff,s:.02}},
+ d:'흐르는 물가에 뿌리를 내린다. 향이 강하고 아삭하다.'},
+{id:'ssuk',n:'쑥',cat:'leaf',part:'잎',hab:'볕 드는 빈터 어디나',alt:[0,1000],L:'sun',W:'mid',ab:10,need:2,
+ m:{k:'up',h:.6,stems:3,st:0x7f9c6c,lv:{n:8,len:.07,wid:.03,col:0x8aa47a},},
+ d:'단군 신화의 그 풀. 떡에도, 국에도, 뜸에도.'},
+{id:'sanbuchu',n:'산부추',cat:'leaf',part:'잎',hab:'볕 드는 바위 능선',alt:[200,1500],L:'sun',W:'dry',rock:1,ab:1.2,need:2,
+ m:{k:'grass',n:6,h:.3,w:.003,col:0x4f7a3a,stalk:{h:.45,fl:{t:'globe',col:0xb04ab0,s:.025}}},
+ d:'바위틈에서 자줏빛 공 같은 꽃을 피운다.'},
+{id:'bibichu',n:'비비추',cat:'leaf',part:'잎',hab:'계곡가 습한 그늘',alt:[0,1400],L:'shade',W:'moist',ab:4,need:2,
+ m:{k:'big',n:7,h:.1,shape:'lance',size:.2,col:0x3f7a34,stalk:{h:.6,fl:{t:'bell',col:0xb09ad8,s:.018,n:6}}},
+ d:'잎을 비비면 거품이 난다 해서 비비추. 연보라 종꽃이 줄지어 핀다.'},
+{id:'usan',n:'우산나물',cat:'leaf',part:'잎',hab:'그늘진 숲 바닥',alt:[200,1300],L:'shade',W:'mid',ab:2.5,need:2,
+ m:{k:'big',n:1,h:.55,shape:'umbrella',size:.2,col:0x4a7a3a},
+ d:'돋아날 때 접힌 우산처럼 생겼다가 활짝 펴진다.'},
+{id:'chamnamul',n:'참나물',cat:'leaf',part:'잎',hab:'습한 숲 그늘',alt:[300,1600],L:'shade',W:'moist',ab:2.5,need:2,
+ m:{k:'up',h:.5,stems:3,st:0x6a8a4a,lv:{n:3,len:.12,col:0x4f8a3a,shape:'tri'},fl:{t:'umbel',col:0xffffff,s:.015}},
+ d:'세 갈래 잎에서 상큼한 향이 난다. 생으로 무쳐도 좋다.'},
+{id:'danpung',n:'단풍취',cat:'leaf',part:'잎',hab:'그늘진 숲 바닥',alt:[300,1500],L:'shade',W:'mid',ab:2,need:2,
+ m:{k:'big',n:4,h:.12,shape:'palm',size:.12,col:0x4a7a34,stalk:{h:.5,fl:{t:'spike',col:0xf4f0e0,s:.012}}},
+ d:'단풍잎 같은 둥근 잎이 바닥에 깔린다.'},
+{id:'nungae',n:'눈개승마(삼나물)',cat:'leaf',part:'새순',hab:'높은 산 습한 숲',alt:[1000,2000],L:'half',W:'moist',ab:.5,need:3,
+ m:{k:'up',h:1.0,stems:2,st:0x6a7a3a,lv:{n:4,len:.3,col:0x3f7a34,shape:'compound',to:.5},fl:{t:'plume',col:0xf4eed0,s:.03}},
+ d:'새순에서 인삼 향이 난다 해서 삼나물. 크림색 꽃이삭이 깃털 같다.'},
+{id:'eosuri',n:'어수리',cat:'leaf',part:'잎',hab:'높은 산 습한 풀밭',alt:[800,1800],L:'sun',W:'moist',ab:.8,need:2,
+ m:{k:'up',h:1.3,st:0x6a8a4a,sw:.012,lv:{n:4,len:.3,col:0x4a7a34,shape:'compound',to:.45},fl:{t:'umbel',col:0xffffff,s:.07}},
+ d:'임금님 수라상에 올랐다는 나물. 흰 꽃우산이 접시만 하다.'},
+{id:'surichwi',n:'수리취',cat:'leaf',part:'잎',hab:'볕 드는 산 풀밭',alt:[300,1500],L:'sun',W:'dry',ab:1.2,need:2,
+ m:{k:'up',h:.9,st:0x7a7a5a,lv:{n:5,len:.16,wid:.08,col:0x5a7a4a,taper:1},fl:{t:'thistle',col:0x4a3a2a,s:.03}},
+ d:'잎 뒷면이 하얗다. 단오에 수리취떡을 빚었다.'},
+{id:'eolleji',n:'얼레지',cat:'leaf',part:'잎',hab:'높은 산 활엽수림 바닥, 이른 봄 잠깐',alt:[600,1600],L:'shade',W:'moist',oak:1,ab:1,need:3,
+ m:{k:'big',n:2,h:.04,shape:'lance',size:.13,col:0x5a7a40,mot:1,stalk:{h:.25,fl:{t:'reflex',col:0xd870b0,s:.03}}},
+ d:'얼룩무늬 잎 두 장, 꽃잎을 뒤로 젖힌 분홍 꽃. 봄 숲의 짧은 손님.'},
+{id:'bakjwi',n:'박쥐나물',cat:'leaf',part:'잎',hab:'높은 산 습한 숲',alt:[900,1800],L:'shade',W:'moist',ab:.8,need:2,
+ m:{k:'big',n:2,h:.7,shape:'bat',size:.2,col:0x4a7a34},
+ d:'박쥐 날개처럼 펼친 세모 잎.'},
+// ── 약초 (지상부 전체·열매) ──
+{id:'samji',n:'삼지구엽초',cat:'herb',part:'잎·줄기',hab:'산지 숲 그늘',alt:[300,1400],L:'shade',W:'mid',ab:.5,need:3,
+ m:{k:'samji',h:.35,st:0x7a6a3a,col:0x5a8a3a,fl:{t:'bell',col:0xf4eccc,s:.014}},
+ d:'세 가지에 아홉 장 잎. 이름이 곧 생김새다.'},
+{id:'ikmo',n:'익모초',cat:'herb',part:'지상부',hab:'볕 드는 들과 숲 가장자리',alt:[0,500],L:'sun',W:'mid',ab:4,need:2,
+ m:{k:'up',h:1.1,st:0x5f7a40,whorl:{n:5,col:0xd87ab0},lv:{n:10,arr:'opp',len:.08,wid:.02,col:0x4f7d36}},
+ d:'층층이 둘러 핀 분홍 꽃. 쓴맛이 강한 여름 약초.'},
+{id:'ijil',n:'이질풀',cat:'herb',part:'지상부',hab:'양지바른 산 풀밭',alt:[0,1200],L:'sun',W:'mid',ab:4,need:2,
+ m:{k:'ros',n:7,len:.12,wid:.04,col:0x4f7d3a,pitch:.25,stalk:{h:.3,fl:{t:'star',col:0xe87aa0,s:.014,n:4}}},
+ d:'작은 분홍 꽃. 배탈 날 때 달여 먹어 이름이 이질풀.'},
+{id:'jipsin',n:'짚신나물',cat:'herb',part:'지상부',hab:'숲 가장자리 반그늘',alt:[0,1200],L:'half',W:'mid',ab:5,need:2,
+ m:{k:'up',h:.8,st:0x6a8a4a,lv:{n:6,len:.12,col:0x4f7d36,shape:'compound',to:.5},fl:{t:'spike',col:0xf0d030,s:.01}},
+ d:'노란 꽃이삭. 열매가 짚신에 붙어 따라온다.'},
+{id:'gujeol',n:'구절초',cat:'herb',part:'지상부',hab:'볕 드는 능선과 바위 주변',alt:[200,1600],L:'sun',W:'dry',ab:2.5,need:2,
+ m:{k:'up',h:.5,stems:3,st:0x5f7a40,lv:{n:5,len:.06,wid:.03,col:0x4f7d36},fl:{t:'daisy',col:0xffffff,s:.025}},
+ d:'음력 9월 9일에 꺾는다는 흰 들국화.'},
+{id:'omija',n:'오미자',cat:'herb',part:'열매',hab:'계곡 숲의 덩굴',alt:[300,1400],L:'half',W:'moist',ab:1,need:3,
+ m:{k:'vine',n:4,len:1.6,h:1.6,st:0x6a4a3a,leaf:{len:.08,wid:.05,col:0x4a7d34},fl:{t:'berries',col:0xd0202a,s:.03}},
+ d:'다섯 가지 맛이 난다는 빨간 열매송이.'},
+{id:'buchoson',n:'부처손',cat:'herb',part:'전초',hab:'볕 드는 바위 위',alt:[0,1200],L:'sun',W:'dry',rock:1,ab:1.5,need:2,
+ m:{k:'scales',n:12,len:.12,col:0x4a6a34},
+ d:'가물면 주먹을 쥐었다가 비가 오면 다시 편다. 바위에 붙어 산다.'},
+];
+// ── HERBS 표를 50종으로 교체 ──
+for(const k of Object.keys(HERBS))delete HERBS[k];HERB_KEYS.length=0;
+const starOf=ab=>ab>=6?1:ab>=2.5?2:ab>=1?3:ab>=.3?4:5;
+for(const s of SPECIES){HERBS[s.id]={name:s.n,w:s.ab,need:s.need,rar:starOf(s.ab),root:!!s.root,under:!!s.root&&s.cat==='root',desc:s.d,part:s.part,hab:s.hab,cat:s.cat,sp:s};HERB_KEYS.push(s.id)}
+const SPI={};SPECIES.forEach(s=>SPI[s.id]=s);
+
+/* ---------- 계곡(물길) ---------- */
+function sX1(z){return pathX(z)-26+Math.sin(z*.017)*9}
+function sX2(z){return pathX(z)+30+Math.sin(z*.013+2)*11}
+function streamD(x,z){return Math.min(Math.abs(x-sX1(z)),Math.abs(x-sX2(z)))}
+function streamCarve(x,z){let c=0;for(const sx of [sX1(z),sX2(z)]){const d=x-sx;c+=1.7*Math.exp(-d*d/12)+1.6*Math.exp(-d*d/110)}return c}
+
+/* ---------- 서식 환경 ---------- */
+function canopyAt(x,z){const alt=H(x,z)*ALT_K;const patch=vn(x*.035+3,z*.035-5);return clamp(.75+patch*.9,.08,1)*clamp(1-(alt-1200)/1600,.3,1)}
+function envAt(x,z,c){
+  const alt=H(x,z)*ALT_K,ds=streamD(x,z);
+  const moist=clamp(Math.exp(-ds*ds/260)*1.05+vn(x*.02+50,z*.02-20)*.35+.22,0,1);
+  let rock=false,inRock=false;for(const k of (c&&c.rocks)||[]){const d=Math.hypot(x-k.x,z-k.z)-k.r;if(d<.35)inRock=true;else if(d<1.8)rock=true}
+  return{alt,light:1-canopyAt(x,z),moist,ds,rock,inRock,pine:clamp(.55+alt/2500,.55,.95)};
+}
+function fitOf(sp,e){
+  const[a0,a1]=sp.alt;let f=clamp((e.alt-a0+120)/240,0,1)*clamp((a1-e.alt+120)/240,0,1);if(!f)return 0;
+  const L=e.light;f*=sp.L==='sun'?Math.pow(L,1.6):sp.L==='shade'?Math.pow(1-L,1.6):clamp(1-Math.abs(L-.45)*1.7,.05,1);
+  const m=e.moist;
+  if(sp.W==='water')return(e.ds>.9&&e.ds<2.6)?f*1.2:0;
+  if(e.ds<1.9)return 0;
+  f*=sp.W==='dry'?clamp(1.15-m*1.3,0,1):sp.W==='moist'?m*m*1.3:sp.W==='wet'?clamp(1-(e.ds-1.4)/7,0,1):clamp(1-Math.abs(m-.45)*1.4,.1,1);
+  if(sp.rock)f*=e.rock?1.6:0;else if(e.rock)f*=.6;
+  if(sp.pine)f*=e.pine*1.2;if(sp.oak)f*=(1-e.pine)*2.2;
+  return f;
+}
+
+/* ---------- 로우폴리 식물 빌더 ---------- */
+const UPV=new THREE.Vector3(0,1,0),V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const TAPER=keep(new THREE.ConeGeometry(1,1,7));TAPER.rotateX(Math.PI);TAPER.translate(0,-.5,0);
+const CIRC=keep(new THREE.CircleGeometry(1,10));
+const TRI=keep((()=>{const s=new THREE.Shape();s.moveTo(-1,0);s.lineTo(1,0);s.quadraticCurveTo(.2,.5,0,1.1);s.quadraticCurveTo(-.2,.5,-1,0);return new THREE.ShapeGeometry(s)})());
+const PALM=keep((()=>{const s=new THREE.Shape();for(let i=0;i<=40;i++){const a=i/40*Math.PI*2,r=.75+.25*Math.cos(a*5);s[i?'lineTo':'moveTo'](Math.cos(a)*r,Math.sin(a)*r)}return new THREE.ShapeGeometry(s)})());
+const STAR5=keep((()=>{const s=new THREE.Shape();for(let i=0;i<10;i++){const r=i%2?.42:1,a=i*Math.PI/5;s[i?'lineTo':'moveTo'](Math.cos(a)*r,Math.sin(a)*r)}return new THREE.ShapeGeometry(s)})());
+const BELL=keep(new THREE.ConeGeometry(1,1.6,7,1,true));
+const CURL=keep(new THREE.TorusGeometry(1,.28,5,10,Math.PI*1.6));
+function mk(g,geo,col,p,sc,rot){const m=new THREE.Mesh(geo,M(col));if(p)m.position.copy(p);if(sc)m.scale.copy(sc);if(rot)m.rotation.copy(rot);g.add(m);return m}
+function stemTo(g,a,b,r,col){const d=new THREE.Vector3().subVectors(b,a),l=d.length()||1e-4;const m=new THREE.Mesh(CYL,M(col));m.position.copy(a);m.scale.set(r,l,r);m.quaternion.setFromUnitVectors(UPV,d.divideScalar(l));g.add(m);return m}
+const dirOf=(yaw,pitch)=>V(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));
+const darker=c=>{const k=new THREE.Color(c).multiplyScalar(.82);return k.getHex()};
+function leafShape(g,p,len,wid,yaw,pitch,col,shape){
+  switch(shape){
+    case 'compound':{const d=dirOf(yaw,pitch),end=p.clone().addScaledVector(d,len);stemTo(g,p,end,.004+len*.01,col);
+      for(let i=1;i<=4;i++){const q=p.clone().addScaledVector(d,len*i/4.2);for(const s of [-1,1])leafM(g,q.x,q.y,q.z,len*.34,len*.11,yaw+s*1.15,pitch*.4,M(i%2?col:darker(col)))}
+      leafM(g,end.x,end.y,end.z,len*.36,len*.12,yaw,pitch*.5,M(col));break}
+    case 'tri':{const d=dirOf(yaw,pitch),q=p.clone().addScaledVector(d,len*.45);stemTo(g,p,q,.004,col);for(const s of [-.9,0,.9])leafM(g,q.x,q.y,q.z,len*.6,len*.24,yaw+s,pitch*.3,M(col));break}
+    case 'palm5':{const d=dirOf(yaw,pitch),q=p.clone().addScaledVector(d,len*.5);stemTo(g,p,q,.004,col);for(let i=0;i<5;i++)leafM(g,q.x,q.y,q.z,len*.55,len*.2,yaw+(i-2)*.6,pitch*.2,M(i%2?col:darker(col)));break}
+    case 'heart':leafM(g,p.x,p.y,p.z,len,wid*1.4,yaw,pitch,M(col));break;
+    default:leafM(g,p.x,p.y,p.z,len,wid,yaw,pitch,M(col));
+  }
+}
+function flowerAt(g,p,f,r){
+  const s=(f.s||.03)*1.3,c=f.col;
+  switch(f.t){
+    case 'star':{const m=mk(g,STAR5,c,p,V(s,s,s));m.material=M(c,{side:THREE.DoubleSide});m.rotation.x=-Math.PI/2+.3;ballM(g,p.x,p.y+.003,p.z,s*.25,M(0xf4f0d0));break}
+    case 'bell':{const m=mk(g,BELL,c,V(p.x,p.y-s*.8,p.z),V(s,s,s));m.material=M(c,{side:THREE.DoubleSide});break}
+    case 'umbel':for(let i=0;i<9;i++){const a=i*2.4,rr=s*Math.sqrt(i/9);const q=V(p.x+Math.cos(a)*rr,p.y+s*.1,p.z+Math.sin(a)*rr);stemTo(g,V(p.x,p.y-s*.5,p.z),q,.002,0x6a8a4a);ballM(g,q.x,q.y,q.z,s*.22,M(c))}break;
+    case 'globe':for(let i=0;i<14;i++){const u=i/14*2-1,a=i*2.4,k=Math.sqrt(1-u*u);ballM(g,p.x+Math.cos(a)*k*s,p.y+s+u*s,p.z+Math.sin(a)*k*s,s*.32,M(c))}break;
+    case 'daisy':for(let i=0;i<10;i++)leafM(g,p.x,p.y,p.z,s,s*.3,i*.63,.1,M(c));ballM(g,p.x,p.y+.002,p.z,s*.32,M(0xe7c23a));break;
+    case 'thistle':ballM(g,p.x,p.y,p.z,s*.7,M(0x5a7a3a));mk(g,TAPER,c,V(p.x,p.y+s*1.4,p.z),V(s*.75,s*.9,s*.75));break;
+    case 'lily':for(let i=0;i<6;i++)leafM(g,p.x,p.y,p.z,s,s*.32,i*1.05,.7,M(c));ballM(g,p.x,p.y,p.z,s*.15,M(0x6a4a20));break;
+    case 'spike':for(let i=0;i<9;i++){const a=i*2.1;ballM(g,p.x+Math.cos(a)*s*.5,p.y+i*s*.9,p.z+Math.sin(a)*s*.5,s*.55,M(c))}break;
+    case 'plume':for(let i=0;i<5;i++){const a=i*1.26;const m=mk(g,TAPER,c,V(p.x+Math.cos(a)*s*1.6,p.y+s*4,p.z+Math.sin(a)*s*1.6),V(s*.5,s*4,s*.5));m.rotation.x=Math.PI;m.rotation.z=Math.cos(a)*.3}break;
+    case 'berries':for(let i=0;i<8;i++){const a=i*2.4;ballM(g,p.x+Math.cos(a)*s*.8,p.y-i*s*.25,p.z+Math.sin(a)*s*.8,s*.55,M(c,{}))}break;
+    case 'reflex':for(let i=0;i<6;i++)leafM(g,p.x,p.y-s*.3,p.z,s*1.2,s*.3,i*1.05,1.1,M(c));stemTo(g,V(p.x,p.y-s*.3,p.z),V(p.x,p.y-s*1.1,p.z),.003,0x6a2a4a);break;
+  }
+}
+function bUp(g,m,r){
+  const h=m.h,ns=m.stems||1,sw=(m.sw||.004+h*.006)*1.3;
+  for(let s=0;s<ns;s++){
+    const base=ns>1?V(Math.cos(s*2.4)*.03,0,Math.sin(s*2.4)*.03):V(0,0,0);
+    const hh=h*(s?(.75+r()*.25):1),top=V(base.x+(r()-.5)*h*(ns>1?.25:.06),hh,base.z+(r()-.5)*h*(ns>1?.25:.06));
+    const mid=V((base.x+top.x)/2+(r()-.5)*h*.05,hh*.5,(base.z+top.z)/2+(r()-.5)*h*.05);
+    stemTo(g,base,mid,sw,m.st);stemTo(g,mid,top,sw*.8,m.st);
+    const at=t=>t<.5?base.clone().lerp(mid,t*2):mid.clone().lerp(top,(t-.5)*2);
+    if(m.knee)for(let k=1;k<5;k++){const q=at(k/5);ballM(g,q.x,q.y,q.z,sw*1.8,M(darker(m.st)))}
+    const lv=m.lv;if(lv)for(let i=0;i<lv.n;i++){let t,yaw;
+      if(lv.arr==='whorl'){t=lv.at||.6;yaw=i/lv.n*6.283+r()*.3}
+      else if(lv.arr==='opp'){const pr=Math.floor(i/2),np=Math.max(1,Math.ceil(lv.n/2)-1);t=lerp(lv.from||.15,lv.to||.85,pr/np);yaw=(i%2)*Math.PI+pr*1.57}
+      else{t=lerp(lv.from||.1,lv.to||.85,i/Math.max(1,lv.n-1));yaw=i*2.4+s}
+      const L=lv.len*1.45*(lv.taper?(1.25-t*.6):1)*(.85+r()*.3);leafShape(g,at(t),L,(lv.wid?lv.wid*1.45:L*.35),yaw,lv.pitch??.35,i%3?lv.col:darker(lv.col),lv.shape)}
+    if(m.whorl&&s===0)for(let k=0;k<m.whorl.n;k++){const q=at(lerp(.45,.95,k/(m.whorl.n-1)));for(let j=0;j<7;j++){const a=j*.9;ballM(g,q.x+Math.cos(a)*.02,q.y,q.z+Math.sin(a)*.02,.009,M(m.whorl.col))}}
+    if(m.fl){const n=m.fl.n||1;for(let k=0;k<n;k++){if(k===0){flowerAt(g,top,m.fl,r);continue}const q=at(lerp(.6,.95,k/n));const a=k*2.3,o=V(q.x+Math.cos(a)*.04,q.y,q.z+Math.sin(a)*.04);stemTo(g,q,o,.002,m.st);flowerAt(g,o,m.fl,r)}}
+  }
+}
+function bRos(g,m,r){
+  for(let i=0;i<m.n;i++)leafShape(g,V(0,.005,0),m.len*1.3*(.8+r()*.4),m.wid*1.3,i/m.n*6.283+r()*.3,m.pitch??.12,i%2?m.col:darker(m.col),m.shape);
+  if(m.stalk)bUp(g,{h:m.stalk.h,st:0x6a8a4a,fl:m.stalk.fl},r);
+}
+function bBig(g,m,r){
+  for(let i=0;i<m.n;i++){const yaw=i/m.n*6.283+r()*.5,lean=.25+r()*.25,h=m.h*(.75+r()*.4);
+    const tip=V(Math.sin(yaw)*h*lean,h,Math.cos(yaw)*h*lean);if(h>.06)stemTo(g,V(0,0,0),tip,.005+m.size*.02,0x5f8640);
+    const col=i%2?m.col:darker(m.col),sz=m.size*(.85+r()*.3);
+    if(m.shape==='round'||m.shape==='heart'||m.shape==='palm'||m.shape==='bat'){
+      const geo=m.shape==='palm'?PALM:m.shape==='bat'?TRI:CIRC;const lf=new THREE.Mesh(geo,M(col,{side:THREE.DoubleSide}));
+      lf.rotation.order='YXZ';lf.rotation.y=yaw;lf.rotation.x=-Math.PI/2+.45;lf.scale.set(sz,sz*(m.shape==='heart'?.95:1),sz);
+      const off=dirOf(yaw,.2).multiplyScalar(m.shape==='bat'?0:sz*.7);lf.position.copy(tip).add(off);g.add(lf);
+    }else if(m.shape==='umbrella'){for(let k=0;k<8;k++)leafM(g,tip.x,tip.y,tip.z,sz,sz*.18,k*.785,-.12,M(k%2?col:m.col))}
+    else{leafM(g,0,.01,0,sz*1.2,sz*.38,yaw,.55-r()*.2,M(col));
+      if(m.mot)for(let k=0;k<3;k++){const q=dirOf(yaw,.45).multiplyScalar(sz*(.4+k*.3));ballM(g,q.x,q.y+.012,q.z,sz*.1,M(0x6a3a3a),1,.15,1)}}
+  }
+  if(m.stalk)bUp(g,{h:m.stalk.h,st:0x6a8a4a,fl:m.stalk.fl},r);
+}
+function bFern(g,m,r){for(let i=0;i<m.n;i++){const yaw=r()*6.28,lean=.12+r()*.3,h=m.h*(.7+r()*.5);const tip=V(Math.sin(yaw)*h*lean,h,Math.cos(yaw)*h*lean);
+  stemTo(g,V(0,0,0),tip,.006,m.st);const c=mk(g,CURL,m.col,tip,V(.035,.035,.035));c.rotation.set(0,yaw,Math.PI/2);if(m.wool)ballM(g,tip.x,tip.y,tip.z,.04,M(0xb89a6a))}}
+function bGrass(g,m,r){for(let i=0;i<m.n;i++){const yaw=r()*6.28,lean=.15+r()*.5,h=m.h*(.6+r()*.5);
+  if(m.strap)leafM(g,0,0,0,h*1.2,m.strap,yaw,1.35-lean*.9,M(i%2?m.col:darker(m.col)));
+  else{const mid=V(Math.sin(yaw)*h*lean*.35,h*.6,Math.cos(yaw)*h*lean*.35),tip=V(Math.sin(yaw)*h*lean,h*(1-lean*.35),Math.cos(yaw)*h*lean);stemTo(g,V(0,0,0),mid,m.w||.004,m.col);stemTo(g,mid,tip,(m.w||.004)*.7,m.col)}}
+  if(m.stalk)bUp(g,{h:m.stalk.h,st:0x5f8640,fl:m.stalk.fl},r)}
+function bVine(g,m,r){for(let s=0;s<m.n;s++){let p=V(0,0,0);const yaw=s/m.n*6.28+r()*.5,segs=6;
+  for(let k=0;k<segs;k++){const t=(k+1)/segs,rise=Math.sin(t*Math.PI*.85)*m.h*(.75+r()*.35),rad=m.len*t*.5;
+    const np=V(Math.sin(yaw+k*.3)*rad,rise,Math.cos(yaw+k*.3)*rad);stemTo(g,p,np,.006,m.st);
+    leafShape(g,np,m.leaf.len*1.4,m.leaf.wid*1.4,yaw+k*1.7+r(),.2,k%2?m.leaf.col:darker(m.leaf.col),m.leaf.shape);
+    if(m.fl&&(k===segs-2||k===segs-4)&&s%2===0)flowerAt(g,np,m.fl,r);p=np}}}
+function bArch(g,m,r){let p=V(0,0,0);const yaw=r()*6.28;for(let i=0;i<m.n;i++){const t=(i+1)/m.n;const np=V(Math.sin(yaw)*m.h*t*.9,m.h*Math.sin(t*Math.PI*.6),Math.cos(yaw)*m.h*t*.9);
+  stemTo(g,p,np,.006,m.st);leafM(g,np.x,np.y,np.z,m.len*1.35,m.len*.55,yaw+(i%2?1.2:-1.2),.1,M(i%2?m.col:darker(m.col)));if(i>1)flowerAt(g,V(np.x,np.y-.02,np.z),m.fl,r);p=np}}
+function bStalk(g,m,r){stemTo(g,V(0,0,0),V(0,m.h,0),.012,m.st);for(let i=0;i<4;i++)ballM(g,0,m.h*(.15+i*.18),.012,.012,M(darker(m.st)),1,1.6,.6);
+  for(let i=0;i<12;i++){const y=m.h*lerp(.55,1,i/12),a=i*2.4;flowerAt(g,V(Math.cos(a)*.022,y,Math.sin(a)*.022),m.fl,r)}}
+function bShrub(g,m,r){for(let s=0;s<m.stems;s++){const base=V((r()-.5)*.2*(m.stems>1),0,(r()-.5)*.2*(m.stems>1));const top=V(base.x+(r()-.5)*.25,m.h*(.75+r()*.3),base.z+(r()-.5)*.25);
+  stemTo(g,base,top,m.tw,m.bark);
+  if(m.thorn)for(let k=0;k<14;k++){const q=base.clone().lerp(top,k/14),a=k*2.1;const th=mk(g,TAPER,0x8a7a6a,V(q.x+Math.cos(a)*m.tw,q.y,q.z+Math.sin(a)*m.tw),V(.006*m.thorn,.03*m.thorn,.006*m.thorn));th.rotation.set(0,0,Math.PI/2);th.rotation.y=-a}
+  if(m.tip==='bud'){const b=mk(g,TAPER,0x8aa040,V(top.x,top.y+.12,top.z),V(.035,.14,.035));b.rotation.x=Math.PI;ballM(g,top.x,top.y+.02,top.z,.03,M(0x9a4a3a));for(let k=0;k<3;k++)leafShape(g,top,.35,.1,k*2.1,.15,m.col,'compound')}
+  else if(m.tip==='palm'){for(let k=0;k<5;k++){const yaw=k*1.26;const q=top.clone().addScaledVector(dirOf(yaw,.3),.25);stemTo(g,top,q,.006,0x6a8a4a);const lf=new THREE.Mesh(PALM,M(m.col,{side:THREE.DoubleSide}));lf.rotation.order='YXZ';lf.rotation.y=yaw;lf.rotation.x=-Math.PI/2+.4;lf.scale.setScalar(.14);lf.position.copy(q);g.add(lf)}}
+  else{for(let k=0;k<4;k++){const q=base.clone().lerp(top,.6+k*.13);leafShape(g,q,.22,.06,k*1.9+s,.25,m.col,'palm5')}}}}
+function bSamji(g,m,r){const h=m.h;stemTo(g,V(0,0,0),V(0,h,0),.005,m.st);for(let i=0;i<3;i++){const yaw=i*2.09;const q=V(Math.sin(yaw)*.09,h+.03,Math.cos(yaw)*.09);stemTo(g,V(0,h,0),q,.004,m.st);
+  for(let k=0;k<3;k++){const y2=yaw+(k-1)*.75;const lf=new THREE.Mesh(CIRC,M(k%2?m.col:darker(m.col),{side:THREE.DoubleSide}));lf.rotation.order='YXZ';lf.rotation.y=y2;lf.rotation.x=-Math.PI/2+.25;lf.scale.set(.045,.06,.045);lf.position.copy(q).add(dirOf(y2,.1).multiplyScalar(.05));g.add(lf)}}
+  flowerAt(g,V(.03,h*.85,0),m.fl,r);flowerAt(g,V(-.02,h*.8,.02),m.fl,r)}
+function bScales(g,m,r){for(let i=0;i<m.n;i++){const yaw=i/m.n*6.283;leafShape(g,V(0,.03,0),m.len,m.len*.3,yaw,.9,i%2?m.col:darker(m.col),'compound')}stemTo(g,V(0,0,0),V(0,.04,0),.02,0x3a2a1a)}
+function bRoot(g,R,r){
+  const c=R.col,gy=R.deep?-.12:-.02;
+  switch(R.k){
+    case 'tap':{const m=mk(g,TAPER,c,V(0,gy,0),V(R.w,R.len,R.w));m.rotation.z=(r()-.5)*.25;for(let i=0;i<4;i++){const y=gy-R.len*(.3+i*.15),a=i*2.2;stemTo(g,V(0,y,0),V(Math.cos(a)*R.len*.35,y-R.len*.15,Math.sin(a)*R.len*.35),.002,c)}
+      if(R.wrinkle)for(let i=1;i<6;i++){const y=gy-R.len*i/7;mk(g,CYL,darker(c),V(0,y,0),V(R.w*(1-i/7)*1.05,.004,R.w*(1-i/7)*1.05))}break}
+    case 'fork':{mk(g,CYL,darker(c),V(0,gy-.02,0),V(R.w*.45,.05,R.w*.45));for(let i=0;i<4;i++)mk(g,CYL,darker(c),V(0,gy-.005*i,0),V(R.w*.5,.004,R.w*.5));
+      ballM(g,0,gy-R.len*.28,0,R.w,M(c),1,R.len/R.w*.3,1);
+      for(const s of [-1,1]){const lg=mk(g,TAPER,c,V(s*R.w*.4,gy-R.len*.45,0),V(R.w*.55,R.len*.6,R.w*.55));lg.rotation.z=s*.45}
+      for(let i=0;i<9;i++){const a=i*.7,y=gy-R.len*(.3+r()*.5);stemTo(g,V(0,y,0),V(Math.cos(a)*R.len*.45,y-R.len*.25,Math.sin(a)*R.len*.45),.0012,c)}break}
+    case 'tuber':{const m=ballM(g,0,gy-R.w*1.2,0,1,M(c),R.len*.5,R.w,R.w);m.rotation.z=.3;for(let i=-2;i<=2;i++)mk(g,CYL,darker(c),V(i*R.len*.15,gy-R.w*1.2-R.w,0),V(.003,R.w*2,R.w*.9));break}
+    case 'bulb':ballM(g,0,gy-R.w,0,R.w,M(c),1,1.15,1);for(let i=0;i<7;i++){const a=i*.9;stemTo(g,V(0,gy-R.w*2,0),V(Math.cos(a)*.04,gy-R.w*2-.05,Math.sin(a)*.04),.0012,0xd8cbb3)}break;
+    case 'rhizome':for(let i=0;i<4;i++){ballM(g,-R.len*.4+i*R.len*.27,gy-.03,(r()-.5)*.02,R.w,M(i%2?c:darker(c)),1.3,.9,1);stemTo(g,V(-R.len*.4+i*R.len*.27,gy-.04,0),V(-R.len*.4+i*R.len*.27+(r()-.5)*.04,gy-.1,(r()-.5)*.04),.0015,c)}break;
+    case 'fib':for(let i=0;i<9;i++){const a=i*.7;stemTo(g,V(0,gy,0),V(Math.cos(a)*R.len*.4,gy-R.len*(.6+r()*.4),Math.sin(a)*R.len*.4),R.w*.25+.001,c)}break;
+    case 'long':mk(g,TAPER,c,V(0,gy,0),V(R.w,R.len,R.w));break;
+    case 'big':{const m=mk(g,TAPER,c,V(0,gy,0),V(R.w,R.len,R.w*.9));m.rotation.z=.6;break}
+    case 'tubers':for(let i=0;i<8;i++){const a=i*.8,e=V(Math.cos(a)*R.len*.5,gy-R.len*(.5+r()*.5),Math.sin(a)*R.len*.5);stemTo(g,V(0,gy,0),e,.0015,c);if(i%2)ballM(g,e.x,e.y,e.z,R.w,M(c),1,1.6,1)}break;
+  }
+}
+function buildPlantGroup(sp,seed,withRoot){
+  const g=new THREE.Group(),r=rngOf(seed),m=sp.m;
+  ({up:bUp,ros:bRos,big:bBig,fern:bFern,grass:bGrass,vine:bVine,arch:bArch,stalk:bStalk,shrub:bShrub,samji:bSamji,scales:bScales})[m.k](g,m,r);
+  if(withRoot&&sp.root)bRoot(g,sp.root,r);
+  return g;
+}
+const plantMat=new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:0,specular:0x000000,side:THREE.DoubleSide});
+function mergeGroup(g){
+  g.updateMatrixWorld(true);const pos=[],col=[],v=new THREE.Vector3();
+  g.traverse(o=>{if(!o.isMesh)return;let geo=o.geometry.index?o.geometry.toNonIndexed():o.geometry;const p=geo.attributes.position,cc=o.material.color;
+    for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);pos.push(v.x,v.y,v.z);col.push(cc.r,cc.g,cc.b)}if(geo!==o.geometry)geo.dispose()});
+  const out=new THREE.BufferGeometry();out.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));out.setAttribute('color',new THREE.Float32BufferAttribute(col,3));out.computeVertexNormals();out.computeBoundingSphere();out.userData.keep=true;return out;
+}
+const plantGeoCache={};
+function plantGeo(sp,v){const k=sp.id+v;if(!plantGeoCache[k])plantGeoCache[k]=mergeGroup(buildPlantGroup(sp,h2(v,sp.id.length*977+sp.id.charCodeAt(0))*4294967295>>>0,true));return plantGeoCache[k]}
+const HITGEO=keep(new THREE.SphereGeometry(1,6,4)),HITMAT=new THREE.MeshBasicMaterial({visible:false});
+function makePlantMesh(sp,v){
+  const g=new THREE.Group();const m=new THREE.Mesh(plantGeo(sp,v),plantMat);m.castShadow=true;g.add(m);
+  const h=sp.m.h||.4,hr=clamp(h*.45,.22,.6);const hit=new THREE.Mesh(HITGEO,HITMAT);hit.scale.setScalar(hr);hit.position.y=Math.min(h*.45,.6);g.add(hit);
+  return g;
+}
+
+/* ---------- 청크에 식물 심기: 서식지 적합도 × 개체수 ---------- */
+function placeFlora(c,r,ox,oz,grp){
+  const cand=26;
+  for(let i=0;i<cand;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH,u=r(),u2=r(),v=Math.floor(r()*3);
+    if(Math.abs(x-pathX(z))>54)continue;const e=envAt(x,z,c);if(e.inRock)continue;
+    let S=0;const fits=new Array(SPECIES.length);for(let k=0;k<SPECIES.length;k++){const f=SPECIES[k].ab*fitOf(SPECIES[k],e);fits[k]=f;S+=f}
+    if(S<=0||u>clamp(S/(S+30),0,1)*.9)continue;
+    let pick=u2*S,idx=0;for(;idx<fits.length-1;idx++){pick-=fits[idx];if(pick<=0)break}
+    const sp=SPECIES[idx],id=`${c.key}:f${i}`;if(save.taken[id])continue;
+    const m=makePlantMesh(sp,v);m.position.set(x,H(x,z)-.02,z);m.rotation.y=r()*6.28;
+    const it={kind:'herb',type:sp.id,id,hits:0,need:sp.need,mesh:m};m.userData.item=it;grp.add(m);c.items.push(it);
+  }
+}
+/* 물길: 물 띠와 물가 돌 */
+const waterMat=new THREE.MeshPhongMaterial({color:0x6aa6b8,transparent:true,opacity:.78,shininess:60,specular:0x9fd0e0,flatShading:true,side:THREE.DoubleSide});
+function placeStreams(c,r,ox,oz,grp){
+  for(const fn of [sX1,sX2]){const pts=[];for(let z=oz-CH/2-2;z<=oz+CH/2+2;z+=2){const x=fn(z);if(x<ox-CH/2-3||x>ox+CH/2+3)continue;pts.push([x,z])}
+    if(pts.length<2)continue;const pos=[];
+    const w=1.7,row=(x,z)=>{const yc=H(x,z)+.5;return[[x-w,Math.min(yc,H(x-w,z)+.1),z],[x,yc,z],[x+w,Math.min(yc,H(x+w,z)+.1),z]]};
+    for(let i=0;i<pts.length-1;i++){const A=row(...pts[i]),B=row(...pts[i+1]);
+      for(let j=0;j<2;j++){pos.push(...A[j],...A[j+1],...B[j], ...A[j+1],...B[j+1],...B[j])}}
+    const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.computeVertexNormals();
+    const wm=new THREE.Mesh(geo,waterMat);wm.receiveShadow=true;grp.add(wm);
+    for(let k=0;k<5;k++){const z=oz+(r()-.5)*CH,x=fn(z)+(r()<.5?-1:1)*(1+r()*1.2);if(Math.abs(x-ox)>CH/2)continue;const s=.15+r()*.35;const st=new THREE.Mesh(STONE,M(0x8f8b7c));st.scale.set(s,s*.55,s);st.position.set(x,H(x,z)+s*.2,z);st.rotation.y=r()*6;grp.add(st)}}
+}
+
+/* ---------- 도감 아이콘: 3D 모델을 그대로 렌더 (땅속 뿌리까지) ---------- */
+let iconR=null,iconScene=null,iconCam=null;const iconCache={};
+function iconInit(){if(iconR)return;const cv=document.createElement('canvas');cv.width=240;cv.height=200;
+  iconR=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true,preserveDrawingBuffer:true});iconR.setPixelRatio(1);iconR.setSize(240,200,false);iconR.setClearColor(0,0);
+  iconScene=new THREE.Scene();iconScene.add(new THREE.HemisphereLight(0xffffff,0x6a5a40,.75));const d=new THREE.DirectionalLight(0xfff4e0,.6);d.position.set(2,4,3);iconScene.add(d);iconCam=new THREE.PerspectiveCamera(30,1.2,.01,100)}
+function renderIcon(kind,type){
+  iconInit();while(iconScene.children.length>2)iconScene.remove(iconScene.children[2]);
+  let obj;if(kind==='herb'){obj=new THREE.Mesh(plantGeo(SPI[type],0),plantMat)}else{obj=mush3D(type);obj.rotation.y=-Math.PI/2}
+  const grp=new THREE.Group();grp.add(obj);
+  const box=new THREE.Box3().setFromObject(grp),sz=box.getSize(new THREE.Vector3()),ctr=box.getCenter(new THREE.Vector3());
+  if(kind==='herb'&&SPI[type].root){const soil=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(sz.x,sz.z)*1.6+.1,Math.max(-box.min.y,.02)+.04),new THREE.MeshBasicMaterial({color:0x6b4f32,transparent:true,opacity:.28}));soil.position.set(ctr.x,(box.min.y-.02)/2,ctr.z-Math.max(sz.z,.05)*.6);grp.add(soil);
+    const line=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(sz.x,sz.z)*1.6+.1,.006),new THREE.MeshBasicMaterial({color:0x4a3a26}));line.position.set(ctr.x,0,ctr.z-Math.max(sz.z,.05)*.6+.001);grp.add(line)}
+  iconScene.add(grp);
+  const R=Math.max(sz.x,sz.y*1.1,sz.z)*.6+.01;iconCam.position.set(ctr.x+R*.9,ctr.y+R*.55,ctr.z+R*2.5);iconCam.lookAt(ctr);grp.children.forEach(o=>{if(o.isMesh&&o.geometry.type==='PlaneGeometry')o.quaternion.copy(iconCam.quaternion)});
+  iconR.render(iconScene,iconCam);return iconR.domElement;
+}
+function iconURL(kind,type){const k=kind+':'+type;if(!iconCache[k])iconCache[k]=renderIcon(kind,type).toDataURL();return iconCache[k]}
+
+/* 땅을 파서 나오는 것: 그 자리 환경에 맞는 땅속 약초 */
+function digFind(x,z){
+  const c=chunks.get(Math.floor(x/CH)+','+Math.floor(z/CH));const e=envAt(x,z,c);let S=0;const list=[];
+  for(const sp of SPECIES){if(sp.cat!=='root')continue;const f=sp.ab*fitOf(sp,e);if(f>0){list.push([sp.id,f]);S+=f}}
+  if(!S||Math.random()>clamp(S/(S+10),0,1)*.6)return null;let p=Math.random()*S;for(const[id,f] of list){p-=f;if(p<=0)return id}return list[list.length-1][0];
+}
+
+/* ---------- world chunks ---------- */
+const CH=48,RES=32;let VIEW=3;
+const chunks=new Map();
+const terrainMat=new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:0,specular:0x000000});
+const barkPine=M(0x8a5236),barkOak=M(0x6e5a48),foliage=new THREE.MeshPhongMaterial({color:0xffffff,flatShading:true,shininess:0,specular:0x000000});
+const cGrass=new THREE.Color(0x4a6b34),cGrass2=new THREE.Color(0x5d7f3c),cPath=new THREE.Color(0xa8906a),cLitter=new THREE.Color(0x6e5a38),cRock=new THREE.Color(0x8b8778),cSnow=new THREE.Color(0xf2f3ee),cMoss=new THREE.Color(0x35532c),tmp=new THREE.Color();
+function buildChunk(cx,cz){
+  const r=rngOf((Math.imul(cx,73856093)^Math.imul(cz,19349663))>>>0);
+  const ox=cx*CH+CH/2,oz=cz*CH+CH/2;
+  const geo=new THREE.PlaneGeometry(CH,CH,RES,RES);geo.rotateX(-Math.PI/2);
+  const pos=geo.attributes.position,cols=new Float32Array(pos.count*3);
+  for(let i=0;i<pos.count;i++){const x=pos.getX(i)+ox,z=pos.getZ(i)+oz,y=H(x,z);pos.setXYZ(i,x,y,z);
+    const sl=Math.abs(H(x+1,z)-H(x-1,z))+Math.abs(H(x,z+1)-H(x,z-1));
+    const ad=Math.abs(x-pathX(z));
+    tmp.copy(cGrass).lerp(cGrass2,(vn(x*.08,z*.08)+1)/2).lerp(cMoss,clamp((vn(x*.3,z*.3)+.2),0,1)*.35);
+    const alt=y*ALT_K; if(alt>900) tmp.lerp(cRock,clamp((alt-900)/900,0,.7));
+    if(sl>2.2) tmp.lerp(cRock,clamp((sl-2.2)/2,0,1));
+    if(alt>1500&&vn(x*.05,z*.05)>.1-((alt-1500)/2000)) tmp.lerp(cSnow,.85);
+    tmp.lerp(cLitter,clamp(vn(x*.06+7,z*.06)*1.4+.1,0,1)*.7);tmp.lerp(cMoss,clamp(vn(x*.09-3,z*.09+11)*1.6-.3,0,1)*.5);tmp.multiplyScalar(.92+vn(x*.7,z*.7)*.08);
+    cols[i*3]=tmp.r;cols[i*3+1]=tmp.g;cols[i*3+2]=tmp.b}
+  geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
+  const ground=new THREE.Mesh(geo,terrainMat);ground.receiveShadow=true;ground.userData.terrain=true;
+  const grp=new THREE.Group();grp.add(ground);
+  const c={key:cx+','+cz,cx,cz,grp,ground,trees:[],items:[],treeMeshes:[]};
+  // a wild mountain: no trail. Boulders first, then dense forest with patchy clearings, then undergrowth
+  const altHere=H(ox,oz)*ALT_K, dens=clamp(1-(altHere-1200)/1600,.3,1);
+  const startX=pathX(24);
+  const nearStart=(x,z,r)=>Math.hypot(x-startX,z-24)<r;
+  c.rocks=[];
+  const nClusters=r()<.5?1+Math.floor(r()*2):0;
+  for(let k=0;k<nClusters;k++){const cx0=ox+(r()-.5)*CH*.8,cz0=oz+(r()-.5)*CH*.8,big=r()<.45;
+    const nr=big?1+Math.floor(r()*2):2+Math.floor(r()*4);
+    for(let q=0;q<nr;q++){const rad=big?2.6+r()*3.2:.9+r()*1.8;const x=cx0+(r()-.5)*(big?6:9),z=cz0+(r()-.5)*(big?6:9);
+      if(nearStart(x,z,rad+4))continue;
+      const rk={x,z,r:rad};c.rocks.push(rk);
+      const m=new THREE.Mesh(r()<.5?STONE:ROCK2,M([0x8b8778,0x7d7a6c,0x96917f,0x6f6c60][q%4]));
+      m.scale.set(rad*(1+r()*.3),rad*(.55+r()*.45),rad*(.85+r()*.35));m.rotation.set(r()*.6,r()*6.28,r()*.4);
+      m.position.set(x,H(x,z)-rad*.25,z);m.castShadow=true;m.receiveShadow=true;grp.add(m);
+      if(r()<.6){const moss=new THREE.Mesh(BALL,M(0x4a6a34));moss.scale.set(rad*.7,rad*.18,rad*.6);moss.position.set(x+(r()-.5)*rad*.4,m.position.y+rad*(.45+r()*.2),z+(r()-.5)*rad*.4);grp.add(moss)}}}
+  const inRock=(x,z,pad)=>c.rocks.some(k=>Math.hypot(x-k.x,z-k.z)<k.r+pad);
+  const pines=[],oaks=[];const n=Math.round(64*dens);
+  for(let i=0;i<n;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;
+    const patch=vn(x*.035+3,z*.035-5);if(r()>clamp(.75+patch*.9,.08,1))continue;   // clearings come and go
+    if(nearStart(x,z,3.5)||inRock(x,z,.8)||streamD(x,z)<2.6)continue;
+    const pineP=clamp(.55+altHere/2500,.55,.95);const cls=r(),sz=cls<.55?.8+r()*.45:cls<.82?.42+r()*.3:.14+r()*.22;const t={x,z,y:H(x,z)-.2,s:sz,rot:r()*6.28,lean:(r()-.5)*(sz>.6?.05:.12),kind:r()<pineP?'pine':'oak',id:`${c.key}:t${i}`,hits:0,searched:false};
+    (t.kind==='pine'?pines:oaks).push(t);c.trees.push(t);
+    if(t.s>.5&&r()<.24){const mt=pickW(MUSH,MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
+      const it={kind:'mush',type:mt,id:`${c.key}:m${i}`,hits:0,need:MUSH[mt].need,tree:t};
+      if(!save.taken[it.id]){const m=mush3D(mt);m.position.set(x+Math.cos(a)*rr,t.y+.55+r()*.75,z+Math.sin(a)*rr);m.rotation.y=Math.atan2(Math.cos(a),Math.sin(a));m.scale.setScalar(1.6);it.mesh=m;t.mush=m;m.userData.item=it;grp.add(m);c.items.push(it)}}}
+  const snowy=altHere>1500;
+  const inst=(geo,mat,list,colFn)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,mat,list.length);const o=new THREE.Object3D();
+    list.forEach((t,i)=>{o.position.set(t.x,t.y,t.z);o.rotation.set(t.lean,t.rot,0);o.scale.setScalar(t.s);o.updateMatrix();im.setMatrixAt(i,o.matrix);(t.inst||(t.inst=[])).push({im,i,m:o.matrix.clone()});if(colFn)im.setColorAt(i,colFn(t,i))});
+    im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.castShadow=true;im.receiveShadow=true;im.userData.trees=list;grp.add(im);c.treeMeshes.push(im)};
+  const pc=new THREE.Color(),oc=new THREE.Color();
+  inst(pineTrunk,barkPine,pines);pineC.forEach((g,k)=>inst(g,foliage,pines,(t,i)=>{pc.setHSL(.37+h2(i,k)*.04,.34,.2+k*.03+h2(i,7)*.05);if(snowy&&k>1)pc.lerp(cSnow,.5);return pc}));
+  inst(oakTrunk,barkOak,oaks);[oakF1,oakF2,oakF3].forEach((g,k)=>inst(g,foliage,oaks,(t,i)=>{oc.setHSL(.26+h2(i,k+3)*.06,.36,.28+k*.04+h2(i,9)*.05);return oc}));
+  // undergrowth: bushes and ferns
+  {const nb=Math.round(46*dens);const im=new THREE.InstancedMesh(BUSH,foliage,nb);const o=new THREE.Object3D(),bc=new THREE.Color();let k=0;
+   for(let i=0;i<nb;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;if(inRock(x,z,.2)||nearStart(x,z,2))continue;const sc=.22+r()*.38;
+     o.position.set(x,H(x,z)+sc*.25,z);o.rotation.set(0,r()*6.28,0);o.scale.set(sc*1.3,sc*.8,sc*1.2);o.updateMatrix();im.setMatrixAt(k,o.matrix);bc.setHSL(.27+r()*.08,.35,.2+r()*.1);im.setColorAt(k,bc);k++}
+   im.count=k;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.castShadow=true;grp.add(im)}
+  // 약초 50종: 서식지 적합도에 따라 심고, 계곡 물길을 깐다
+  placeFlora(c,r,ox,oz,grp);placeStreams(c,r,ox,oz,grp);
+  scene.add(grp);chunks.set(c.key,c);return c;
+}
+function disposeChunk(c){scene.remove(c.grp);c.grp.traverse(o=>{if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();if(o.isInstancedMesh&&o.dispose)o.dispose();if(o.material&&o.material.map&&o.material.map!==sparkTex&&o.material.map!==weaveTex&&o.isMesh&&!o.isSprite)o.material.map.dispose()});chunks.delete(c.key)}
+let chunkQueue=[];
+let chunkKey='',chunkBuildT=0;
+function updateChunks(px,pz,force,dt){
+  const ccx=Math.floor(px/CH),ccz=Math.floor(pz/CH);
+  if(!force){chunkBuildT+=dt||0;const k=ccx+','+ccz+','+VIEW;if(k===chunkKey){if(chunkQueue.length&&chunkBuildT>=PERF.chunkEvery){chunkBuildT=0;const[x,z]=chunkQueue.shift().split(',').map(Number);if(!chunks.has(x+','+z))buildChunk(x,z)}return}chunkKey=k}
+  const want=new Set();
+  for(let dz=-VIEW;dz<=VIEW;dz++)for(let dx=-VIEW;dx<=VIEW;dx++){if(dx*dx+dz*dz>VIEW*VIEW+1)continue;want.add((ccx+dx)+','+(ccz+dz))}
+  for(const [k,c] of chunks)if(!want.has(k))disposeChunk(c);
+  chunkQueue=[...want].filter(k=>!chunks.has(k)).sort((a,b)=>{const[ax,az]=a.split(',').map(Number),[bx,bz]=b.split(',').map(Number);return((ax-ccx)**2+(az-ccz)**2)-((bx-ccx)**2+(bz-ccz)**2)});
+  const n=force?chunkQueue.length:0;for(let i=0;i<n&&chunkQueue.length;i++){const[x,z]=chunkQueue.shift().split(',').map(Number);buildChunk(x,z)}
+}
+
+/* start gate (일주문) */
+function buildGate(){
+  const g=new THREE.Group(),z=18,x0=pathX(z),y0=H(x0,z);g.position.set(x0,y0,z);
+  const red=M(0x8a2f22),green=M(0x2f4a40),stone=M(0x8b8778);
+  for(const sx of [-2.4,2.4]){const p=new THREE.Mesh(new THREE.CylinderGeometry(.22,.24,4.2,10),red);p.position.set(sx,2.1,0);p.castShadow=true;g.add(p);const b=new THREE.Mesh(new THREE.CylinderGeometry(.38,.42,.4,8),stone);b.position.set(sx,.2,0);g.add(b)}
+  const beam=new THREE.Mesh(new THREE.BoxGeometry(5.6,.35,.4),M(0x4f7a6a));beam.position.y=4.1;g.add(beam);
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(6.8,.25,2.2),green);roof.position.y=4.75;roof.castShadow=true;g.add(roof);
+  const ridge=new THREE.Mesh(new THREE.BoxGeometry(6.2,.35,.35),M(0x24352f));ridge.position.y=5.25;g.add(ridge);
+  for(const s of [-1,1]){const r1=new THREE.Mesh(new THREE.BoxGeometry(6.6,.12,1.3),green);r1.position.set(0,4.95,s*.55);r1.rotation.x=s*.45;g.add(r1);const tip=new THREE.Mesh(new THREE.BoxGeometry(.6,.15,.25),green);tip.position.set(s*3.5,4.95,0);tip.rotation.z=s*.35;g.add(tip)}
+  const plq=new THREE.Mesh(new THREE.PlaneGeometry(1.6,.6),new THREE.MeshLambertMaterial({map:textTex('百藥山',256,96,'#2b3a33','#e9cf8a','bold 56px "Nanum Myeongjo",serif')}));plq.position.set(0,4.1,.22);g.add(plq);
+  const plq2=plq.clone();plq2.position.z=-.22;plq2.rotation.y=Math.PI;g.add(plq2);
+  scene.add(g);
+}
+
+/* ---------- particles ---------- */
+const MAXP=500,pPos=new Float32Array(MAXP*3),pCol=new Float32Array(MAXP*3),parts=[];
+const pGeo=new THREE.BufferGeometry();pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({size:.09,vertexColors:true}));pts.frustumCulled=false;scene.add(pts);
+const sparks=[];
+function dirt(p,n=14,cols=[0x6b4f32,0x8a6a44,0x4e3a26]){for(let i=0;i<n;i++){if(parts.length>=MAXP)parts.shift();const c=new THREE.Color(cols[i%cols.length]);parts.push({x:p.x,y:p.y+.1,z:p.z,vx:(Math.random()-.5)*2.4,vy:1.5+Math.random()*2.2,vz:(Math.random()-.5)*2.4,t:0,life:.9,c})}}
+function burst(p,n,gold){for(let i=0;i<n;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:sparkTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,color:gold?0xffd36a:0xfff6c8}));sp.position.copy(p);const a=Math.random()*6.28,u=Math.random();sp.userData={v:new THREE.Vector3(Math.cos(a)*(1+u*2),1.5+Math.random()*2.5,Math.sin(a)*(1+u*2)),t:0,life:1+Math.random()*.6,s:.25+Math.random()*.25};scene.add(sp);sparks.push(sp)}}
+function hearts(p){for(let i=0;i<5;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:heartTex,transparent:true,depthWrite:false}));sp.position.set(p.x+(Math.random()-.5)*.6,p.y,p.z+(Math.random()-.5)*.6);sp.userData={v:new THREE.Vector3((Math.random()-.5)*.4,1+Math.random()*.6,(Math.random()-.5)*.4),t:0,life:1.6,s:.32,heart:true};scene.add(sp);sparks.push(sp)}}
+function updParticles(dt){
+  let n=0;for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.t+=dt;p.vy-=9*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;if(p.t>p.life){parts.splice(i,1);continue}}
+  for(const p of parts){pPos[n*3]=p.x;pPos[n*3+1]=p.y;pPos[n*3+2]=p.z;pCol[n*3]=p.c.r;pCol[n*3+1]=p.c.g;pCol[n*3+2]=p.c.b;n++}
+  pGeo.setDrawRange(0,n);pGeo.attributes.position.needsUpdate=true;pGeo.attributes.color.needsUpdate=true;
+  for(let i=sparks.length-1;i>=0;i--){const s=sparks[i],u=s.userData;u.t+=dt;if(!u.heart)u.v.y-=2.5*dt;s.position.addScaledVector(u.v,dt);const k=u.t/u.life;s.material.opacity=1-k;s.scale.setScalar(u.s*(u.heart?1:1-k*.5));if(u.t>u.life){scene.remove(s);s.material.dispose();sparks.splice(i,1)}}
+}
+
+/* ================= PLAYER ================= */
+const me=makeHiker(JACKETS[save.color%JACKETS.length]);scene.add(me.root);
+const P={x:pathX(24),z:24,y:0,h:Math.PI,vy:0,air:false,speed:0};
+if(save.pos&&isFinite(save.pos.z)){P.x=save.pos.x;P.z=save.pos.z}
+P.y=H(P.x,P.z);
+let camYaw=P.h,camPitch=.26,camDist=8,yawOff=0,lastDrag=-9;
+const keys={};
+let target=null,pending=null,curAct=null,queued=null,hitDone=false;
+let joyT=0;
+const v3=new THREE.Vector3();
+
+function nearTo(p,r){return Math.hypot(p.x-P.x,p.z-P.z)<r}
+function act(tg){
+  if(me.mode==='joy')return;
+  if(tg.kind==='herb'&&HERBS[tg.item.type].care&&nearTo(tg.pos,2.4)){const gap=HERBS[tg.item.type].care,it=tg.item;if((me.mode==='dig'&&curAct&&curAct.item===it)||(queued&&queued.item===it)||(it.hits>0&&clock-(it.lastHit||-9)<gap)){queued=null;careFail(tg);return}}
+  const reach=tg.kind==='ground'?1.9:2.4;
+  if(nearTo(tg.pos,reach)){target=null;pending=null;swing(tg)}
+  else{target={x:tg.pos.x,z:tg.pos.z,stop:reach*.8};pending=tg}
+}
+function swing(tg){
+  if(me.mode==='dig'){queued=tg;return}
+  me.mode='dig';me.t=0;hitDone=false;curAct=tg;
+  P.h=Math.atan2(tg.pos.x-P.x,tg.pos.z-P.z);
+}
+const spots={};
+function impact(tg){
+  thud();
+  if(tg.kind==='herb'||tg.kind==='ground')dirt(tg.pos,16);else dirt(tg.pos,10,[0x7a4a30,0x5a3a24,0x5e8f3e]);
+  if(tg.kind==='herb'||tg.kind==='mush'){
+    const it=tg.item;it.hits++;it.lastHit=clock;
+    if(it.mesh){it.mesh.userData.shake=.3;shaking.add(it)}
+    if(it.hits>=it.need){collect(it.kind,it.type,tg.pos,it)}else{pip(tg.pos,it.hits,it.need);if(it.kind==='herb'&&HERBS[it.type].care&&it.hits===1)setTimeout(()=>floatMsg(tg.pos,'뿌리가 여리다… 천천히'),350)}
+  }else if(tg.kind==='tree'){
+    const t=tg.tree;if(t.searched){floatMsg(tg.pos,'이미 살펴본 나무');return}
+    t.hits++;for(let i=0;i<6;i++){if(parts.length>=MAXP)parts.shift();parts.push({x:t.x+(Math.random()-.5)*3,y:t.y+4*t.s,z:t.z+(Math.random()-.5)*3,vx:(Math.random()-.5),vy:-.2,vz:(Math.random()-.5),t:0,life:2,c:new THREE.Color(0x5e8f3e)})}
+    if(t.hits>=4){t.searched=true;if(Math.random()<.4){const mt=pickW(MUSH,MUSH_KEYS,Math.random(),1+P.y*ALT_K/600);collect('mush',mt,tg.pos,null)}else{floatMsg(tg.pos,'버섯은 없었다…');tone(220,.25,'triangle',.06,.8)}}
+    else pip(tg.pos,t.hits,4);
+  }else{
+    const k=Math.round(tg.pos.x/1.6)+','+Math.round(tg.pos.z/1.6);const sp=spots[k]||(spots[k]={hits:0,done:false});
+    if(sp.done){floatMsg(tg.pos,'이미 파 본 자리');return}
+    sp.hits++;
+    if(sp.hits>=4){sp.done=true;const pk=digFind(tg.pos.x,tg.pos.z);if(pk){collect('herb',pk,tg.pos,null)}
+      else{floatMsg(tg.pos,'흙만 나왔다…');tone(200,.25,'triangle',.06,.8)}}
+    else pip(tg.pos,sp.hits,4);
+  }
+}
+let foundTimer=0,lastFound=null;
+function showInfoCard(kind,type,fromBag){
+  const info=kind==='herb'?HERBS[type]:MUSH[type];
+  const fc=$('fCanvas'),g=fc.getContext('2d');g.clearRect(0,0,fc.width,fc.height);
+  g.drawImage(renderIcon(kind==='herb'?'herb':'mush',type),0,0,fc.width,fc.height);
+  $('fTag').textContent=fromBag?'도감':info.rar>=5?'심봤다!!':info.rar>=4?'귀한 것을 찾았다':'채집 성공';
+  $('fName').textContent=info.name;$('fRar').textContent='★'.repeat(info.rar)+'☆'.repeat(5-info.rar);
+  $('fDesc').textContent=info.desc;$('fMeta').textContent=(info.part?`채취: ${info.part} · `:'')+(info.hab||'나무 줄기')+(info.care?' · 뿌리가 여려 천천히 캐야 함':'')+` · 등산가방 속 ${save.inv[type]||0}개`;
+  $('fClose').classList.toggle('hide',!fromBag);
+  $('found').classList.toggle('legend',info.rar>=4);$('found').classList.add('on');
+  foundTimer=fromBag?0:(info.rar>=4?3.8:2.6);
+}
+
+function collect(kind,type,pos,it){
+  const info=kind==='herb'?HERBS[type]:MUSH[type];
+  if(it){save.taken[it.id]=1;if(it.mesh&&it.mesh.parent){if(kind==='herb'){const sp=SPI[type];pulls.push({m:it.mesh,t:0,y0:it.mesh.position.y,d:(sp.root?sp.root.len+(sp.root.deep?.15:.05):0)+.25})}else it.mesh.parent.remove(it.mesh)}for(const c of chunks.values()){const i=c.items.indexOf(it);if(i>=0)c.items.splice(i,1)}}
+  save.inv[type]=(save.inv[type]||0)+1;persist();
+  me.mode='joy';me.t=0;joyT=2.3;curAct=null;queued=null;
+  burst(new THREE.Vector3(pos.x,pos.y+.4,pos.z),info.rar>=4?40:20,info.rar>=4);hearts(new THREE.Vector3(P.x,P.y+2.1,P.z));
+  chime(info.rar);setGreens(me,totalCount());
+  lastFound={k:type,t:Date.now()};
+  showInfoCard(kind,type,false);
+  sendPresence(true);
+}
+$('found').addEventListener('pointerdown',e=>{e.stopPropagation();$('found').classList.remove('on');foundTimer=0});
+
+/* screen-space labels */
+const labels=[];
+function worldLabel(pos,html,cls,life){const el=document.createElement('div');el.className='wl '+(cls||'');el.textContent=html;$('labels').appendChild(el);labels.push({el,pos:new THREE.Vector3(pos.x,pos.y+1.1,pos.z),t:0,life});}
+function pip(pos,h,n){worldLabel(pos,'●'.repeat(h)+'○'.repeat(Math.max(0,n-h)),'pip',.9)}
+function floatMsg(pos,txt){worldLabel(pos,txt,'msg',1.4)}
+function updLabels(dt){for(let i=labels.length-1;i>=0;i--){const l=labels[i];l.t+=dt;v3.copy(l.pos);v3.y+=l.t*.6;v3.project(camera);
+  if(v3.z>1||l.t>l.life){if(l.t>l.life){l.el.remove();labels.splice(i,1);continue}l.el.style.display='none';continue}
+  l.el.style.display='';l.el.style.transform=`translate(${(v3.x*.5+.5)*W}px,${(-v3.y*.5+.5)*Hh}px) translate(-50%,-100%)`;l.el.style.opacity=clamp(1-(l.t/l.life-.6)/.4,0,1)}}
+
+/* ---------- input ---------- */
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+  if(e.code==='Space')jump();
+  if(e.code==='Escape'){$('bag').classList.add('hide')}
+  if(mode==='intro'&&introT>.3&&introT<4)introT=4.05;
+  if(mode==='game')hideHint()});
+addEventListener('keyup',e=>{keys[e.code]=false});
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+let ptr=null;
+canvas.addEventListener('pointerdown',e=>{if(mode==='intro'){if(introT<4)introT=4.05;return}ac();ptr={id:e.pointerId,x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,t:performance.now(),drag:false};canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(!ptr||ptr.id!==e.pointerId)return;const dx=e.clientX-ptr.x,dy=e.clientY-ptr.y;
+  if(!ptr.drag&&Math.hypot(e.clientX-ptr.sx,e.clientY-ptr.sy)>7)ptr.drag=true;
+  if(ptr.drag){camYaw-=dx*.006;camPitch=clamp(camPitch+dy*.004,.05,1.1);lastDrag=clock}ptr.x=e.clientX;ptr.y=e.clientY});
+canvas.addEventListener('pointerup',e=>{if(!ptr||ptr.id!==e.pointerId)return;const wasDrag=ptr.drag;ptr=null;if(wasDrag||mode!=='game')return;clickAt(e.clientX,e.clientY)});
+canvas.addEventListener('wheel',e=>{camDist=clamp(camDist+e.deltaY*.005,4,15);e.preventDefault()},{passive:false});
+function clickAt(sx,sy){
+  ndc.set(sx/W*2-1,-(sy/Hh)*2+1);ray.setFromCamera(ndc,camera);
+  const objs=[];for(const c of chunks.values()){for(const it of c.items)if(it.mesh)objs.push(it.mesh);objs.push(...c.treeMeshes,c.ground)}
+  const hits=ray.intersectObjects(objs,true);if(!hits.length)return;
+  for(const h of hits){let o=h.object;while(o&&!o.userData.item)o=o.parent;if(o&&o.userData.item){const it=o.userData.item;act({kind:it.kind,item:it,pos:it.mesh.position.clone()});hideHint();return}}
+  for(const h of hits){let o=h.object;while(o&&!o.userData.item&&!o.userData.trees&&!o.userData.terrain)o=o.parent;if(!o)continue;
+    if(o.userData.item){const it=o.userData.item;act({kind:it.kind,item:it,pos:it.mesh.position.clone()});hideHint();return}
+    if(o.userData.trees){const t=o.userData.trees[h.instanceId];if(!t)continue;
+      // a click on a tree that has a mushroom goes to the mushroom
+      for(const c of chunks.values())for(const it of c.items)if(it.tree===t&&it.mesh){act({kind:'mush',item:it,pos:it.mesh.position.clone()});return}
+      act({kind:'tree',tree:t,pos:new THREE.Vector3(t.x,t.y+1.2,t.z)});hideHint();return}
+    if(o.userData.terrain){const p=h.point;if(nearTo(p,1.9))act({kind:'ground',pos:p.clone()});else{target={x:p.x,z:p.z,stop:.35};pending=null}hideHint();return}
+  }
+}
+// touch joystick
+const joy={x:0,y:0,id:null};
+{const pad=$('joy'),knob=$('knob');
+  const set=(e)=>{const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=(e.clientX-cx)/(r.width/2),dy=(e.clientY-cy)/(r.height/2);const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l}joy.x=dx;joy.y=dy;knob.style.transform=`translate(${dx*34}px,${dy*34}px)`};
+  pad.addEventListener('pointerdown',e=>{joy.id=e.pointerId;pad.setPointerCapture(e.pointerId);set(e);hideHint();ac()});
+  pad.addEventListener('pointermove',e=>{if(joy.id===e.pointerId)set(e)});
+  const end=e=>{if(joy.id!==e.pointerId)return;joy.id=null;joy.x=joy.y=0;knob.style.transform=''};pad.addEventListener('pointerup',end);pad.addEventListener('pointercancel',end)}
+function hideHint(){}
+
+/* ---------- sky by altitude ---------- */
+
+/* ---------- HUD ---------- */
+const MILES=['솔바람이 등을 민다','능선 너머로 다른 산들이 내려앉는다','구름이 가까워진다','구름 위로 올라섰다. 산들이 섬처럼 떠 있다','공기가 차갑다. 귀한 것들의 기운이 짙다','노을이 산을 물들인다','별이 머리 위로 쏟아진다','아무도 와 본 적 없는 높이'];
+let lastMile=-1,toastT=0;
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');toastT=3}
+let hudKey='';
+function updHud(){const alt=Math.max(0,Math.round(P.y*ALT_K)),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount();if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`${dayNo}일째 · ${ph} · ${ck}`;$('count').textContent=`채집 ${totalCount()} · ${Object.keys(save.inv).length}/${HERB_KEYS.length+MUSH_KEYS.length}종`}
+  const m=Math.floor(alt/300);if(lastMile<0)lastMile=m;if(m>lastMile){lastMile=m;toast(`해발 ${m*300}m — ${MILES[Math.min(MILES.length-1,m-1)]}`);tone(392,.4,'sine',.06);tone(587,.6,'sine',.05,1,.15)}}
+$('bagBtn').onclick=()=>{buildBag();$('bag').classList.remove('hide')};
+$('bagClose').onclick=()=>$('bag').classList.add('hide');
+$('bag').addEventListener('pointerdown',e=>{if(e.target.id==='bag')$('bag').classList.add('hide')});
+function buildBag(){
+  const host=$('bagBody');host.innerHTML='';
+  const groups=[['root','뿌리·덩이 약초 (땅속)'],['leaf','산나물'],['herb','약초'],['mush','나무 버섯']];
+  for(const [cat,title] of groups){
+    const keys=cat==='mush'?MUSH_KEYS:HERB_KEYS.filter(k=>HERBS[k].cat===cat);
+    const got=keys.filter(k=>save.inv[k]).length;
+    const h=document.createElement('h4');h.textContent=`${title} · ${got}/${keys.length}`;host.appendChild(h);
+    const grid=document.createElement('div');grid.className='grid';host.appendChild(grid);
+    for(const key of keys){const info=cat==='mush'?MUSH[key]:HERBS[key],have=save.inv[key]||0;
+      const c=document.createElement('div');c.className='card'+(have?'':' unk');
+      const img=document.createElement('img');img.src=iconURL(cat==='mush'?'mush':'herb',key);img.alt='';c.appendChild(img);
+      const n=document.createElement('div');n.className='n';n.textContent=have?info.name:'???';
+      const cc=document.createElement('div');cc.className='c';cc.textContent=have?`${have}개 · ${'★'.repeat(info.rar)}`:`${'★'.repeat(info.rar)} · 아직 못 찾음`;
+      c.appendChild(n);c.appendChild(cc);
+      if(have&&info.hab){const hb=document.createElement('div');hb.className='hb';hb.textContent=info.hab;c.appendChild(hb)}
+      if(have){c.classList.add('click');c.onclick=()=>showInfoCard(cat==='mush'?'mush':'herb',key,true)}
+      grid.appendChild(c)}
+  }
+}
+
+/* ================= 지도 · 나침반 ================= */
+// 게임 속 좌표를 강원 고산지대 어딘가의 위도·경도로 환산 (북쪽 = 오르막 방향 -z, 동쪽 = +x)
+const GEO={lat0:37.7312,lon0:128.5946};
+function toLatLon(x,z){const lat=GEO.lat0+(-z)/111320;return[lat,GEO.lon0+x/(111320*Math.cos(lat*Math.PI/180))]}
+function dms(v,pos,neg){const s=v>=0?pos:neg;v=Math.abs(v);const d=Math.floor(v),mf=(v-d)*60,m=Math.floor(mf),sec=(mf-m)*60;return `${s} ${d}° ${String(m).padStart(2,'0')}′ ${sec.toFixed(1).padStart(4,'0')}″`}
+const DIRS=['북','북북동','북동','동북동','동','동남동','남동','남남동','남','남남서','남서','서남서','서','서북서','북서','북북서'];
+const bearingOf=h=>(Math.atan2(Math.sin(h),-Math.cos(h))*180/Math.PI+360)%360;
+const dirName=b=>DIRS[Math.round(b/22.5)%16];
+// 걸어온 길 기록
+delete save.trail;
+let mapOpen=false;const mapZoom=.25;let mapBase=null,mapBaseAt=null;
+function renderMapBase(){
+  const c=$('mapC'),Wm=c.width,Hm=c.height,st=4,s=mapZoom,cols=Math.ceil(Wm/st),rows=Math.ceil(Hm/st),cx=Wm/2,cy=Hm/2;
+  if(!mapBase)mapBase=document.createElement('canvas');mapBase.width=Wm;mapBase.height=Hm;
+  const small=document.createElement('canvas');small.width=cols;small.height=rows;const sg=small.getContext('2d'),img=sg.createImageData(cols,rows),px=img.data;
+  const alts=new Float32Array(cols*rows),outs=new Uint8Array(cols*rows);
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const wx=P.x+(i*st+st/2-cx)*s,wz=P.z+(j*st+st/2-cy)*s;alts[j*cols+i]=H(wx,wz)*ALT_K;outs[j*cols+i]=Math.abs(wx-pathX(wz))>58?1:0}
+  const cLow=new THREE.Color(0xa9c48a),cMid=new THREE.Color(0x7f9e62),cHigh=new THREE.Color(0xa7a493),cSnow=new THREE.Color(0xf2f2ec),cFor=new THREE.Color(0x3f6334),cOut=new THREE.Color(0xcfcabd),cWater=new THREE.Color(0x5f9fc0),cLine=new THREE.Color(0x5a4028),k=new THREE.Color();
+  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const n=j*cols+i,wx=P.x+(i*st+st/2-cx)*s,wz=P.z+(j*st+st/2-cy)*s,a=alts[n];
+    if(outs[n]){k.copy(cOut);if((i+j)%5===0)k.multiplyScalar(.9)}              // 갈 수 없는 가파른 바깥 비탈
+    else{
+      if(a<700)k.copy(cLow).lerp(cMid,a/700);else if(a<1600)k.copy(cMid).lerp(cHigh,(a-700)/900);else k.copy(cHigh).lerp(cSnow,clamp((a-1600)/800,0,1));
+      k.lerp(cFor,canopyAt(wx,wz)*.45);
+      const ax=i<cols-1?alts[n+1]:a,az=j<rows-1?alts[n+cols]:a;k.multiplyScalar(clamp(1-((ax-a)+(az-a))*.045/s,.65,1.2));
+      if(streamD(wx,wz)<2.2*Math.max(1,s*.8))k.copy(cWater);
+      const band=Math.floor(a/50);if((i>0&&!outs[n-1]&&Math.floor(alts[n-1]/50)!==band)||(j>0&&!outs[n-cols]&&Math.floor(alts[n-cols]/50)!==band))k.lerp(cLine,band%5===0?.55:.25);
+    }
+    px[n*4]=k.r*255;px[n*4+1]=k.g*255;px[n*4+2]=k.b*255;px[n*4+3]=255}
+  sg.putImageData(img,0,0);const g=mapBase.getContext('2d');g.imageSmoothingEnabled=true;g.drawImage(small,0,0,cols*st,rows*st);
+  mapBaseAt={x:P.x,z:P.z,s};
+}
+function drawMap(){
+  const c=$('mapC'),g=c.getContext('2d'),Wm=c.width,Hm=c.height,cx=Wm/2,cy=Hm/2,s=mapZoom;
+  if(!mapBaseAt||mapBaseAt.s!==s||Math.hypot(P.x-mapBaseAt.x,P.z-mapBaseAt.z)>Wm*s*.18)renderMapBase();
+  const toPx=(x,z)=>[cx+(x-P.x)/s,cy+(z-P.z)/s];
+  g.fillStyle='#e8e2d2';g.fillRect(0,0,Wm,Hm);g.drawImage(mapBase,(mapBaseAt.x-P.x)/s,(mapBaseAt.z-P.z)/s);
+  // 확대했을 때: 바위와 나무 수관
+  if(s<=.5){const r0=Wm*s*.6;for(const ch of chunks.values()){
+    for(const t of ch.trees){if(Math.abs(t.x-P.x)>r0||Math.abs(t.z-P.z)>r0)continue;const[x,y]=toPx(t.x,t.z);const rr=(t.kind==='pine'?2.4:3)*t.s/s;g.fillStyle=t.kind==='pine'?'rgba(38,70,44,.42)':'rgba(70,110,52,.4)';g.beginPath();g.arc(x,y,rr,0,7);g.fill();g.fillStyle='rgba(60,40,25,.7)';g.beginPath();g.arc(x,y,Math.max(1,.4*t.s/s),0,7);g.fill()}
+    for(const k of ch.rocks||[]){if(Math.abs(k.x-P.x)>r0||Math.abs(k.z-P.z)>r0)continue;const[x,y]=toPx(k.x,k.z);g.fillStyle='rgba(150,146,132,.95)';g.strokeStyle='rgba(80,76,66,.9)';g.lineWidth=1;g.beginPath();g.arc(x,y,k.r/s,0,7);g.fill();g.stroke()}}}
+  // 위도·경도 눈금: 확대에 맞춰 간격(초)을 고름
+  const[lat0,lon0]=toLatLon(P.x,P.z),mPerLon=111320*Math.cos(lat0*Math.PI/180);
+  const step=[1,2,5,10,15,30,60,120,300].find(v=>v/3600*111320/s>=95)||300;
+  const latTop=lat0+cy*s/111320,latBot=lat0-cy*s/111320,lonL=lon0-cx*s/mPerLon,lonR=lon0+cx*s/mPerLon;
+  const fmt=(v,p,n)=>{const sg=v>=0?p:n;v=Math.abs(v)+1e-9;const d=Math.floor(v),m=Math.floor((v-d)*60),sec=Math.round(((v-d)*60-m)*60);return sec===60?`${d}°${m+1}′00″${sg}`:`${d}°${String(m).padStart(2,'0')}′${String(sec).padStart(2,'0')}″${sg}`};
+  g.font='10.5px "Gowun Dodum",sans-serif';g.lineWidth=1;
+  for(let v=Math.ceil(latBot*3600/step)*step/3600;v<=latTop;v+=step/3600){const y=cy-(v-lat0)*111320/s;
+    g.strokeStyle='rgba(31,43,40,.22)';g.beginPath();g.moveTo(0,y);g.lineTo(Wm,y);g.stroke();
+    g.strokeStyle='#1f2b28';g.beginPath();g.moveTo(0,y);g.lineTo(9,y);g.moveTo(Wm-9,y);g.lineTo(Wm,y);g.stroke();
+    g.save();g.translate(12,y-3);g.fillStyle='rgba(244,239,227,.85)';const t=fmt(v,'N','S'),tw=g.measureText(t).width;g.fillRect(-2,-10,tw+4,13);g.fillStyle='#1f2b28';g.textAlign='left';g.fillText(t,0,0);g.restore()}
+  for(let v=Math.ceil(lonL*3600/step)*step/3600;v<=lonR;v+=step/3600){const x=cx+(v-lon0)*mPerLon/s;
+    g.strokeStyle='rgba(31,43,40,.22)';g.beginPath();g.moveTo(x,0);g.lineTo(x,Hm);g.stroke();
+    g.strokeStyle='#1f2b28';g.beginPath();g.moveTo(x,0);g.lineTo(x,9);g.moveTo(x,Hm-9);g.lineTo(x,Hm);g.stroke();
+    const t=fmt(v,'E','W'),tw=g.measureText(t).width;g.fillStyle='rgba(244,239,227,.85)';g.fillRect(x-tw/2-2,Hm-24,tw+4,13);g.fillStyle='#1f2b28';g.textAlign='center';g.fillText(t,x,Hm-14)}
+  // 테두리 눈금자
+  g.strokeStyle='#1f2b28';g.lineWidth=2;g.strokeRect(1,1,Wm-2,Hm-2);
+  // 내 위치
+  const b=bearingOf(P.h)*Math.PI/180;g.save();g.translate(cx,cy);
+  g.fillStyle='rgba(216,52,44,.18)';g.beginPath();g.arc(0,0,17,0,7);g.fill();
+  g.rotate(b);g.fillStyle='#d8342c';g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.moveTo(0,-12);g.lineTo(8,9);g.lineTo(0,4);g.lineTo(-8,9);g.closePath();g.stroke();g.fill();g.restore();
+  // 축척 + 해발
+  const sbm=20,sb=sbm/s;
+  g.fillStyle='rgba(244,239,227,.92)';g.fillRect(14,14,Math.max(sb,96)+20,40);g.fillStyle='#1f2b28';g.fillRect(24,42,sb,3);g.fillRect(24,38,2,7);g.fillRect(24+sb-2,38,2,7);
+  g.font='11px "Gowun Dodum",sans-serif';g.textAlign='left';g.fillText(`${sbm}m · 해발 ${Math.max(0,Math.round(P.y*ALT_K)).toLocaleString()}m`,24,32);
+  // 작은 나침반 (지도 위, 오른쪽 위)
+  drawCompassOn(g,Wm-52,52,40,bearingOf(P.h));
+}
+function drawCompassOn(g,cx,cy,r,bd){
+  g.save();g.fillStyle='rgba(244,239,227,.94)';g.strokeStyle='#1f2b28';g.lineWidth=1.5;g.beginPath();g.arc(cx,cy,r,0,7);g.fill();g.stroke();
+  for(let i=0;i<36;i++){const a=i*10*Math.PI/180,l=i%9===0?7:3;g.strokeStyle=i%9===0?'#1f2b28':'rgba(31,43,40,.45)';g.lineWidth=i%9===0?1.6:1;g.beginPath();g.moveTo(cx+Math.sin(a)*(r-1),cy-Math.cos(a)*(r-1));g.lineTo(cx+Math.sin(a)*(r-1-l),cy-Math.cos(a)*(r-1-l));g.stroke()}
+  g.font='bold 11px "Nanum Myeongjo",serif';g.textAlign='center';g.textBaseline='middle';
+  for(const[t,a,col] of [['북',0,'#d8342c'],['동',90,'#1f2b28'],['남',180,'#1f2b28'],['서',270,'#1f2b28']]){const rr=a*Math.PI/180;g.fillStyle=col;g.fillText(t,cx+Math.sin(rr)*(r-15),cy-Math.cos(rr)*(r-15))}
+  g.translate(cx,cy);g.rotate(bd*Math.PI/180);g.fillStyle='#d8342c';g.beginPath();g.moveTo(0,-(r-24));g.lineTo(4,0);g.lineTo(-4,0);g.closePath();g.fill();
+  g.fillStyle='#5d6268';g.beginPath();g.moveTo(0,r-24);g.lineTo(4,0);g.lineTo(-4,0);g.closePath();g.fill();g.restore();
+  g.fillStyle='#1f2b28';g.beginPath();g.arc(cx,cy,2.5,0,7);g.fill();g.textBaseline='alphabetic';
+  g.font='11px "Gowun Dodum",sans-serif';g.fillStyle='rgba(244,239,227,.92)';const t=`${dirName(bd)} ${Math.round(bd)}°`,tw=g.measureText(t).width;g.fillRect(cx-tw/2-4,cy+r+4,tw+8,15);g.fillStyle='#1f2b28';g.fillText(t,cx,cy+r+15);
+}
+function toggleMap(open){mapOpen=open===undefined?!mapOpen:open;$('mapView').classList.toggle('hide',!mapOpen);if(mapOpen){mapBaseAt=null;drawMap()}}
+$('mapBtn').onclick=()=>toggleMap(true);$('mapClose').onclick=()=>toggleMap(false);
+$('mapView').addEventListener('pointerdown',e=>{if(e.target.id==='mapView')toggleMap(false)});
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||mode!=='game')return;if(e.code==='KeyM')toggleMap();if(e.code==='Escape')toggleMap(false)});
+
+/* ================= MULTIPLAYER (room presence) ================= */
+let room=null,userCap=null;const others=new Map();const nameCache={};
+function cleanNick(s){return String(s||'').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯﻿]/g,'').trim().slice(0,12)}
+async function connectRoom(){
+  try{if(!window.claude||typeof window.claude.use!=='function')return;room=await window.claude.use('room')}catch(e){room=null}
+  if(!room)return;
+  try{userCap=await window.claude.use('user')}catch(e){}
+  room.onPeers(ch=>{for(const p of ch.left)dropOther(p.peer);for(const p of ch.joined)upOther(p);for(const p of ch.updated)upOther(p);updPeople()},()=>{});
+  $('people').classList.remove('hide');updPeople();
+}
+function upOther(p){
+  if(p.sameTab||p.kind!=='viewer')return;const s=p.presence||{};if(!isFinite(s.x)||!isFinite(s.z))return;
+  let o=others.get(p.peer);
+  if(!o){const col=JACKETS[(s.c|0)%JACKETS.length]||JACKETS[1];const av=makeHiker(col);scene.add(av.root);const el=document.createElement('div');el.className='nametag';$('labels').appendChild(el);
+    o={av,el,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',lastF:0,by:p.by,nick:''};others.set(p.peer,o);resolveName(o)}
+  o.tx=+s.x;o.tz=+s.z;o.ty=+s.y||H(o.tx,o.tz);o.th=+s.h||0;o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);setGreens(o.av,+s.g|0);
+  const md=s.a==='w'?'walk':s.a==='d'?'dig':s.a==='j'?'joy':'idle';if(md!==o.mode){o.mode=md;o.av.mode=md;o.av.t=0}
+  if(s.f&&typeof s.f==='object'&&s.f.t!==o.lastF&&(HERBS[s.f.k]||MUSH[s.f.k])){o.lastF=s.f.t;if(Date.now()-s.f.t<8000){const nm=(HERBS[s.f.k]||MUSH[s.f.k]).name;worldLabel(new THREE.Vector3(o.tx,o.ty+1.4,o.tz),`${nm}을(를) 찾았다!`,'msg',2.2)}}
+  renderTag(o);
+}
+async function resolveName(o){if(!userCap||!o.by)return;try{if(!(o.by in nameCache)){const ps=await userCap.profiles([o.by]);nameCache[o.by]=(ps&&ps[o.by]&&ps[o.by].name)||''}renderTag(o)}catch(e){}}
+function renderTag(o){o.el.textContent=(o.nick||nameCache[o.by]||'산객')+(o.alt?` · ${o.alt}m`:'')}
+function dropOther(peer){const o=others.get(peer);if(!o)return;scene.remove(o.av.root);o.el.remove();others.delete(peer)}
+function updPeople(){const n=others.size;$('people').textContent=n?`지금 함께 오르는 사람 ${n}명`:'지금 산에는 나 혼자';}
+let presT=0,lastSent='';
+function sendPresence(force){
+  if(!room)return;
+  const md=me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':'i';
+  const s={x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:md,c:save.color|0,n:cleanNick(save.nick),alt:Math.round(P.y*ALT_K),g:Math.min(6,totalCount())};
+  if(lastFound)s.f=lastFound;
+  const k=JSON.stringify(s);if(!force&&k===lastSent)return;lastSent=k;room.presence(s).catch(()=>{});
+}
+function updOthers(dt){
+  const f=1-Math.exp(-dt*8);
+  for(const o of others.values()){o.x=lerp(o.x,o.tx,f);o.z=lerp(o.z,o.tz,f);o.y=lerp(o.y,o.ty,f);let dh=o.th-o.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));o.h+=dh*f;
+    o.av.root.position.set(o.x,o.y,o.z);o.av.root.rotation.y=o.h;poseHiker(o.av,dt,1);
+    const far=Math.hypot(o.x-P.x,o.z-P.z);o.av.root.visible=far<220;
+    v3.set(o.x,o.y+2.15,o.z).project(camera);if(v3.z>1||far>220){o.el.style.display='none'}else{o.el.style.display='';o.el.style.transform=`translate(${(v3.x*.5+.5)*W}px,${(-v3.y*.5+.5)*Hh}px) translate(-50%,-100%)`}}
+}
+
+/* bump into boulders and trunks, slide along them */
+function collide(x,z){
+  const ccx=Math.floor(x/CH),ccz=Math.floor(z/CH);
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const c=chunks.get((ccx+dx)+','+(ccz+dz));if(!c)continue;
+    for(const k of c.rocks||[]){const ddx=x-k.x,ddz=z-k.z,d=Math.hypot(ddx,ddz),min=k.r*.9+.3;if(d<min&&d>1e-4){x=k.x+ddx/d*min;z=k.z+ddz/d*min}}
+    for(const t of c.trees){const ddx=x-t.x,ddz=z-t.z;if(Math.abs(ddx)>1.4||Math.abs(ddz)>1.4)continue;const d=Math.hypot(ddx,ddz),min=.42*t.s+.26;if(d<min&&d>1e-4){x=t.x+ddx/d*min;z=t.z+ddz/d*min}}}
+  return {x,z};
+}
+/* keep foliage from swallowing the camera: walk the target→camera segment and stop before the first crown */
+const hiddenTrees=new Set(),ZERO=new THREE.Matrix4().makeScale(0,0,0);
+function setTreeHidden(t,h){if(!!t.hidden===h)return;t.hidden=h;if(h)hiddenTrees.add(t);else hiddenTrees.delete(t);for(const e of t.inst||[]){e.im.setMatrixAt(e.i,h?ZERO:e.m);e.im.instanceMatrix.needsUpdate=true}if(t.mush)t.mush.visible=!h}
+function occlusion(tx,ty,tz,cx,cy,cz,collect){
+  const ccx=Math.floor(tx/CH),ccz=Math.floor(tz/CH);let best=1;
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const c=chunks.get((ccx+dx)+','+(ccz+dz));if(!c)continue;
+    for(const t of c.trees){if(Math.abs(t.x-tx)>16||Math.abs(t.z-tz)>16)continue;const pine=t.kind==='pine',r=(pine?2.7:3.4)*t.s;
+      {const sx=cx-tx,sz=cz-tz,L2=sx*sx+sz*sz||1,u=clamp(((t.x-tx)*sx+(t.z-tz)*sz)/L2,0,1),qx=tx+sx*u-t.x,qz=tz+sz*u-t.z;if(qx*qx+qz*qz>(r+.6)*(r+.6))continue}
+      const c0=t.y+(pine?7.3:7.2)*t.s,c1=t.y+(pine?16.9:13.8)*t.s;
+      for(let i=3;i<=20;i++){const k=i/20;if(!collect&&k>=best)break;const x=tx+(cx-tx)*k,y=ty+(cy-ty)*k,z=tz+(cz-tz)*k;
+        const dd=Math.hypot(x-t.x,z-t.z);if((y>c0&&y<c1&&dd<r*(pine?1-(y-c0)/(c1-c0)*.75:1))||(y<c0&&dd<.46*t.s+.1)){if(collect)collect.add(t);best=Math.min(best,k);break}}}}
+  return best;
+}
+/* ================= 성능 · 절전 ================= */
+const IS_TOUCH=matchMedia('(pointer:coarse)').matches;
+const PERF={eco:false,fps:60,view:3,fogK:1,occEvery:.08,chunkEvery:.06};
+try{PERF.eco=localStorage.getItem('baekyaksan-eco')==='1'}catch(e){}
+function applyPerf(){
+  const dpr=devicePixelRatio||1;
+  PERF.fps=PERF.eco?30:60;PERF.view=PERF.eco?2:3;PERF.fogK=PERF.eco?.72:1;PERF.occEvery=PERF.eco?.16:.08;PERF.chunkEvery=PERF.eco?.12:.06;
+  renderer.setPixelRatio(PERF.eco?Math.min(dpr,1)*.75:Math.min(dpr,IS_TOUCH?1.5:1.75));
+  sun.castShadow=!PERF.eco;
+  if(sun.shadow.map&&sun.shadow.mapSize.x!==(IS_TOUCH?1024:2048)){sun.shadow.map.dispose();sun.shadow.map=null}
+  sun.shadow.mapSize.set(IS_TOUCH?1024:2048,IS_TOUCH?1024:2048);
+  VIEW=PERF.view;onResize();
+  const b=$('ecoBtn');if(b){b.classList.toggle('on',PERF.eco);b.textContent=PERF.eco?'절전 켬':'절전'}
+  try{localStorage.setItem('baekyaksan-eco',PERF.eco?'1':'0')}catch(e){}
+}
+
+/* ================= 시간 : 현실 20분 = 산속 하루 ================= */
+const DAY_SEC=20*60;
+let gameMin=isFinite(save.gameMin)?save.gameMin:6*60+10,dayNo=save.dayNo||1;
+function phaseOf(h){if(h>=20||h<4)return'밤';if(h<6)return'새벽';if(h<10)return'아침';if(h<17)return'낮';return'저녁'}
+// 시각, 하늘 위, 하늘 아래(지평선·안개), 햇빛, 하늘빛, 밤 정도
+const SKYK=[[0,'#0b1126','#18213d',0,.17,1],[4,'#0f1730','#212a47',0,.18,1],[5.2,'#38406a','#d39a8c',.1,.28,.6],[6.3,'#8fb2d4','#f2d6b0',.45,.45,.1],[8,'#a5c6dc','#eef0e6',.7,.55,0],
+  [12,'#94bfe2','#eef2ea',.8,.6,0],[16.5,'#9cc0dc','#f0e8d4',.7,.55,0],[18.3,'#6a78b0','#f0a676',.4,.42,.1],[19.6,'#2e3666','#94687a',.12,.26,.5],[21,'#0e1430','#1c2442',0,.18,1],[24,'#0b1126','#18213d',0,.17,1]];
+const SKYNOW={top:'',bot:'',sun:0,hemi:0,night:0};
+function skyAtHour(h){let i=0;while(i<SKYK.length-2&&h>=SKYK[i+1][0])i++;const a=SKYK[i],b=SKYK[i+1],k=(h-a[0])/(b[0]-a[0]);
+  SKYNOW.top=mixHex(a[1],b[1],k);SKYNOW.bot=mixHex(a[2],b[2],k);SKYNOW.sun=lerp(a[3],b[3],k);SKYNOW.hemi=lerp(a[4],b[4],k);SKYNOW.night=lerp(a[5],b[5],k);return SKYNOW}
+function clockText(){const h=Math.floor(gameMin/60)%24,m=Math.floor(gameMin%60);return `${h<12?'오전':'오후'} ${h%12===0?12:h%12}:${String(m).padStart(2,'0')}`}
+// 밤에는 이마에 단 헤드랜턴
+const lamp=new THREE.SpotLight(0xfff0d0,0,26,.62,.6,1.4);scene.add(lamp);scene.add(lamp.target);
+const _white=new THREE.Color(),_fogTmp=new THREE.Color();let skyKey2='';
+function updSky(){
+  const hr=gameMin/60,S=skyAtHour(hr),night=S.night;
+  const key=S.top+S.bot;if(key!==skyKey2){skyKey2=key;document.body.style.background=`linear-gradient(${S.top},${S.bot})`}
+  const inCloud=clamp(1-Math.abs(P.y-CLOUD_Y)/28,0,1);
+  scene.fog.color.set(S.bot).lerp(_white.setScalar(lerp(.96,.3,night)),inCloud);
+  scene.fog.near=lerp(45*PERF.fogK,4,inCloud);scene.fog.far=lerp(180*PERF.fogK,38,inCloud);
+  hemi.intensity=S.hemi;
+  // 해: 동(+x)에서 떠서 남(+z) 하늘을 지나 서(-x)로 짐. 밤에는 달빛
+  const t=(hr-6)/12*Math.PI,el=Math.sin(t),az=Math.cos(t);
+  if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun;sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
+  else{sun.position.set(P.x-az*80,P.y+25-el*100,P.z+30);sun.intensity=.16*night;sun.color.setHex(0x9fb0ff)}
+  sun.target.position.set(P.x,P.y,P.z);
+  stars.material.opacity=night;stars.position.set(P.x,0,P.z);
+  lamp.intensity=night*1.3;lamp.position.set(P.x,P.y+1.75,P.z);lamp.target.position.set(P.x+Math.sin(P.h)*8,P.y-.6,P.z+Math.cos(P.h)*8);
+  for(const m of farMts){const u=m.userData;m.position.set(P.x+Math.cos(u.a)*u.dist,u.y0,P.z+Math.sin(u.a)*u.dist)}
+  summit.position.set(P.x,P.y-1250,P.z-1500);
+  const shade=lerp(1,.22,night);
+  for(const cs of cloudSea){cs.position.x=P.x;cs.position.z=P.z;cs.material.map.offset.set(P.x/600+clock*.002,-P.z/600);cs.material.color.setScalar(shade)}
+  cloudSea[0].material.opacity=P.y<CLOUD_Y?.55:.95;
+  for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
+}
+
+/* ================= 숲 소리 (전부 WebAudio로 합성) ================= */
+let AMB=null;
+function ambInit(){
+  const a=ac();if(!a||AMB)return;
+  const master=a.createGain();master.gain.value=.85;master.connect(a.destination);
+  // 공용 잡음 버퍼
+  const n=a.sampleRate*2,buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);let b0=0,b1=0;
+  for(let i=0;i<n;i++){const w=Math.random()*2-1;b0=.99*b0+w*.05;b1=.9*b1+w*.2;d[i]=(b0+b1+w*.15)*.6}
+  // 계곡 물소리: 잡음 두 겹을 대역 필터로 걸러 졸졸 흔들리게
+  const water=a.createGain();water.gain.value=0;water.connect(master);
+  for(const [f,q,lf,dep] of [[900,.8,.31,380],[2600,1.4,.53,900]]){const s=a.createBufferSource();s.buffer=buf;s.loop=true;s.loopStart=Math.random();const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f;bp.Q.value=q;
+    const o=a.createOscillator(),og=a.createGain();o.frequency.value=lf;og.gain.value=dep;o.connect(og);og.connect(bp.frequency);o.start();s.connect(bp);bp.connect(water);s.start()}
+  AMB={a,master,water,buf,next:{},bubbleT:0};
+}
+function pan(a,p){const s=a.createStereoPanner?a.createStereoPanner():null;if(s)s.pan.value=p;return s}
+function voice(t,dur,build,gain,p){const a=AMB.a,g=a.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain,t+.01);g.gain.setValueAtTime(gain,t+dur*.7);g.gain.exponentialRampToValueAtTime(.0005,t+dur);
+  const sp=pan(a,p||0);if(sp){g.connect(sp);sp.connect(AMB.master)}else g.connect(AMB.master);build(g,t,dur);}
+function osc(dst,type,t,dur,f0,f1,shape){const o=AMB.a.createOscillator();o.type=type;o.frequency.setValueAtTime(f0,t);if(f1)o.frequency[shape==='lin'?'linearRampToValueAtTime':'exponentialRampToValueAtTime'](f1,t+dur);o.connect(dst);o.start(t);o.stop(t+dur+.02);return o}
+function noise(dst,t,dur,f,q){const s=AMB.a.createBufferSource();s.buffer=AMB.buf;const bp=AMB.a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f;bp.Q.value=q;s.connect(bp);bp.connect(dst);s.start(t,Math.random());s.stop(t+dur+.02)}
+const R=(a,b)=>a+Math.random()*(b-a);
+const SND={
+  bird(t){const p=R(-.8,.8),n=2+Math.floor(R(0,5)),f=R(2600,4600);for(let i=0;i<n;i++){const tt=t+i*R(.09,.16);voice(tt,R(.05,.11),(g,t0,dd)=>osc(g,'sine',t0,dd,f*R(.9,1.15),f*R(.6,1.4)),.025,p)}},
+  cuckoo(t){const p=R(-.6,.6),reps=2+Math.floor(R(0,3));for(let i=0;i<reps;i++){const tt=t+i*.95;voice(tt,.22,(g,t0,d)=>osc(g,'sine',t0,d,780,740),.045,p);voice(tt+.3,.38,(g,t0,d)=>osc(g,'sine',t0,d,620,590),.045,p)}},
+  dove(t){const p=R(-.7,.7);[[0,.34],[.48,.2],[.75,.36]].forEach(([o,dd])=>voice(t+o,dd,(g,t0,d)=>osc(g,'triangle',t0,d,430,370),.03,p))},
+  woodpecker(t){const p=R(-.8,.8),n=12+Math.floor(R(0,8));for(let i=0;i<n;i++)voice(t+i/19,.025,(g,t0,d)=>noise(g,t0,d,1300,3),.07*(1-i/n*.5),p)},
+  cicada(t){const p=R(-.7,.7),dur=R(2.5,4.2);voice(t,dur,(g,t0,d)=>{const am=AMB.a.createGain();am.gain.value=.5;const lf=AMB.a.createOscillator();lf.frequency.setValueAtTime(5,t0);lf.frequency.linearRampToValueAtTime(9,t0+d);const lg=AMB.a.createGain();lg.gain.value=.5;lf.connect(lg);lg.connect(am.gain);lf.start(t0);lf.stop(t0+d);am.connect(g);noise(am,t0,d,4800,6);osc(am,'square',t0,d,4800,4400,'lin')},.012,p)},
+  higurashi(t){const p=R(-.7,.7);for(let i=0;i<6;i++)voice(t+i*.32,.3,(g,t0,d)=>osc(g,'sine',t0,d,6200,5200),.012,p)},
+  crow(t){const p=R(-.8,.8),reps=2+Math.floor(R(0,2));for(let i=0;i<reps;i++)voice(t+i*.5,.32,(g,t0,d)=>{const lp=AMB.a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1600;lp.connect(g);osc(lp,'sawtooth',t0,d,560,380);noise(lp,t0,d,900,1.5)},.035,p)},
+  cricket(t){const p=R(-.9,.9),f=R(4000,4700);for(let k=0;k<3;k++)voice(t+k*.045,.03,(g,t0,d)=>osc(g,'sine',t0,d,f,f*.98),.014,p)},
+  scops(t){const p=R(-.6,.6),reps=3+Math.floor(R(0,4));for(let i=0;i<reps;i++){const tt=t+i*1.9;voice(tt,.13,(g,t0,d)=>osc(g,'sine',t0,d,1180,1120),.035,p);voice(tt+.2,.2,(g,t0,d)=>osc(g,'sine',t0,d,1060,1000),.035,p)}},
+  owl(t){const p=R(-.6,.6);voice(t,.4,(g,t0,d)=>osc(g,'sine',t0,d,350,330),.05,p);voice(t+.55,.6,(g,t0,d)=>osc(g,'sine',t0,d,320,290),.05,p)},
+  frog(t){const p=R(-.8,.8);for(let i=0;i<2+Math.floor(R(0,3));i++)voice(t+i*.22,.14,(g,t0,d)=>{const lp=AMB.a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=700;lp.connect(g);osc(lp,'square',t0,d,R(160,210),130)},.03,p)},
+  bubble(t){const p=R(-.4,.4);voice(t,.06,(g,t0,d)=>osc(g,'sine',t0,d,R(700,1400),R(1500,2600)),.012,p)},
+};
+// 시간대별로 1초에 몇 번쯤 울리는지
+const CHORUS={'새벽':{dove:.05,bird:.18,scops:.02,cricket:.6},'아침':{bird:.55,woodpecker:.035,dove:.04,cuckoo:.025},'낮':{cicada:.09,bird:.16,cuckoo:.035,woodpecker:.015},'저녁':{higurashi:.07,crow:.035,bird:.07,cricket:.7},'밤':{cricket:2.2,scops:.025,owl:.018}};
+let ambT=0;
+function updAmbience(dt){
+  if(!AMB)return;const a=AMB.a;if(a.state==='suspended')return;
+  const ds=streamD(P.x,P.z),wf=clamp(1-(ds-1)/22,0,1);
+  AMB.water.gain.setTargetAtTime(wf*wf*.55,a.currentTime,.4);
+  ambT+=dt;if(ambT<.25)return;const step=ambT;ambT=0;
+  const ph=phaseOf(gameMin/60),tbl=CHORUS[ph],alt=P.y*ALT_K,thin=clamp(1-(alt-1400)/1600,.35,1),t0=a.currentTime+.05;
+  for(const k in tbl)if(Math.random()<tbl[k]*step*thin)SND[k](t0+Math.random()*.2);
+  if(ph==='밤'&&wf>.2&&Math.random()<.6*wf*step)SND.frog(t0);
+  if(wf>.35&&Math.random()<2.5*wf*step)SND.bubble(t0+Math.random()*.2);
+}
+
+/* ================= 조심히 캐야 하는 약초 ================= */
+// 뿌리가 가늘거나 길어서 끊어지기 쉬운 것: 호미질 사이에 숨을 고르지 않으면 실패
+const CARE={sansam:1.2,cheonma:1.0,ma:1.0,deodeok:.85,doraji:.8,jandae:.8,keunjorong:.9,jichi:.9,danggwi:.8,sanmaneul:.75,dokhwal:.7};
+for(const k in CARE)if(HERBS[k])HERBS[k].care=CARE[k];
+function careFail(tg){
+  const it=tg.item;it.hits=0;it.lastHit=-9;
+  floatMsg(tg.pos,'캐기 실패… 뿌리가 끊어질 뻔했다');setTimeout(()=>floatMsg(tg.pos,'조심히 캐야겠다'),700);
+  tone(180,.35,'triangle',.06,.6);if(it.mesh)it.mesh.userData.shake=.25;shaking.add(it);
+}
+const shaking=new Set();
+
+/* ================= GAME LOOP ================= */
+let clock=0;
+function updateGame(dt){
+  // 시간
+  gameMin+=dt*1440/DAY_SEC;if(gameMin>=1440){gameMin-=1440;dayNo++;toast(`${dayNo}일째 아침이 밝아 온다`)}
+  // 입력: 누른 쪽을 보고 걷기 (달리기 없음)
+  const up=(keys.KeyW||keys.ArrowUp)?1:0,dn=(keys.KeyS||keys.ArrowDown)?1:0,lf=(keys.KeyA||keys.ArrowLeft)?1:0,rt=(keys.KeyD||keys.ArrowRight)?1:0;
+  const fwd=up-dn-joy.y,str=rt-lf+joy.x;
+  const rot=(keys.KeyQ?1:0)-(keys.KeyE?1:0);if(rot){camYaw+=rot*dt*1.8;lastDrag=clock}
+  const busy=me.mode==='dig'||me.mode==='joy';
+  let moveAmt=0,mvx=0,mvz=0;
+  if(!busy&&(Math.abs(fwd)>.08||Math.abs(str)>.08)){target=null;pending=null;
+    const fx=Math.sin(camYaw),fz=Math.cos(camYaw),rx=Math.sin(camYaw-Math.PI/2),rz=Math.cos(camYaw-Math.PI/2);
+    mvx=fx*fwd+rx*str;mvz=fz*fwd+rz*str;const l=Math.hypot(mvx,mvz)||1;moveAmt=Math.min(1,l);mvx/=l;mvz/=l;
+    const wantH=Math.atan2(mvx,mvz);let dh=wantH-P.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));P.h+=dh*Math.min(1,dt*12);if(Math.abs(dh)>1.6)moveAmt*=.35}
+  else if(!busy&&target){const dx=target.x-P.x,dz=target.z-P.z,d=Math.hypot(dx,dz);
+    if(d<target.stop){target=null;if(pending){const pd=pending;pending=null;swing(pd)}}
+    else{const want=Math.atan2(dx,dz);let dh=want-P.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));P.h+=dh*Math.min(1,dt*8);moveAmt=Math.abs(dh)<1.2?1:.15;mvx=Math.sin(P.h);mvz=Math.cos(P.h)}}
+  if(moveAmt){const slope=H(P.x+mvx*.6,P.z+mvz*.6)-P.y,spd=4.0*clamp(1-slope*.35,.6,1.15);
+    let nx=P.x+mvx*moveAmt*spd*dt,nz=P.z+mvz*moveAmt*spd*dt;
+    const d=nx-pathX(nz);if(Math.abs(d)>58)nx=pathX(nz)+Math.sign(d)*58;if(nz>34)nz=34;
+    if(H(nx,nz)-P.y<.9||P.air){const q=collide(nx,nz);P.x=q.x;P.z=q.z}}
+  P.speed=Math.abs(moveAmt);
+  const gy=H(P.x,P.z);
+  if(P.air){P.vy-=14*dt;P.y+=P.vy*dt;if(P.y<=gy){P.y=gy;P.air=false;P.vy=0}}else P.y=lerp(P.y,gy,1-Math.exp(-dt*25));
+  // 동작 상태
+  if(me.mode==='dig'){if(!hitDone&&me.t>DIG_T*.62){hitDone=true;if(curAct)impact(curAct)}if(me.mode==='dig'&&me.t>=DIG_T){me.mode='idle';me.t=0;if(queued){const q=queued;queued=null;if(nearTo(q.pos,2.6))swing(q)}}}
+  else if(me.mode==='joy'){joyT-=dt;if(joyT<=0){me.mode='idle';me.t=0}}
+  else me.mode=moveAmt?'walk':'idle';
+  me.root.position.set(P.x,P.y,P.z);{let dh=P.h-me.root.rotation.y;dh=Math.atan2(Math.sin(dh),Math.cos(dh));me.root.rotation.y+=dh*Math.min(1,dt*14)}poseHiker(me,dt,P.speed);
+  // 호미질 맞은 식물만 흔들기
+  for(const it of shaking){const m=it.mesh;if(!m||!m.parent){shaking.delete(it);continue}const u=m.userData;u.shake-=dt;if(u.shake>0)m.rotation.z=Math.sin(clock*60)*.36*u.shake;else{m.rotation.z=0;shaking.delete(it)}}
+  // 카메라: 나무에 가리면 살짝 떠오르고, 그래도 가리는 나무는 잠깐 숨김 (계산은 몇 프레임에 한 번)
+  if(target&&clock-lastDrag>2){let dh=P.h-camYaw;dh=Math.atan2(Math.sin(dh),Math.cos(dh));if(Math.abs(dh)<1.4)camYaw+=dh*Math.min(1,dt*1.2)}
+  const cy=camYaw,tx=P.x,ty=P.y+1.45,tz=P.z,dist=camDist;
+  occT+=dt;if(occT>=PERF.occEvery){occT=0;let pick=null,bestK=0,bestP=camPitch;
+    for(const add of [0,.1,.2]){const pp=Math.min(1.2,camPitch+add);const kk=occlusion(tx,ty,tz,tx-Math.sin(cy)*dist*Math.cos(pp),ty+dist*Math.sin(pp),tz-Math.cos(cy)*dist*Math.cos(pp));if(kk>=1){pick=pp;break}if(kk>bestK){bestK=kk;bestP=pp}}
+    occPitch=pick!==null?pick:bestP;
+    const block=new Set();if(pick===null)occlusion(tx,ty,tz,tx-Math.sin(cy)*dist*Math.cos(occPitch),ty+dist*Math.sin(occPitch),tz-Math.cos(cy)*dist*Math.cos(occPitch),block);
+    for(const t of hiddenTrees)if(!block.has(t))setTreeHidden(t,false);for(const t of block)setTreeHidden(t,true)}
+  effPitch=lerp(effPitch,occPitch,1-Math.exp(-dt*(occPitch>effPitch?6:1.5)));
+  let cxp=tx-Math.sin(cy)*dist*Math.cos(effPitch),czp=tz-Math.cos(cy)*dist*Math.cos(effPitch),cyp=ty+dist*Math.sin(effPitch);
+  const gcy=H(cxp,czp)+.7;if(cyp<gcy)cyp=gcy;
+  camera.position.lerp(v3.set(cxp,cyp,czp),1-Math.exp(-dt*10));camera.lookAt(tx+Math.sin(cy)*3,ty+1.1,tz+Math.cos(cy)*3);
+  // 주변 정리
+  updateChunks(P.x,P.z,false,dt);
+  for(let i=pulls.length-1;i>=0;i--){const p=pulls[i];p.t+=dt;const k=clamp(p.t/.7,0,1);p.m.position.y=p.y0+ease(k)*p.d;p.m.rotation.z=Math.sin(p.t*9)*.15*(1-k);if(p.t>1.1)p.m.scale.setScalar(Math.max(.001,1-(p.t-1.1)/.4));if(p.t>1.5){p.m.parent&&p.m.parent.remove(p.m);pulls.splice(i,1)}}
+  updParticles(dt);updLabels(dt);updOthers(dt);updSky();updAmbience(dt);
+  hudT+=dt;if(hudT>.25){hudT=0;updHud()}
+  presT+=dt;if(presT>.1){presT=0;sendPresence(false)}
+  if(mapOpen){mapT+=dt;if(mapT>.15){mapT=0;drawMap()}}
+  saveT+=dt;if(saveT>3){saveT=0;save.pos={x:+P.x.toFixed(1),z:+P.z.toFixed(1)};save.gameMin=Math.round(gameMin*10)/10;save.dayNo=dayNo;persist()}
+  if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').classList.remove('on')}
+  if(foundTimer>0){foundTimer-=dt;if(foundTimer<=0)$('found').classList.remove('on')}
+}
+const pulls=[];let mapT=0,saveT=0,hudT=1,occT=1,occPitch=.26,effPitch=.26;
+
+/* ================= START ================= */
+$('nick').value=save.nick||'';
+const sw=$('swatches');JACKETS.forEach((c,i)=>{const b=document.createElement('button');b.className='sw'+(i===(save.color|0)?' on':'');b.style.background='#'+c.toString(16).padStart(6,'0');b.title='옷 색';b.onclick=e=>{e.stopPropagation();save.color=i;[...sw.children].forEach((x,j)=>x.classList.toggle('on',j===i))};sw.appendChild(b)});
+$('startBtn').addEventListener('click',e=>{e.stopPropagation();if(zoomT>=0)return;save.nick=cleanNick($('nick').value);persist();ac();tone(392,.6,'sine',.07);tone(523,.9,'sine',.06,1,.2);zoomT=0;$('intro').style.transition='opacity .9s';$('intro').style.opacity=0});
+function beginGame(){
+  if(mode==='game')return;mode='game';ambInit();
+  scene.remove(me.root);const nm=makeHiker(JACKETS[save.color%JACKETS.length]);Object.assign(me,nm);scene.add(me.root);setGreens(me,totalCount());
+  $('intro').classList.add('hide');$('hud').classList.remove('hide');
+  if(IS_TOUCH){$('joy').classList.remove('hide');$('jumpBtn').classList.remove('hide')}
+  updateChunks(P.x,P.z,true);
+  camera.position.set(P.x-Math.sin(camYaw)*7.7,P.y+3.2,P.z-Math.cos(camYaw)*7.7);
+  setTimeout(()=>$('fade').classList.remove('on'),120);
+  if(save.pos)toast(`지난번 오르던 해발 ${Math.round(P.y*ALT_K)}m에서 다시 걷는다`);
+  connectRoom();
+}
+let last=performance.now();
+let lastDraw=0;
+function frame(now){requestAnimationFrame(frame);
+  const covered=mapOpen||!$('bag').classList.contains('hide'),cap=covered?8:PERF.fps;
+  if(now-lastDraw<1000/cap-2)return;lastDraw=now;
+  const raw=(now-last)/1000,dt=Math.min(.05,raw);last=now;clock+=dt;
+  if(mode==='intro')drawIntro(Math.min(.25,raw));else{updateGame(dt);renderer.render(scene,camera)}}
+addEventListener('resize',onResize);applyPerf();requestAnimationFrame(frame);
+$('ecoBtn').onclick=()=>{PERF.eco=!PERF.eco;applyPerf();chunkKey='';toast(PERF.eco?'절전 모드: 화질과 시야를 줄여 가볍게 돌립니다':'절전 모드 해제')};
+function jump(){if(mode==='game'&&!P.air&&me.mode!=='dig'){P.vy=5.2;P.air=true}}
+$('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();jump()});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('visibilitychange',()=>{if(!AMB)return;if(document.hidden)AMB.a.suspend();else AMB.a.resume()});
+
+})();
+</script>
+</body>
+</html>
