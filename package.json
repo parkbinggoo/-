@@ -1,0 +1,1 @@
+{"name":"baekyaksan-multiplayer","version":"1.0.0","private":true,"description":"Baekyaksan 3D 4-player shared world server","scripts":{"start":"node server.js"},"dependencies":{"ws":"^8.18.3"}}

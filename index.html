@@ -135,6 +135,7 @@
   <div id="startPanel">
     <div class="row"><input id="nick" maxlength="12" placeholder="별호 (닉네임)"><span style="font-size:12px;opacity:.7">바람막이</span><div id="swatches" style="display:flex;gap:6px"></div></div>
     <button id="startBtn">산에 오르다</button>
+      <button id="introServerBtn" type="button" style="background:rgba(244,239,227,.92);border:1px solid #45604d;border-radius:8px;padding:8px 15px;cursor:pointer;font-family:inherit">멀티플레이 서버 설정</button>
   </div>
   <div id="skip">화면을 누르면 건너뜁니다</div>
 </div>
@@ -149,6 +150,7 @@
     <div id="people" class="hide"></div>
   </div>
   <div class="btns">
+    <button class="btn" id="serverBtn" title="멀티플레이 서버 주소 설정">서버 설정</button>
     <button class="btn" id="ecoBtn">절전</button>
     <button class="btn" id="mapBtn">지도</button>
     <button class="btn" id="bagBtn">가방 · 도감</button>
@@ -1134,7 +1136,7 @@ const MILES=['솔바람이 등을 민다','능선 너머로 다른 산들이 내
 let lastMile=-1,toastT=0;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');toastT=3}
 let hudKey='';
-function updHud(){const alt=Math.max(0,Math.round(P.y*ALT_K)),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount();if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`${dayNo}일째 · ${ph} · ${ck}`;$('count').textContent=`채집 ${totalCount()} · ${Object.keys(save.inv).length}/${HERB_KEYS.length+MUSH_KEYS.length}종`}
+function updHud(){const alt=Math.max(0,Math.round(P.y*ALT_K)),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount();if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`한국시간 · ${ph} · ${ck}`;$('count').textContent=`채집 ${totalCount()} · ${Object.keys(save.inv).length}/${HERB_KEYS.length+MUSH_KEYS.length}종`}
   const m=Math.floor(alt/300);if(lastMile<0)lastMile=m;if(m>lastMile){lastMile=m;toast(`해발 ${m*300}m — ${MILES[Math.min(MILES.length-1,m-1)]}`);tone(392,.4,'sine',.06);tone(587,.6,'sine',.05,1,.15)}}
 $('bagBtn').onclick=()=>{buildBag();$('bag').classList.remove('hide')};
 $('bagClose').onclick=()=>$('bag').classList.add('hide');
@@ -1241,39 +1243,99 @@ $('mapBtn').onclick=()=>toggleMap(true);$('mapClose').onclick=()=>toggleMap(fals
 $('mapView').addEventListener('pointerdown',e=>{if(e.target.id==='mapView')toggleMap(false)});
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||mode!=='game')return;if(e.code==='KeyM')toggleMap();if(e.code==='Escape')toggleMap(false)});
 
-/* ================= MULTIPLAYER (WebSocket / up to 4) ================= */
+/* ================= MULTIPLAYER (GitHub Pages + independent WebSocket host) ================= */
 const others=new Map();
 let socket=null, myPeer=null, online=false, retryTimer=null, netAccumulator=0;
-let serverOffset=0, sharedEpoch=0, synced=false, sharedWeather='clear';
+let serverOffset=0, synced=false, sharedWeather='clear', currentCount=0;
+let reconnectAttempts=0, roomFull=false, lastHeartbeat=0, heartbeatTimer=null;
 const WEATHER_KO={clear:'맑음',cloudy:'흐림',rain:'비'};
+const SERVER_STORAGE='baekyaksan-server-url';
+const DEPLOYED_SERVER_URL=''; // 선택: Render 배포 후 https://xxx.onrender.com 입력하면 모든 방문자에 자동 적용
 function cleanNick(s){return String(s||'').replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,12)}
-function netSend(data){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(data))}
-function connectRoom(){
-  if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;
-  clearTimeout(retryTimer);
-  const address=(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws';
-  try{socket=new WebSocket(address)}catch(e){setConnection('연결 실패');return}
-  $('people').classList.remove('hide');setConnection('접속 중…');
-  socket.onopen=()=>{online=true;setConnection('서버 연결됨');netSend({type:'join',nick:cleanNick(save.nick),color:save.color|0});};
-  socket.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}
-    if(m.type==='full'){setConnection('접속 불가 · 최대 4명');toast('현재 4명이 접속 중입니다. 빈자리가 생기면 다시 접속할 수 있습니다.');socket.close();return}
-    if(m.type==='welcome'){
-      myPeer=m.id;setSync(m);for(const p of m.players||[])if(p.id!==myPeer)upOther(p);updPeople(m.count);
-      toast(`백약산에 입장했습니다 · 접속 ${m.count}/4명`);sendPresence(true);
-    }else if(m.type==='state'){setSync(m);updPeople(m.count)}
-    else if(m.type==='joined'){if(m.player&&m.player.id!==myPeer)upOther(m.player);updPeople(m.count);toast(`${cleanNick(m.player?.nick)||'산객'}님이 입장했습니다`)}
-    else if(m.type==='left'){dropOther(m.id);updPeople(m.count)}
-    else if(m.type==='move'){if(m.player&&m.player.id!==myPeer)upOther(m.player)}
-  };
-  socket.onerror=()=>setConnection('연결 오류');
-  socket.onclose=()=>{online=false;myPeer=null;socket=null;for(const id of [...others.keys()])dropOther(id);updPeople(0);if($('connection').textContent.includes('접속 불가'))return;setConnection('연결 끊김 · 재접속 중');retryTimer=setTimeout(()=>{if(mode==='game')connectRoom()},3000)};
+function getServerUrl(){
+  const viaQuery=new URLSearchParams(location.search).get('server');
+  let stored='';try{stored=localStorage.getItem(SERVER_STORAGE)||''}catch(_){}
+  const selected=viaQuery||stored||DEPLOYED_SERVER_URL||(location.hostname.endsWith('.github.io')?'':location.origin);
+  if(!selected)return '';
+  try{
+    const u=new URL(selected);
+    if(!['https:','http:','wss:','ws:'].includes(u.protocol))return '';
+    u.protocol=(u.protocol==='https:'||u.protocol==='wss:')?'wss:':'ws:';
+    // GitHub Pages (HTTPS)에서는 TLS 지원 WebSocket만 가능
+    if(location.protocol==='https:'&&u.protocol!=='wss:')return '';
+    u.pathname='/ws';u.search='';u.hash='';return u.href;
+  }catch(_){return ''}
 }
+function configServer(){
+ const previous='';try{previous=localStorage.getItem(SERVER_STORAGE)||''}catch(_){}
+ const answer=prompt('멀티플레이 서버 주소를 입력하세요.\n예: https://내-게임.onrender.com\n(GitHub Pages 주소가 아닌 Render 서버 주소)',previous||DEPLOYED_SERVER_URL);
+ if(answer===null)return;
+ const value=answer.trim().replace(/\/$/,'');
+ if(value){try{const u=new URL(value);if(!['https:','http:','wss:','ws:'].includes(u.protocol))throw Error();if(location.protocol==='https:'&&['http:','ws:'].includes(u.protocol))throw Error();}catch(_){toast('HTTPS 웹사이트에서는 https:// 서버 주소가 필요합니다.');return}}
+ try{if(value)localStorage.setItem(SERVER_STORAGE,value);else localStorage.removeItem(SERVER_STORAGE)}catch(_){}
+ if(socket){const old=socket;socket=null;old.close()}
+ clearTimeout(retryTimer);clearInterval(heartbeatTimer);online=false;myPeer=null;roomFull=false;reconnectAttempts=0;for(const id of [...others.keys()])dropOther(id);updPeople(0);
+ if(mode==='game')connectRoom();else toast(value?'서버 주소가 저장되었습니다':'서버 주소가 비워졌습니다');
+}
+$('serverBtn').onclick=configServer;
+$('introServerBtn').onclick=configServer;
+function netSend(data){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(data))}
 function setConnection(t){$('connection').textContent=t}
+function scheduleRetry(){
+ if(mode!=='game'||roomFull)return;
+ clearTimeout(retryTimer);
+ const ms=Math.min(20000,1500*Math.pow(1.6,Math.min(reconnectAttempts++,6)));
+ retryTimer=setTimeout(connectRoom,ms);
+}
+function connectRoom(){
+ if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;
+ clearTimeout(retryTimer);
+ const address=getServerUrl();
+ $('people').classList.remove('hide');
+ if(!address){setConnection('서버 주소 필요 · 서버 설정 클릭');updPeople(0);return}
+ roomFull=false;
+ const ws=new WebSocket(address);socket=ws;
+ setConnection('서버 연결 중…');
+ let welcomed=false;
+ const openingTimeout=setTimeout(()=>{if(socket===ws&&!welcomed)ws.close()},12000);
+ ws.onopen=()=>{if(socket!==ws)return;setConnection('입장 확인 중…');netSend({type:'join',nick:cleanNick(save.nick),color:save.color|0});};
+ ws.onmessage=e=>{
+  if(socket!==ws)return;
+  let m;try{m=JSON.parse(e.data)}catch(_){return}
+  if(m.type==='full'){roomFull=true;setConnection('접속 불가 · 정원 4명');toast('현재 최대 4명이 접속 중입니다.');ws.close();return}
+  if(m.type==='welcome'){
+    welcomed=true;clearTimeout(openingTimeout);online=true;myPeer=m.id;reconnectAttempts=0;
+    setConnection('연결됨 · 멀티플레이');setSync(m);
+    for(const id of [...others.keys()])dropOther(id);
+    for(const p of m.players||[])if(p.id!==myPeer)upOther(p);
+    updPeople(m.count);toast(`백약산 입장 · ${m.count}/4명`);sendPresence(true);
+    clearInterval(heartbeatTimer);
+    heartbeatTimer=setInterval(()=>netSend({type:'ping',sent:Date.now()}),15000);
+  }else if(m.type==='state'){setSync(m);updPeople(m.count)}
+  else if(m.type==='joined'){if(m.player&&m.player.id!==myPeer)upOther(m.player);updPeople(m.count);toast(`${cleanNick(m.player?.nick)||'산객'}님이 입장했습니다`)}
+  else if(m.type==='left'){dropOther(m.id);updPeople(m.count)}
+  else if(m.type==='move'){if(m.player&&m.player.id!==myPeer)upOther(m.player)}
+  else if(m.type==='pong'&&Number.isFinite(m.serverTime)){
+    const rtt=Date.now()-m.sent;if(rtt>=0&&rtt<2000)serverOffset=serverOffset*.7+(m.serverTime+rtt/2-Date.now())*.3;
+  }
+ };
+ ws.onerror=()=>{if(socket===ws)setConnection('서버 연결 오류')};
+ ws.onclose=()=>{
+   clearTimeout(openingTimeout);
+   if(socket!==ws)return;
+   clearInterval(heartbeatTimer);socket=null;online=false;myPeer=null;
+   for(const id of [...others.keys()])dropOther(id);updPeople(0);
+   if(roomFull)return;
+   setConnection('연결 끊김 · 자동 재접속 중');scheduleRetry();
+ };
+}
 function setSync(m){
-  if(typeof m.serverTime==='number')serverOffset=m.serverTime-Date.now();
-  if(typeof m.epoch==='number')sharedEpoch=m.epoch;
+  if(typeof m.serverTime==='number'){
+   const observed=m.serverTime-Date.now();
+   serverOffset=synced?serverOffset*.8+observed*.2:observed;
+   synced=true;
+  }
   if(typeof m.weather==='string')sharedWeather=m.weather;
-  synced=true;
   $('weather').textContent='날씨 · '+(WEATHER_KO[sharedWeather]||'맑음');
 }
 function upOther(p){
@@ -1287,7 +1349,7 @@ function upOther(p){
   o.el.textContent=(o.nick||'산객')+(o.alt?` · ${o.alt}m`:'');
 }
 function dropOther(id){const o=others.get(id);if(!o)return;scene.remove(o.av.root);o.el.remove();others.delete(id)}
-function updPeople(count){$('people').textContent=`접속 인원 ${Number.isFinite(count)?count:online?others.size+1:0}/4명`}
+function updPeople(count){currentCount=Number.isFinite(count)?count:(online?others.size+1:0);$('people').textContent=`접속 인원 ${currentCount}/4명`}
 let presT=0,lastSent='';
 function sendPresence(force){
   if(!online||!myPeer)return;
@@ -1340,12 +1402,15 @@ function applyPerf(){
   try{localStorage.setItem('baekyaksan-eco',PERF.eco?'1':'0')}catch(e){}
 }
 
-/* ================= 시간 : 현실 20분 = 산속 하루 ================= */
-const DAY_SEC=20*60;
-let gameMin=6*60+10,dayNo=1;
+/* ================= Korean Standard Time: actual Asia/Seoul (UTC+09) ================= */
+let gameMin=0,dayNo=1;
 function syncGameClock(dt){
-  if(synced&&sharedEpoch){const total=(Date.now()+serverOffset-sharedEpoch)/1000*1440/DAY_SEC+370;dayNo=Math.max(1,Math.floor(total/1440)+1);gameMin=((total%1440)+1440)%1440}
-  else{gameMin+=dt*1440/DAY_SEC;if(gameMin>=1440){gameMin-=1440;dayNo++}}
+  // UTC timestamp + 9 hours: every player's game sky tracks the same real Korean time.
+  // No restart epoch or accelerated clock, so hosting restarts cannot change the phase.
+  const koreaMs=Date.now()+(synced?serverOffset:0)+9*60*60*1000;
+  const d=new Date(koreaMs);
+  gameMin=d.getUTCHours()*60+d.getUTCMinutes()+d.getUTCSeconds()/60;
+  dayNo=d.getUTCDate();
 }
 function phaseOf(h){if(h>=20||h<4)return'밤';if(h<6)return'새벽';if(h<10)return'아침';if(h<17)return'낮';return'저녁'}
 // 시각, 하늘 위, 하늘 아래(지평선·안개), 햇빛, 하늘빛, 밤 정도
