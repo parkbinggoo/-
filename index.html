@@ -145,11 +145,12 @@
     <div id="alt"><small>해발</small>0m</div>
     <div id="clock"></div>
     <div id="weather">날씨 확인 중</div>
-    <div id="connection">공용 멀티플레이 준비</div>
+    <div id="connection" class="hide"></div>
     <div id="count">채집 0</div>
-    <div id="people" class="hide"></div>
+
   </div>
   <div class="btns">
+    <button class="btn" id="homeBtn" title="이동이 막힐 때 산 입구로 돌아가기">입구</button>
     <button class="btn" id="ecoBtn">절전</button>
     <button class="btn" id="mapBtn">지도</button>
     <button class="btn" id="bagBtn">가방 · 도감</button>
@@ -929,13 +930,14 @@ function buildChunk(cx,cz){
   // a wild mountain: no trail. Boulders first, then dense forest with patchy clearings, then undergrowth
   const altHere=H(ox,oz)*ALT_K, dens=clamp(1-(altHere-1200)/1600,.3,1);
   const startX=pathX(24);
-  const nearStart=(x,z,r)=>Math.hypot(x-startX,z-24)<r;
+  const nearStart=(x,z,r)=>Math.hypot(x-startX,z-24)<r+11;
+  const nearTrail=(x,z,pad=0)=>Math.abs(x-pathX(z))<6+pad;
   c.rocks=[];
   const nClusters=r()<.5?1+Math.floor(r()*2):0;
   for(let k=0;k<nClusters;k++){const cx0=ox+(r()-.5)*CH*.8,cz0=oz+(r()-.5)*CH*.8,big=r()<.45;
     const nr=big?1+Math.floor(r()*2):2+Math.floor(r()*4);
     for(let q=0;q<nr;q++){const rad=big?2.6+r()*3.2:.9+r()*1.8;const x=cx0+(r()-.5)*(big?6:9),z=cz0+(r()-.5)*(big?6:9);
-      if(nearStart(x,z,rad+4))continue;
+      if(nearStart(x,z,rad+4)||nearTrail(x,z,rad+2))continue;
       const rk={x,z,r:rad};c.rocks.push(rk);
       const m=new THREE.Mesh(r()<.5?STONE:ROCK2,M([0x8b8778,0x7d7a6c,0x96917f,0x6f6c60][q%4]));
       m.scale.set(rad*(1+r()*.3),rad*(.55+r()*.45),rad*(.85+r()*.35));m.rotation.set(r()*.6,r()*6.28,r()*.4);
@@ -945,7 +947,7 @@ function buildChunk(cx,cz){
   const pines=[],oaks=[];const n=Math.round(64*dens);
   for(let i=0;i<n;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;
     const patch=vn(x*.035+3,z*.035-5);if(r()>clamp(.75+patch*.9,.08,1))continue;   // clearings come and go
-    if(nearStart(x,z,3.5)||inRock(x,z,.8)||streamD(x,z)<2.6)continue;
+    if(nearStart(x,z,4)||nearTrail(x,z,2)||inRock(x,z,.8)||streamD(x,z)<2.6)continue;
     const pineP=clamp(.55+altHere/2500,.55,.95);const cls=r(),sz=cls<.55?.8+r()*.45:cls<.82?.42+r()*.3:.14+r()*.22;const t={x,z,y:H(x,z)-.2,s:sz,rot:r()*6.28,lean:(r()-.5)*(sz>.6?.05:.12),kind:r()<pineP?'pine':'oak',id:`${c.key}:t${i}`,hits:0,searched:false};
     (t.kind==='pine'?pines:oaks).push(t);c.trees.push(t);
     if(t.s>.5&&r()<.24){const mt=pickW(MUSH,MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
@@ -1012,8 +1014,9 @@ function updParticles(dt){
 /* ================= PLAYER ================= */
 const me=makeHiker(JACKETS[save.color%JACKETS.length]);scene.add(me.root);
 const P={x:pathX(24),z:24,y:0,h:Math.PI,vy:0,air:false,speed:0};
-if(save.pos&&isFinite(save.pos.z)){P.x=save.pos.x;P.z=save.pos.z}
+// Always spawn at the safe mountain entrance; old saved positions could be inside rocks or terrain.
 P.y=H(P.x,P.z);
+save.pos=null;
 let camYaw=P.h,camPitch=.26,camDist=8,yawOff=0,lastDrag=-9;
 const keys={};
 let target=null,pending=null,curAct=null,queued=null,hitDone=false;
@@ -1256,7 +1259,7 @@ let synced=true,serverOffset=0,sharedWeather='clear',currentCount=0,lastHeartbea
 let netStarted=false,joining=false,latestPeers=new Map(),lastKeep=0;
 const WEATHER_KO={clear:'맑음',cloudy:'흐림',rain:'비'};
 function cleanNick(s){return String(s||'').replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,12)}
-function setConnection(t){$('connection').textContent=t}
+function setConnection(t){const el=$('connection');el.textContent=t;el.classList.toggle('hide',t==='연결됨 · 공용 산')}
 function weatherAtKST(){
   // Deterministic virtual weather, shared without a dedicated server.
   // Same 30-minute Korean time slot always yields the same weather on all devices.
@@ -1297,12 +1300,12 @@ function reconcileCapacity(){
   }
   roomFull=false;
   if(!online){online=true;setConnection('연결됨 · 공용 산');sendHello();sendPresence(true);
-    toast(`백약산 멀티플레이 · ${Math.min(MAX_PLAYERS,activePeers().length+1)}/4명`)}
+    toast('동행자와 만날 수 있는 산에 연결되었습니다')}
   updPeople();
 }
 function connectRoom(){
   if(netStarted)return;netStarted=true;
-  $('people').classList.remove('hide');updSharedWeather();
+  updSharedWeather();
   if(!window.mqtt||!window.mqtt.connect){setConnection('통신 모듈 로딩 실패 · 새로고침');return}
   setConnection('공용 산에 연결 중…');
   try{
@@ -1341,7 +1344,7 @@ function connectRoom(){
 }
 function updPeople(count){
   const n=Number.isFinite(count)?count:Math.min(MAX_PLAYERS,activePeers().length+(online?1:0));
-  currentCount=n;$('people').textContent=`접속 인원 ${n}/${MAX_PLAYERS}명`;
+  currentCount=n; // Count is used internally for the admission limit, not permanently shown on the HUD.
 }
 setInterval(()=>{
   updSharedWeather();
@@ -1545,7 +1548,16 @@ function updateGame(dt){
   if(moveAmt){const slope=H(P.x+mvx*.6,P.z+mvz*.6)-P.y,spd=4.0*clamp(1-slope*.35,.6,1.15);
     let nx=P.x+mvx*moveAmt*spd*dt,nz=P.z+mvz*moveAmt*spd*dt;
     const d=nx-pathX(nz);if(Math.abs(d)>58)nx=pathX(nz)+Math.sign(d)*58;if(nz>34)nz=34;
-    if(H(nx,nz)-P.y<.9||P.air){const q=collide(nx,nz);P.x=q.x;P.z=q.z}}
+    // Try the intended move first; when terrain rises abruptly, slide along an axis.
+    // The previous 0.9-unit hard cutoff could trap the player in a noise-generated pit.
+    const stepLimit=2.8;
+    let q=collide(nx,nz);
+    if(P.air || H(q.x,q.z)-P.y<stepLimit){P.x=q.x;P.z=q.z}
+    else {
+      const ax=collide(nx,P.z),az=collide(P.x,nz);
+      if(H(ax.x,ax.z)-P.y<stepLimit){P.x=ax.x;P.z=ax.z}
+      else if(H(az.x,az.z)-P.y<stepLimit){P.x=az.x;P.z=az.z}
+    }}
   P.speed=Math.abs(moveAmt);
   const gy=H(P.x,P.z);
   if(P.air){P.vy-=14*dt;P.y+=P.vy*dt;if(P.y<=gy){P.y=gy;P.air=false;P.vy=0}}else P.y=lerp(P.y,gy,1-Math.exp(-dt*25));
@@ -1593,7 +1605,7 @@ function beginGame(){
   updateChunks(P.x,P.z,true);
   camera.position.set(P.x-Math.sin(camYaw)*7.7,P.y+3.2,P.z-Math.cos(camYaw)*7.7);
   setTimeout(()=>$('fade').classList.remove('on'),120);
-  if(save.pos)toast(`지난번 오르던 해발 ${Math.round(P.y*ALT_K)}m에서 다시 걷는다`);
+  toast('WASD / 방향키로 이동하세요 · 길을 따라 산을 오르세요');
   connectRoom();
 }
 let last=performance.now();
@@ -1606,6 +1618,9 @@ function frame(now){requestAnimationFrame(frame);
 addEventListener('resize',onResize);applyPerf();requestAnimationFrame(frame);
 $('ecoBtn').onclick=()=>{PERF.eco=!PERF.eco;applyPerf();chunkKey='';toast(PERF.eco?'절전 모드: 화질과 시야를 줄여 가볍게 돌립니다':'절전 모드 해제')};
 function jump(){if(mode==='game'&&!P.air&&me.mode!=='dig'){P.vy=5.2;P.air=true}}
+function returnToEntrance(){if(mode!=='game')return;P.x=pathX(24);P.z=24;P.y=H(P.x,P.z);P.vy=0;P.air=false;target=null;pending=null;me.mode='idle';camYaw=Math.PI;toast('입구로 돌아왔습니다');sendPresence(true)}
+addEventListener('keydown',e=>{if(e.code==='KeyR'&&mode==='game'&&e.target.tagName!=='INPUT')returnToEntrance()});
+$('homeBtn').onclick=returnToEntrance;
 $('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();jump()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('visibilitychange',()=>{if(!AMB)return;if(document.hidden)AMB.a.suspend();else AMB.a.resume()});
