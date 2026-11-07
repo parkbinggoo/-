@@ -86,8 +86,6 @@
   .wl.msg{font-family:'Nanum Myeongjo',serif;font-weight:700;background:rgba(244,239,227,.92);padding:4px 10px;border-radius:6px;text-shadow:none;border:1px solid rgba(31,43,40,.2)}
   .nametag{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;padding:3px 8px;border-radius:999px;background:rgba(31,43,40,.7);color:#f4efe3}
   #people{margin-top:6px;font-size:12px;opacity:.85}
-  #connection{font-size:12px;margin-top:3px;opacity:.85}
-  #weather{font-size:12px;margin-top:3px;opacity:.85}
   #joy{position:fixed;left:22px;bottom:26px;width:120px;height:120px;border-radius:50%;background:rgba(244,239,227,.35);border:1.5px solid rgba(244,239,227,.8);z-index:6;touch-action:none}
   #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(244,239,227,.9);box-shadow:0 4px 12px rgba(0,0,0,.2)}
   #help{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,28,26,.4);z-index:11}
@@ -144,13 +142,11 @@
   <div class="plate">
     <div id="alt"><small>해발</small>0m</div>
     <div id="clock"></div>
-    <div id="weather">날씨 확인 중</div>
-    <div id="connection" class="hide"></div>
+    <div id="weather" style="font-size:12px;margin-top:3px;opacity:.85"></div>
     <div id="count">채집 0</div>
-
+    <div id="people" class="hide"></div>
   </div>
   <div class="btns">
-    <button class="btn" id="homeBtn" title="이동이 막힐 때 산 입구로 돌아가기">입구</button>
     <button class="btn" id="ecoBtn">절전</button>
     <button class="btn" id="mapBtn">지도</button>
     <button class="btn" id="bagBtn">가방 · 도감</button>
@@ -930,14 +926,13 @@ function buildChunk(cx,cz){
   // a wild mountain: no trail. Boulders first, then dense forest with patchy clearings, then undergrowth
   const altHere=H(ox,oz)*ALT_K, dens=clamp(1-(altHere-1200)/1600,.3,1);
   const startX=pathX(24);
-  const nearStart=(x,z,r)=>Math.hypot(x-startX,z-24)<r+11;
-  const nearTrail=(x,z,pad=0)=>Math.abs(x-pathX(z))<6+pad;
+  const nearStart=(x,z,r)=>Math.hypot(x-startX,z-24)<r;
   c.rocks=[];
   const nClusters=r()<.5?1+Math.floor(r()*2):0;
   for(let k=0;k<nClusters;k++){const cx0=ox+(r()-.5)*CH*.8,cz0=oz+(r()-.5)*CH*.8,big=r()<.45;
     const nr=big?1+Math.floor(r()*2):2+Math.floor(r()*4);
     for(let q=0;q<nr;q++){const rad=big?2.6+r()*3.2:.9+r()*1.8;const x=cx0+(r()-.5)*(big?6:9),z=cz0+(r()-.5)*(big?6:9);
-      if(nearStart(x,z,rad+4)||nearTrail(x,z,rad+2))continue;
+      if(nearStart(x,z,rad+4))continue;
       const rk={x,z,r:rad};c.rocks.push(rk);
       const m=new THREE.Mesh(r()<.5?STONE:ROCK2,M([0x8b8778,0x7d7a6c,0x96917f,0x6f6c60][q%4]));
       m.scale.set(rad*(1+r()*.3),rad*(.55+r()*.45),rad*(.85+r()*.35));m.rotation.set(r()*.6,r()*6.28,r()*.4);
@@ -947,7 +942,7 @@ function buildChunk(cx,cz){
   const pines=[],oaks=[];const n=Math.round(64*dens);
   for(let i=0;i<n;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;
     const patch=vn(x*.035+3,z*.035-5);if(r()>clamp(.75+patch*.9,.08,1))continue;   // clearings come and go
-    if(nearStart(x,z,4)||nearTrail(x,z,2)||inRock(x,z,.8)||streamD(x,z)<2.6)continue;
+    if(nearStart(x,z,3.5)||inRock(x,z,.8)||streamD(x,z)<2.6)continue;
     const pineP=clamp(.55+altHere/2500,.55,.95);const cls=r(),sz=cls<.55?.8+r()*.45:cls<.82?.42+r()*.3:.14+r()*.22;const t={x,z,y:H(x,z)-.2,s:sz,rot:r()*6.28,lean:(r()-.5)*(sz>.6?.05:.12),kind:r()<pineP?'pine':'oak',id:`${c.key}:t${i}`,hits:0,searched:false};
     (t.kind==='pine'?pines:oaks).push(t);c.trees.push(t);
     if(t.s>.5&&r()<.24){const mt=pickW(MUSH,MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
@@ -1014,9 +1009,8 @@ function updParticles(dt){
 /* ================= PLAYER ================= */
 const me=makeHiker(JACKETS[save.color%JACKETS.length]);scene.add(me.root);
 const P={x:pathX(24),z:24,y:0,h:Math.PI,vy:0,air:false,speed:0};
-// Always spawn at the safe mountain entrance; old saved positions could be inside rocks or terrain.
+if(save.pos&&isFinite(save.pos.z)){P.x=save.pos.x;P.z=save.pos.z}
 P.y=H(P.x,P.z);
-save.pos=null;
 let camYaw=P.h,camPitch=.26,camDist=8,yawOff=0,lastDrag=-9;
 const keys={};
 let target=null,pending=null,curAct=null,queued=null,hitDone=false;
@@ -1245,128 +1239,91 @@ $('mapBtn').onclick=()=>toggleMap(true);$('mapClose').onclick=()=>toggleMap(fals
 $('mapView').addEventListener('pointerdown',e=>{if(e.target.id==='mapView')toggleMap(false)});
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||mode!=='game')return;if(e.code==='KeyM')toggleMap();if(e.code==='Escape')toggleMap(false)});
 
-/* ================= MULTIPLAYER: GitHub Pages + public MQTT ================= */
-// Reference: HOGI ROASTERS uses mqtt.js with a public MQTT/WebSocket broker.
-// No backend deployment or visitor configuration needed. This is a public best-effort room.
-const others=new Map();
-const BROKER='wss://broker.emqx.io:8084/mqtt';
-const TOPIC='baekyaksan-3d-public-room-2026-k7q2/v1/';
-const MAX_PLAYERS=4, PEER_TTL=12000;
-const myPeer=(typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,16):Math.random().toString(36).slice(2,14));
-const joinStamp=Date.now();
-let socket=null,online=false,roomFull=false,netAccumulator=0,lastNetPublish=0;
-let synced=true,serverOffset=0,sharedWeather='clear',currentCount=0,lastHeartbeat=0;
-let netStarted=false,joining=false,latestPeers=new Map(),lastKeep=0;
-const WEATHER_KO={clear:'맑음',cloudy:'흐림',rain:'비'};
+/* ================= MULTIPLAYER (GitHub Pages + public MQTT) ================= */
+// No user setup: the shared public MQTT broker relays avatar snapshots.
+// A browser-only 4-seat limit is cooperative/best-effort, not authoritative.
+const MQTT_BROKER='wss://broker.emqx.io:8084/mqtt';
+const GAME_ROOM='baekyaksan-herbs-public-v2';
+const MQTT_TOPIC=GAME_ROOM+'/presence/';
+const myId=(typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,16):Math.random().toString(36).slice(2,18));
+const others=new Map(),peerSeen=new Map();
+let mqttClient=null,mqttOnline=false,netJoined=false,netChecking=false,netJoinTime=Date.now(),netRetryNotice=false;
+let lastNetSend=0,lastNetKey='',lastPeerCleanup=0,peopleCount=0;
 function cleanNick(s){return String(s||'').replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,12)}
-function setConnection(t){const el=$('connection');el.textContent=t;el.classList.toggle('hide',t==='연결됨 · 공용 산')}
-function weatherAtKST(){
-  // Deterministic virtual weather, shared without a dedicated server.
-  // Same 30-minute Korean time slot always yields the same weather on all devices.
-  const slot=Math.floor((Date.now()+9*3600000)/1800000);
-  const seed=(Math.imul(slot ^ 0x7f4a7c15, 2654435761)>>>0)%100;
-  return seed<53?'clear':seed<80?'cloudy':'rain';
+function netPublish(type,extra){if(!mqttOnline||!mqttClient)return;
+  const packet=Object.assign({id:myId,type,joined:netJoinTime,t:Date.now()},extra||{});
+  try{mqttClient.publish(MQTT_TOPIC+type+'/'+myId,JSON.stringify(packet),{qos:0,retain:false})}catch(e){}
 }
-function updSharedWeather(){sharedWeather=weatherAtKST();$('weather').textContent='날씨 · '+WEATHER_KO[sharedWeather]}
-function myNetState(){
-  const md=me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':'i';
-  const s={x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:md,alt:Math.round(P.y*ALT_K),g:Math.min(6,totalCount())};
-  if(lastFound)s.f=lastFound;
-  return s;
+function netState(){const act=me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':'i';
+  return {x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:act,c:save.color|0,n:cleanNick(save.nick),alt:Math.round(P.y*ALT_K),g:Math.min(6,totalCount())};}
+function updatePeople(){
+  const count=netJoined?1+[...peerSeen.values()].filter(v=>Date.now()-v.seen<11000).length:0;
+  peopleCount=count;
+  // Keep 1/4 off-screen as requested in previous revisions.
+  const el=$('people');el.classList.toggle('hide',count<=1||!mqttOnline);
+  if(count>1&&mqttOnline)el.textContent='함께 오르는 산객 '+Math.min(count,4)+'/4명';
 }
-function publish(topic,data){if(socket&&socket.connected)try{socket.publish(TOPIC+topic,JSON.stringify(data),{qos:0,retain:false})}catch(e){}}
-function sendPresence(force){
-  if(!online||!socket||!socket.connected||mode!=='game')return;
-  const now=Date.now();if(!force&&now-lastNetPublish<130)return;
-  lastNetPublish=now;
-  publish('st/'+myPeer,{id:myPeer,ts:joinStamp,nick:cleanNick(save.nick),color:save.color|0,state:myNetState()});
+function netDrop(id){const o=others.get(id);if(o){scene.remove(o.av.root);o.el.remove();others.delete(id)}peerSeen.delete(id);updatePeople()}
+function netCleanup(){const now=Date.now();if(now-lastPeerCleanup<1500)return;lastPeerCleanup=now;
+  for(const [id,peer] of peerSeen)if(now-peer.seen>11000)netDrop(id);
+  // All participating browsers use the same ordering for the cooperative 4-seat cap.
+  if(netJoined){const all=[{id:myId,joined:netJoinTime},...[...peerSeen].map(([id,p])=>({id,joined:p.joined}))].sort((a,b)=>a.joined-b.joined||a.id.localeCompare(b.id));
+    if(all.findIndex(v=>v.id===myId)>=4){netJoined=false;netPublish('bye');toast('4명이 모두 접속해 있습니다 · 혼자 모드로 전환합니다');}}
+  updatePeople();
 }
-function sendHello(){if(!socket||!socket.connected||mode!=='game')return;
-  publish('hi/'+myPeer,{id:myPeer,ts:joinStamp,nick:cleanNick(save.nick),color:save.color|0,active:online});
-}
-function activePeers(){const now=Date.now();return [...latestPeers.entries()].filter(([id,v])=>now-v.seen<PEER_TTL&&v.active).map(([id,v])=>({id,...v}));}
-function reconcileCapacity(){
-  if(!socket||!socket.connected||mode!=='game')return;
-  joining=false;
-  const now=Date.now();
-  const present=[...latestPeers.entries()].filter(([id,v])=>now-v.seen<PEER_TTL);
-  // Distributed soft limit: oldest join timestamps win, ties by stable client ID.
-  const contenders=[{id:myPeer,ts:joinStamp},...present.map(([id,v])=>({id,ts:v.ts}))]
-    .sort((a,b)=>a.ts-b.ts||a.id.localeCompare(b.id));
-  const admitted=contenders.slice(0,MAX_PLAYERS).some(p=>p.id===myPeer);
-  if(!admitted){
-    if(online){online=false;for(const id of [...others.keys()])dropOther(id);sendHello()}
-    roomFull=true;setConnection('현재 정원 4명 · 빈자리 대기 중');updPeople(MAX_PLAYERS);return;
-  }
-  roomFull=false;
-  if(!online){online=true;setConnection('연결됨 · 공용 산');sendHello();sendPresence(true);
-    toast('동행자와 만날 수 있는 산에 연결되었습니다')}
-  updPeople();
+function netHello(){netPublish('hello',{name:cleanNick(save.nick)})}
+function tryNetJoin(){if(!mqttOnline||netJoined||netChecking)return;netChecking=true;netJoinTime=Date.now();netHello();
+  setTimeout(()=>{netChecking=false;if(!mqttOnline)return;
+    netCleanup();const active=[...peerSeen.values()].filter(p=>Date.now()-p.seen<11000);
+    if(active.length>=4){netJoined=false;toast('현재 4명이 접속 중입니다 · 빈자리가 나면 자동 참여합니다');updatePeople();return}
+    netJoined=true;sendPresence(true);updatePeople();
+  },1900);
 }
 function connectRoom(){
-  if(netStarted)return;netStarted=true;
-  updSharedWeather();
-  if(!window.mqtt||!window.mqtt.connect){setConnection('통신 모듈 로딩 실패 · 새로고침');return}
-  setConnection('공용 산에 연결 중…');
-  try{
-    socket=window.mqtt.connect(BROKER,{clientId:'by3d_'+myPeer,clean:true,keepalive:30,reconnectPeriod:3500,connectTimeout:12000,
-      will:{topic:TOPIC+'bye/'+myPeer,payload:'1',qos:0,retain:false}});
-    socket.on('connect',()=>{
-      online=false;joining=true;latestPeers.clear();
-      setConnection('동행자 확인 중…');
-      socket.subscribe(TOPIC+'#',{qos:0},()=>{
-        sendHello();setTimeout(()=>{if(socket?.connected)reconcileCapacity()},1700);
-      });
+  if(mqttClient)return;
+  if(!window.mqtt||typeof window.mqtt.connect!=='function'){toast('멀티플레이 모듈을 불러오지 못했습니다');return}
+  try{mqttClient=window.mqtt.connect(MQTT_BROKER,{clientId:'baek_'+myId,clean:true,keepalive:25,reconnectPeriod:3000,connectTimeout:12000,
+    will:{topic:MQTT_TOPIC+'bye/'+myId,payload:JSON.stringify({id:myId,type:'bye'}),qos:0,retain:false}});
+    mqttClient.on('connect',()=>{mqttOnline=true;netJoined=false;netChecking=false;
+      mqttClient.subscribe(MQTT_TOPIC+'#',{qos:0},e=>{if(!e)tryNetJoin()});});
+    mqttClient.on('close',()=>{mqttOnline=false;netJoined=false;netChecking=false;updatePeople()});
+    mqttClient.on('offline',()=>{mqttOnline=false;netJoined=false;updatePeople()});
+    mqttClient.on('error',()=>{if(!netRetryNotice){netRetryNotice=true;toast('다른 산객 연결을 재시도하고 있습니다')}});
+    mqttClient.on('message',(topic,data)=>{
+      if(!topic.startsWith(MQTT_TOPIC)||data.length>1800)return;
+      let d;try{d=JSON.parse(data.toString())}catch(e){return}
+      if(!d||typeof d.id!=='string'||d.id===myId||!/^[a-zA-Z0-9]{8,18}$/.test(d.id))return;
+      if(d.type==='bye'){netDrop(d.id);return}
+      if(!['hello','state'].includes(d.type))return;
+      if(!Number.isFinite(d.joined)||Math.abs(Date.now()-d.joined)>86400000)return;
+      const prev=peerSeen.get(d.id);
+      peerSeen.set(d.id,{seen:Date.now(),joined:d.joined});
+      if(d.type==='hello'){if(netJoined)sendPresence(true);return}
+      if(!Number.isFinite(d.x)||!Number.isFinite(d.z)||!Number.isFinite(d.y)||Math.abs(d.x)>20000||Math.abs(d.z)>20000)return;
+      // A client with a later join time than the first four is not rendered.
+      if(!prev&&peerSeen.size>12)netCleanup();
+      upOther({peer:d.id,kind:'viewer',presence:d});updatePeople();
     });
-    socket.on('message',(topic,payload)=>{
-      if(!topic.startsWith(TOPIC)||payload.length>2048)return;
-      const action=topic.slice(TOPIC.length),parts=action.split('/'),id=parts[1];
-      if(!id||id===myPeer||!/^[a-z0-9]{8,20}$/.test(id))return;
-      if(parts[0]==='bye') {latestPeers.delete(id);dropOther(id);updPeople();if(!online)reconcileCapacity();return}
-      if(parts[0]!=='hi'&&parts[0]!=='st')return;
-      let msg;try{msg=JSON.parse(payload.toString())}catch(e){return}
-      if(!msg||msg.id!==id||!Number.isFinite(msg.ts))return;
-      const prev=latestPeers.get(id),now=Date.now();
-      latestPeers.set(id,{seen:now,ts:msg.ts,active:parts[0]==='st'?true:!!msg.active,nick:cleanNick(msg.nick),color:Math.max(0,Math.min(5,msg.color|0))});
-      if(parts[0]==='hi'&&online){sendPresence(true)}
-      if(parts[0]==='st'&&msg.state&&online)upOther({id,nick:msg.nick,color:msg.color,state:msg.state});
-      if(!joining)reconcileCapacity();
-      updPeople();
-    });
-    socket.on('close',()=>{
-      online=false;joining=false;roomFull=false;latestPeers.clear();
-      for(const id of [...others.keys()])dropOther(id);
-      updPeople(0);setConnection('연결 끊김 · 자동 재연결 중…');
-    });
-    socket.on('offline',()=>{online=false;setConnection('네트워크 연결 대기 중…');updPeople(0)});
-    socket.on('error',()=>{setConnection('공개 중계 서버 연결 오류 · 재시도 중')});
-  }catch(e){setConnection('연결 실패 · 새로고침해 주세요')}
+  }catch(e){mqttClient=null;toast('멀티플레이 연결을 시작할 수 없습니다')}
 }
-function updPeople(count){
-  const n=Number.isFinite(count)?count:Math.min(MAX_PLAYERS,activePeers().length+(online?1:0));
-  currentCount=n; // Count is used internally for the admission limit, not permanently shown on the HUD.
-}
-setInterval(()=>{
-  updSharedWeather();
-  if(!socket?.connected||mode!=='game')return;
-  const now=Date.now();
-  for(const [id,peer] of latestPeers){if(now-peer.seen>PEER_TTL){latestPeers.delete(id);dropOther(id)}}
-  for(const id of others.keys())if(!latestPeers.has(id))dropOther(id);
-  if(!joining)reconcileCapacity();sendHello();if(online)sendPresence(true)
-  updPeople();
-},4000);
-addEventListener('pagehide',()=>{if(socket?.connected){publish('bye/'+myPeer,{id:myPeer});socket.end(true)}});
 function upOther(p){
-  const s=p.state||{};if(!Number.isFinite(s.x)||!Number.isFinite(s.z))return;
-  let o=others.get(p.id);
-  if(!o){const col=JACKETS[(p.color|0)%JACKETS.length]||JACKETS[1];const av=makeHiker(col);scene.add(av.root);const el=document.createElement('div');el.className='nametag';$('labels').appendChild(el);
-    o={av,el,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',lastF:0,nick:''};others.set(p.id,o)}
-  o.tx=s.x;o.tz=s.z;o.ty=Number.isFinite(s.y)?s.y:H(s.x,s.z);o.th=Number.isFinite(s.h)?s.h:0;o.nick=cleanNick(p.nick);o.alt=Math.round(s.alt||0);setGreens(o.av,s.g|0);
+  if(p.sameTab||p.kind!=='viewer')return;const s=p.presence||{};if(!isFinite(s.x)||!isFinite(s.z))return;
+  let o=others.get(p.peer);
+  if(!o){const col=JACKETS[((s.c|0)%JACKETS.length+JACKETS.length)%JACKETS.length];const av=makeHiker(col);scene.add(av.root);const el=document.createElement('div');el.className='nametag';$('labels').appendChild(el);
+    o={av,el,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',nick:''};others.set(p.peer,o)}
+  o.tx=+s.x;o.tz=+s.z;o.ty=Number.isFinite(+s.y)?+s.y:H(o.tx,o.tz);o.th=+s.h||0;
+  o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);setGreens(o.av,+s.g|0);
   const md=s.a==='w'?'walk':s.a==='d'?'dig':s.a==='j'?'joy':'idle';if(md!==o.mode){o.mode=md;o.av.mode=md;o.av.t=0}
-  if(s.f&&typeof s.f==='object'&&s.f.t!==o.lastF&&(HERBS[s.f.k]||MUSH[s.f.k])){o.lastF=s.f.t;if(Date.now()-s.f.t<8000){const nm=(HERBS[s.f.k]||MUSH[s.f.k]).name;worldLabel(new THREE.Vector3(o.tx,o.ty+1.4,o.tz),`${nm}을(를) 찾았다!`,'msg',2.2)}}
-  o.el.textContent=(o.nick||'산객')+(o.alt?` · ${o.alt}m`:'');
+  o.el.textContent=(o.nick||'산객')+(o.alt?' · '+o.alt+'m':'');
 }
-function dropOther(id){const o=others.get(id);if(!o)return;scene.remove(o.av.root);o.el.remove();others.delete(id)}
+let presT=0;
+function sendPresence(force){
+  if(!netJoined||!mqttOnline)return;
+  const now=Date.now(),state=netState(),key=JSON.stringify(state);
+  if(!force&&now-lastNetSend<350)return;
+  if(!force&&key===lastNetKey&&now-lastNetSend<2300)return;
+  lastNetKey=key;lastNetSend=now;netPublish('state',state);
+}
 function updOthers(dt){
   const f=1-Math.exp(-dt*8);
   for(const o of others.values()){o.x=lerp(o.x,o.tx,f);o.z=lerp(o.z,o.tz,f);o.y=lerp(o.y,o.ty,f);let dh=o.th-o.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));o.h+=dh*f;
@@ -1374,6 +1331,8 @@ function updOthers(dt){
     const far=Math.hypot(o.x-P.x,o.z-P.z);o.av.root.visible=far<220;
     v3.set(o.x,o.y+2.15,o.z).project(camera);if(v3.z>1||far>220){o.el.style.display='none'}else{o.el.style.display='';o.el.style.transform=`translate(${(v3.x*.5+.5)*W}px,${(-v3.y*.5+.5)*Hh}px) translate(-50%,-100%)`}}
 }
+setInterval(()=>{if(mode!=='game')return;netCleanup();if(mqttOnline&&!netJoined&&!netChecking)tryNetJoin();if(netJoined)sendPresence(false)},2000);
+addEventListener('pagehide',()=>{if(netJoined)netPublish('bye')});
 /* bump into boulders and trunks, slide along them */
 function collide(x,z){
   const ccx=Math.floor(x/CH),ccz=Math.floor(z/CH);
@@ -1411,16 +1370,12 @@ function applyPerf(){
   try{localStorage.setItem('baekyaksan-eco',PERF.eco?'1':'0')}catch(e){}
 }
 
-/* ================= Korean Standard Time: actual Asia/Seoul (UTC+09) ================= */
+/* ================= 시간 : 현실 20분 = 산속 하루 ================= */
+// 한국 표준시(KST, UTC+9): 모두가 현실과 같은 시각을 봅니다.
+const KST_OFFSET=9*60*60*1000;
 let gameMin=0,dayNo=1;
-function syncGameClock(dt){
-  // UTC timestamp + 9 hours: every player's game sky tracks the same real Korean time.
-  // No restart epoch or accelerated clock, so hosting restarts cannot change the phase.
-  const koreaMs=Date.now()+(synced?serverOffset:0)+9*60*60*1000;
-  const d=new Date(koreaMs);
-  gameMin=d.getUTCHours()*60+d.getUTCMinutes()+d.getUTCSeconds()/60;
-  dayNo=d.getUTCDate();
-}
+function syncKST(){const k=new Date(Date.now()+KST_OFFSET);gameMin=k.getUTCHours()*60+k.getUTCMinutes()+k.getUTCSeconds()/60;dayNo=Math.floor((Date.now()+KST_OFFSET)/86400000)+1;}
+syncKST();
 function phaseOf(h){if(h>=20||h<4)return'밤';if(h<6)return'새벽';if(h<10)return'아침';if(h<17)return'낮';return'저녁'}
 // 시각, 하늘 위, 하늘 아래(지평선·안개), 햇빛, 하늘빛, 밤 정도
 const SKYK=[[0,'#0b1126','#18213d',0,.17,1],[4,'#0f1730','#212a47',0,.18,1],[5.2,'#38406a','#d39a8c',.1,.28,.6],[6.3,'#8fb2d4','#f2d6b0',.45,.45,.1],[8,'#a5c6dc','#eef0e6',.7,.55,0],
@@ -1429,6 +1384,26 @@ const SKYNOW={top:'',bot:'',sun:0,hemi:0,night:0};
 function skyAtHour(h){let i=0;while(i<SKYK.length-2&&h>=SKYK[i+1][0])i++;const a=SKYK[i],b=SKYK[i+1],k=(h-a[0])/(b[0]-a[0]);
   SKYNOW.top=mixHex(a[1],b[1],k);SKYNOW.bot=mixHex(a[2],b[2],k);SKYNOW.sun=lerp(a[3],b[3],k);SKYNOW.hemi=lerp(a[4],b[4],k);SKYNOW.night=lerp(a[5],b[5],k);return SKYNOW}
 function clockText(){const h=Math.floor(gameMin/60)%24,m=Math.floor(gameMin%60);return `${h<12?'오전':'오후'} ${h%12===0?12:h%12}:${String(m).padStart(2,'0')}`}
+// 모든 방문자가 같은 30분 구간에 동일한 날씨를 계산합니다 (실제 기상자료는 아님).
+const WEATHER=['맑음','흐림','비'];let weatherName='',weatherType=0;
+function syncWeather(){
+  const slot=Math.floor((Date.now()+KST_OFFSET)/1800000);
+  let x=Math.imul(slot^0x2a7b4d19,1664525)+1013904223|0;
+  x^=x>>>16;x=Math.imul(x,2246822519);x^=x>>>13;
+  const n=(x>>>0)%10;
+  const type=n<5?0:n<8?1:2;
+  if(weatherType!==type||!weatherName){weatherType=type;weatherName=WEATHER[type];$('weather').textContent='날씨 · '+weatherName;}
+}
+syncWeather();
+const rainCount=210,rainXYZ=new Float32Array(rainCount*3),rainRand=rngOf(2026);
+for(let i=0;i<rainCount;i++){rainXYZ[3*i]=(rainRand()-.5)*26;rainXYZ[3*i+1]=rainRand()*16;rainXYZ[3*i+2]=(rainRand()-.5)*26}
+const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainXYZ,3));
+const rainPoints=new THREE.Points(rainGeo,new THREE.PointsMaterial({color:0xbdd8eb,size:.09,transparent:true,opacity:.55,depthWrite:false}));
+scene.add(rainPoints);rainPoints.visible=false;
+function updateRain(dt){rainPoints.visible=weatherType===2;if(!rainPoints.visible)return;
+  for(let i=0;i<rainCount;i++){const j=i*3;rainXYZ[j+1]-=dt*13;if(rainXYZ[j+1]<0){rainXYZ[j+1]+=16;rainXYZ[j]=(rainRand()-.5)*26;rainXYZ[j+2]=(rainRand()-.5)*26;}}
+  rainGeo.attributes.position.needsUpdate=true;rainPoints.position.set(P.x,P.y+1,P.z);
+}
 // 밤에는 이마에 단 헤드랜턴
 const lamp=new THREE.SpotLight(0xfff0d0,0,26,.62,.6,1.4);scene.add(lamp);scene.add(lamp.target);
 const _white=new THREE.Color(),_fogTmp=new THREE.Color();let skyKey2='';
@@ -1437,14 +1412,17 @@ function updSky(){
   const key=S.top+S.bot;if(key!==skyKey2){skyKey2=key;document.body.style.background=`linear-gradient(${S.top},${S.bot})`}
   const inCloud=clamp(1-Math.abs(P.y-CLOUD_Y)/28,0,1);
   scene.fog.color.set(S.bot).lerp(_white.setScalar(lerp(.96,.3,night)),inCloud);
-  const weatherFog=sharedWeather==='rain'?.56:sharedWeather==='cloudy'?.78:1;
-  scene.fog.near=lerp(45*PERF.fogK*weatherFog,4,inCloud);scene.fog.far=lerp(180*PERF.fogK*weatherFog,38,inCloud);
-  hemi.intensity=S.hemi*(sharedWeather==='rain'?.62:sharedWeather==='cloudy'?.78:1);
+  scene.fog.near=lerp(45*PERF.fogK,4,inCloud);scene.fog.far=lerp(180*PERF.fogK,38,inCloud);
+  // 공통 날씨의 명암/안개 표현
+  if(weatherType===1||weatherType===2){
+    scene.fog.color.lerp(_fogTmp.set(weatherType===2?0x879aa1:0xb5c2c3),weatherType===2?.42:.20);
+    scene.fog.far*=weatherType===2?.64:.82;
+  }
+  hemi.intensity=S.hemi*(weatherType===2?.72:weatherType===1?.84:1);
   // 해: 동(+x)에서 떠서 남(+z) 하늘을 지나 서(-x)로 짐. 밤에는 달빛
   const t=(hr-6)/12*Math.PI,el=Math.sin(t),az=Math.cos(t);
-  if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun;sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
+  if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun*(weatherType===2?.48:weatherType===1?.7:1);sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
   else{sun.position.set(P.x-az*80,P.y+25-el*100,P.z+30);sun.intensity=.16*night;sun.color.setHex(0x9fb0ff)}
-  sun.intensity*=sharedWeather==='rain'?.45:sharedWeather==='cloudy'?.7:1;
   sun.target.position.set(P.x,P.y,P.z);
   stars.material.opacity=night;stars.position.set(P.x,0,P.z);
   lamp.intensity=night*1.3;lamp.position.set(P.x,P.y+1.75,P.z);lamp.target.position.set(P.x+Math.sin(P.h)*8,P.y-.6,P.z+Math.cos(P.h)*8);
@@ -1456,18 +1434,6 @@ function updSky(){
   for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
 }
 
-/* ---------- shared weather visuals: deterministic KST weather ---------- */
-const rainGeo=new THREE.BufferGeometry(),rainPos=new Float32Array(360*3),rainRand=rngOf(451);
-for(let i=0;i<360;i++){rainPos[i*3]=(rainRand()-.5)*55;rainPos[i*3+1]=rainRand()*29;rainPos[i*3+2]=(rainRand()-.5)*55}
-rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPos,3));
-const rainMesh=new THREE.Points(rainGeo,new THREE.PointsMaterial({color:0xb8d6ea,size:.11,transparent:true,opacity:.7,depthWrite:false}));
-scene.add(rainMesh);rainMesh.visible=false;
-function updWeather(dt){
-  rainMesh.visible=sharedWeather==='rain';if(!rainMesh.visible)return;
-  rainMesh.position.set(P.x,P.y,P.z);
-  for(let i=0;i<rainPos.length;i+=3){rainPos[i+1]-=dt*24;if(rainPos[i+1]<0){rainPos[i+1]+=29;rainPos[i]=(rainRand()-.5)*55;rainPos[i+2]=(rainRand()-.5)*55}}
-  rainGeo.attributes.position.needsUpdate=true;
-}
 /* ================= 숲 소리 (전부 WebAudio로 합성) ================= */
 let AMB=null;
 function ambInit(){
@@ -1531,7 +1497,7 @@ const shaking=new Set();
 let clock=0;
 function updateGame(dt){
   // 시간
-  syncGameClock(dt);
+  syncKST();syncWeather();updateRain(dt);
   // 입력: 누른 쪽을 보고 걷기 (달리기 없음)
   const up=(keys.KeyW||keys.ArrowUp)?1:0,dn=(keys.KeyS||keys.ArrowDown)?1:0,lf=(keys.KeyA||keys.ArrowLeft)?1:0,rt=(keys.KeyD||keys.ArrowRight)?1:0;
   const fwd=up-dn-joy.y,str=rt-lf+joy.x;
@@ -1548,16 +1514,7 @@ function updateGame(dt){
   if(moveAmt){const slope=H(P.x+mvx*.6,P.z+mvz*.6)-P.y,spd=4.0*clamp(1-slope*.35,.6,1.15);
     let nx=P.x+mvx*moveAmt*spd*dt,nz=P.z+mvz*moveAmt*spd*dt;
     const d=nx-pathX(nz);if(Math.abs(d)>58)nx=pathX(nz)+Math.sign(d)*58;if(nz>34)nz=34;
-    // Try the intended move first; when terrain rises abruptly, slide along an axis.
-    // The previous 0.9-unit hard cutoff could trap the player in a noise-generated pit.
-    const stepLimit=2.8;
-    let q=collide(nx,nz);
-    if(P.air || H(q.x,q.z)-P.y<stepLimit){P.x=q.x;P.z=q.z}
-    else {
-      const ax=collide(nx,P.z),az=collide(P.x,nz);
-      if(H(ax.x,ax.z)-P.y<stepLimit){P.x=ax.x;P.z=ax.z}
-      else if(H(az.x,az.z)-P.y<stepLimit){P.x=az.x;P.z=az.z}
-    }}
+    if(H(nx,nz)-P.y<.9||P.air){const q=collide(nx,nz);P.x=q.x;P.z=q.z}}
   P.speed=Math.abs(moveAmt);
   const gy=H(P.x,P.z);
   if(P.air){P.vy-=14*dt;P.y+=P.vy*dt;if(P.y<=gy){P.y=gy;P.air=false;P.vy=0}}else P.y=lerp(P.y,gy,1-Math.exp(-dt*25));
@@ -1583,9 +1540,9 @@ function updateGame(dt){
   // 주변 정리
   updateChunks(P.x,P.z,false,dt);
   for(let i=pulls.length-1;i>=0;i--){const p=pulls[i];p.t+=dt;const k=clamp(p.t/.7,0,1);p.m.position.y=p.y0+ease(k)*p.d;p.m.rotation.z=Math.sin(p.t*9)*.15*(1-k);if(p.t>1.1)p.m.scale.setScalar(Math.max(.001,1-(p.t-1.1)/.4));if(p.t>1.5){p.m.parent&&p.m.parent.remove(p.m);pulls.splice(i,1)}}
-  updParticles(dt);updLabels(dt);updOthers(dt);updSky();updWeather(dt);updAmbience(dt);
+  updParticles(dt);updLabels(dt);updOthers(dt);updSky();updAmbience(dt);
   hudT+=dt;if(hudT>.25){hudT=0;updHud()}
-  presT+=dt;if(presT>.1){presT=0;sendPresence(false)}
+  presT+=dt;if(presT>.25){presT=0;sendPresence(false)}
   if(mapOpen){mapT+=dt;if(mapT>.15){mapT=0;drawMap()}}
   saveT+=dt;if(saveT>3){saveT=0;save.pos={x:+P.x.toFixed(1),z:+P.z.toFixed(1)};persist()}
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').classList.remove('on')}
@@ -1605,7 +1562,7 @@ function beginGame(){
   updateChunks(P.x,P.z,true);
   camera.position.set(P.x-Math.sin(camYaw)*7.7,P.y+3.2,P.z-Math.cos(camYaw)*7.7);
   setTimeout(()=>$('fade').classList.remove('on'),120);
-  toast('WASD / 방향키로 이동하세요 · 길을 따라 산을 오르세요');
+  if(save.pos)toast(`지난번 오르던 해발 ${Math.round(P.y*ALT_K)}m에서 다시 걷는다`);
   connectRoom();
 }
 let last=performance.now();
@@ -1618,9 +1575,6 @@ function frame(now){requestAnimationFrame(frame);
 addEventListener('resize',onResize);applyPerf();requestAnimationFrame(frame);
 $('ecoBtn').onclick=()=>{PERF.eco=!PERF.eco;applyPerf();chunkKey='';toast(PERF.eco?'절전 모드: 화질과 시야를 줄여 가볍게 돌립니다':'절전 모드 해제')};
 function jump(){if(mode==='game'&&!P.air&&me.mode!=='dig'){P.vy=5.2;P.air=true}}
-function returnToEntrance(){if(mode!=='game')return;P.x=pathX(24);P.z=24;P.y=H(P.x,P.z);P.vy=0;P.air=false;target=null;pending=null;me.mode='idle';camYaw=Math.PI;toast('입구로 돌아왔습니다');sendPresence(true)}
-addEventListener('keydown',e=>{if(e.code==='KeyR'&&mode==='game'&&e.target.tagName!=='INPUT')returnToEntrance()});
-$('homeBtn').onclick=returnToEntrance;
 $('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();jump()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('visibilitychange',()=>{if(!AMB)return;if(document.hidden)AMB.a.suspend();else AMB.a.resume()});
