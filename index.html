@@ -124,6 +124,7 @@
   @media (pointer:coarse){.mkey{display:none}#mapView .mapsheet{justify-content:flex-start}.mwrap{margin-top:auto;margin-bottom:auto}.card .c{font-size:11px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -135,7 +136,6 @@
   <div id="startPanel">
     <div class="row"><input id="nick" maxlength="12" placeholder="별호 (닉네임)"><span style="font-size:12px;opacity:.7">바람막이</span><div id="swatches" style="display:flex;gap:6px"></div></div>
     <button id="startBtn">산에 오르다</button>
-      <button id="introServerBtn" type="button" style="background:rgba(244,239,227,.92);border:1px solid #45604d;border-radius:8px;padding:8px 15px;cursor:pointer;font-family:inherit">멀티플레이 서버 설정</button>
   </div>
   <div id="skip">화면을 누르면 건너뜁니다</div>
 </div>
@@ -145,12 +145,11 @@
     <div id="alt"><small>해발</small>0m</div>
     <div id="clock"></div>
     <div id="weather">날씨 확인 중</div>
-    <div id="connection">서버 연결 전</div>
+    <div id="connection">공용 멀티플레이 준비</div>
     <div id="count">채집 0</div>
     <div id="people" class="hide"></div>
   </div>
   <div class="btns">
-    <button class="btn" id="serverBtn" title="멀티플레이 서버 주소 설정">서버 설정</button>
     <button class="btn" id="ecoBtn">절전</button>
     <button class="btn" id="mapBtn">지도</button>
     <button class="btn" id="bagBtn">가방 · 도감</button>
@@ -1243,101 +1242,117 @@ $('mapBtn').onclick=()=>toggleMap(true);$('mapClose').onclick=()=>toggleMap(fals
 $('mapView').addEventListener('pointerdown',e=>{if(e.target.id==='mapView')toggleMap(false)});
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||mode!=='game')return;if(e.code==='KeyM')toggleMap();if(e.code==='Escape')toggleMap(false)});
 
-/* ================= MULTIPLAYER (GitHub Pages + independent WebSocket host) ================= */
+/* ================= MULTIPLAYER: GitHub Pages + public MQTT ================= */
+// Reference: HOGI ROASTERS uses mqtt.js with a public MQTT/WebSocket broker.
+// No backend deployment or visitor configuration needed. This is a public best-effort room.
 const others=new Map();
-let socket=null, myPeer=null, online=false, retryTimer=null, netAccumulator=0;
-let serverOffset=0, synced=false, sharedWeather='clear', currentCount=0;
-let reconnectAttempts=0, roomFull=false, lastHeartbeat=0, heartbeatTimer=null;
+const BROKER='wss://broker.emqx.io:8084/mqtt';
+const TOPIC='baekyaksan-3d-public-room-2026-k7q2/v1/';
+const MAX_PLAYERS=4, PEER_TTL=12000;
+const myPeer=(typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,16):Math.random().toString(36).slice(2,14));
+const joinStamp=Date.now();
+let socket=null,online=false,roomFull=false,netAccumulator=0,lastNetPublish=0;
+let synced=true,serverOffset=0,sharedWeather='clear',currentCount=0,lastHeartbeat=0;
+let netStarted=false,joining=false,latestPeers=new Map(),lastKeep=0;
 const WEATHER_KO={clear:'맑음',cloudy:'흐림',rain:'비'};
-const SERVER_STORAGE='baekyaksan-server-url';
-const DEPLOYED_SERVER_URL=''; // 선택: Render 배포 후 https://xxx.onrender.com 입력하면 모든 방문자에 자동 적용
 function cleanNick(s){return String(s||'').replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,12)}
-function getServerUrl(){
-  const viaQuery=new URLSearchParams(location.search).get('server');
-  let stored='';try{stored=localStorage.getItem(SERVER_STORAGE)||''}catch(_){}
-  const selected=viaQuery||stored||DEPLOYED_SERVER_URL||(location.hostname.endsWith('.github.io')?'':location.origin);
-  if(!selected)return '';
-  try{
-    const u=new URL(selected);
-    if(!['https:','http:','wss:','ws:'].includes(u.protocol))return '';
-    u.protocol=(u.protocol==='https:'||u.protocol==='wss:')?'wss:':'ws:';
-    // GitHub Pages (HTTPS)에서는 TLS 지원 WebSocket만 가능
-    if(location.protocol==='https:'&&u.protocol!=='wss:')return '';
-    u.pathname='/ws';u.search='';u.hash='';return u.href;
-  }catch(_){return ''}
-}
-function configServer(){
- const previous='';try{previous=localStorage.getItem(SERVER_STORAGE)||''}catch(_){}
- const answer=prompt('멀티플레이 서버 주소를 입력하세요.\n예: https://내-게임.onrender.com\n(GitHub Pages 주소가 아닌 Render 서버 주소)',previous||DEPLOYED_SERVER_URL);
- if(answer===null)return;
- const value=answer.trim().replace(/\/$/,'');
- if(value){try{const u=new URL(value);if(!['https:','http:','wss:','ws:'].includes(u.protocol))throw Error();if(location.protocol==='https:'&&['http:','ws:'].includes(u.protocol))throw Error();}catch(_){toast('HTTPS 웹사이트에서는 https:// 서버 주소가 필요합니다.');return}}
- try{if(value)localStorage.setItem(SERVER_STORAGE,value);else localStorage.removeItem(SERVER_STORAGE)}catch(_){}
- if(socket){const old=socket;socket=null;old.close()}
- clearTimeout(retryTimer);clearInterval(heartbeatTimer);online=false;myPeer=null;roomFull=false;reconnectAttempts=0;for(const id of [...others.keys()])dropOther(id);updPeople(0);
- if(mode==='game')connectRoom();else toast(value?'서버 주소가 저장되었습니다':'서버 주소가 비워졌습니다');
-}
-$('serverBtn').onclick=configServer;
-$('introServerBtn').onclick=configServer;
-function netSend(data){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(data))}
 function setConnection(t){$('connection').textContent=t}
-function scheduleRetry(){
- if(mode!=='game'||roomFull)return;
- clearTimeout(retryTimer);
- const ms=Math.min(20000,1500*Math.pow(1.6,Math.min(reconnectAttempts++,6)));
- retryTimer=setTimeout(connectRoom,ms);
+function weatherAtKST(){
+  // Deterministic virtual weather, shared without a dedicated server.
+  // Same 30-minute Korean time slot always yields the same weather on all devices.
+  const slot=Math.floor((Date.now()+9*3600000)/1800000);
+  const seed=(Math.imul(slot ^ 0x7f4a7c15, 2654435761)>>>0)%100;
+  return seed<53?'clear':seed<80?'cloudy':'rain';
+}
+function updSharedWeather(){sharedWeather=weatherAtKST();$('weather').textContent='날씨 · '+WEATHER_KO[sharedWeather]}
+function myNetState(){
+  const md=me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':'i';
+  const s={x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:md,alt:Math.round(P.y*ALT_K),g:Math.min(6,totalCount())};
+  if(lastFound)s.f=lastFound;
+  return s;
+}
+function publish(topic,data){if(socket&&socket.connected)try{socket.publish(TOPIC+topic,JSON.stringify(data),{qos:0,retain:false})}catch(e){}}
+function sendPresence(force){
+  if(!online||!socket||!socket.connected||mode!=='game')return;
+  const now=Date.now();if(!force&&now-lastNetPublish<130)return;
+  lastNetPublish=now;
+  publish('st/'+myPeer,{id:myPeer,ts:joinStamp,nick:cleanNick(save.nick),color:save.color|0,state:myNetState()});
+}
+function sendHello(){if(!socket||!socket.connected||mode!=='game')return;
+  publish('hi/'+myPeer,{id:myPeer,ts:joinStamp,nick:cleanNick(save.nick),color:save.color|0,active:online});
+}
+function activePeers(){const now=Date.now();return [...latestPeers.entries()].filter(([id,v])=>now-v.seen<PEER_TTL&&v.active).map(([id,v])=>({id,...v}));}
+function reconcileCapacity(){
+  if(!socket||!socket.connected||mode!=='game')return;
+  joining=false;
+  const now=Date.now();
+  const present=[...latestPeers.entries()].filter(([id,v])=>now-v.seen<PEER_TTL);
+  // Distributed soft limit: oldest join timestamps win, ties by stable client ID.
+  const contenders=[{id:myPeer,ts:joinStamp},...present.map(([id,v])=>({id,ts:v.ts}))]
+    .sort((a,b)=>a.ts-b.ts||a.id.localeCompare(b.id));
+  const admitted=contenders.slice(0,MAX_PLAYERS).some(p=>p.id===myPeer);
+  if(!admitted){
+    if(online){online=false;for(const id of [...others.keys()])dropOther(id);sendHello()}
+    roomFull=true;setConnection('현재 정원 4명 · 빈자리 대기 중');updPeople(MAX_PLAYERS);return;
+  }
+  roomFull=false;
+  if(!online){online=true;setConnection('연결됨 · 공용 산');sendHello();sendPresence(true);
+    toast(`백약산 멀티플레이 · ${Math.min(MAX_PLAYERS,activePeers().length+1)}/4명`)}
+  updPeople();
 }
 function connectRoom(){
- if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;
- clearTimeout(retryTimer);
- const address=getServerUrl();
- $('people').classList.remove('hide');
- if(!address){setConnection('서버 주소 필요 · 서버 설정 클릭');updPeople(0);return}
- roomFull=false;
- const ws=new WebSocket(address);socket=ws;
- setConnection('서버 연결 중…');
- let welcomed=false;
- const openingTimeout=setTimeout(()=>{if(socket===ws&&!welcomed)ws.close()},12000);
- ws.onopen=()=>{if(socket!==ws)return;setConnection('입장 확인 중…');netSend({type:'join',nick:cleanNick(save.nick),color:save.color|0});};
- ws.onmessage=e=>{
-  if(socket!==ws)return;
-  let m;try{m=JSON.parse(e.data)}catch(_){return}
-  if(m.type==='full'){roomFull=true;setConnection('접속 불가 · 정원 4명');toast('현재 최대 4명이 접속 중입니다.');ws.close();return}
-  if(m.type==='welcome'){
-    welcomed=true;clearTimeout(openingTimeout);online=true;myPeer=m.id;reconnectAttempts=0;
-    setConnection('연결됨 · 멀티플레이');setSync(m);
-    for(const id of [...others.keys()])dropOther(id);
-    for(const p of m.players||[])if(p.id!==myPeer)upOther(p);
-    updPeople(m.count);toast(`백약산 입장 · ${m.count}/4명`);sendPresence(true);
-    clearInterval(heartbeatTimer);
-    heartbeatTimer=setInterval(()=>netSend({type:'ping',sent:Date.now()}),15000);
-  }else if(m.type==='state'){setSync(m);updPeople(m.count)}
-  else if(m.type==='joined'){if(m.player&&m.player.id!==myPeer)upOther(m.player);updPeople(m.count);toast(`${cleanNick(m.player?.nick)||'산객'}님이 입장했습니다`)}
-  else if(m.type==='left'){dropOther(m.id);updPeople(m.count)}
-  else if(m.type==='move'){if(m.player&&m.player.id!==myPeer)upOther(m.player)}
-  else if(m.type==='pong'&&Number.isFinite(m.serverTime)){
-    const rtt=Date.now()-m.sent;if(rtt>=0&&rtt<2000)serverOffset=serverOffset*.7+(m.serverTime+rtt/2-Date.now())*.3;
-  }
- };
- ws.onerror=()=>{if(socket===ws)setConnection('서버 연결 오류')};
- ws.onclose=()=>{
-   clearTimeout(openingTimeout);
-   if(socket!==ws)return;
-   clearInterval(heartbeatTimer);socket=null;online=false;myPeer=null;
-   for(const id of [...others.keys()])dropOther(id);updPeople(0);
-   if(roomFull)return;
-   setConnection('연결 끊김 · 자동 재접속 중');scheduleRetry();
- };
+  if(netStarted)return;netStarted=true;
+  $('people').classList.remove('hide');updSharedWeather();
+  if(!window.mqtt||!window.mqtt.connect){setConnection('통신 모듈 로딩 실패 · 새로고침');return}
+  setConnection('공용 산에 연결 중…');
+  try{
+    socket=window.mqtt.connect(BROKER,{clientId:'by3d_'+myPeer,clean:true,keepalive:30,reconnectPeriod:3500,connectTimeout:12000,
+      will:{topic:TOPIC+'bye/'+myPeer,payload:'1',qos:0,retain:false}});
+    socket.on('connect',()=>{
+      online=false;joining=true;latestPeers.clear();
+      setConnection('동행자 확인 중…');
+      socket.subscribe(TOPIC+'#',{qos:0},()=>{
+        sendHello();setTimeout(()=>{if(socket?.connected)reconcileCapacity()},1700);
+      });
+    });
+    socket.on('message',(topic,payload)=>{
+      if(!topic.startsWith(TOPIC)||payload.length>2048)return;
+      const action=topic.slice(TOPIC.length),parts=action.split('/'),id=parts[1];
+      if(!id||id===myPeer||!/^[a-z0-9]{8,20}$/.test(id))return;
+      if(parts[0]==='bye') {latestPeers.delete(id);dropOther(id);updPeople();if(!online)reconcileCapacity();return}
+      if(parts[0]!=='hi'&&parts[0]!=='st')return;
+      let msg;try{msg=JSON.parse(payload.toString())}catch(e){return}
+      if(!msg||msg.id!==id||!Number.isFinite(msg.ts))return;
+      const prev=latestPeers.get(id),now=Date.now();
+      latestPeers.set(id,{seen:now,ts:msg.ts,active:parts[0]==='st'?true:!!msg.active,nick:cleanNick(msg.nick),color:Math.max(0,Math.min(5,msg.color|0))});
+      if(parts[0]==='hi'&&online){sendPresence(true)}
+      if(parts[0]==='st'&&msg.state&&online)upOther({id,nick:msg.nick,color:msg.color,state:msg.state});
+      if(!joining)reconcileCapacity();
+      updPeople();
+    });
+    socket.on('close',()=>{
+      online=false;joining=false;roomFull=false;latestPeers.clear();
+      for(const id of [...others.keys()])dropOther(id);
+      updPeople(0);setConnection('연결 끊김 · 자동 재연결 중…');
+    });
+    socket.on('offline',()=>{online=false;setConnection('네트워크 연결 대기 중…');updPeople(0)});
+    socket.on('error',()=>{setConnection('공개 중계 서버 연결 오류 · 재시도 중')});
+  }catch(e){setConnection('연결 실패 · 새로고침해 주세요')}
 }
-function setSync(m){
-  if(typeof m.serverTime==='number'){
-   const observed=m.serverTime-Date.now();
-   serverOffset=synced?serverOffset*.8+observed*.2:observed;
-   synced=true;
-  }
-  if(typeof m.weather==='string')sharedWeather=m.weather;
-  $('weather').textContent='날씨 · '+(WEATHER_KO[sharedWeather]||'맑음');
+function updPeople(count){
+  const n=Number.isFinite(count)?count:Math.min(MAX_PLAYERS,activePeers().length+(online?1:0));
+  currentCount=n;$('people').textContent=`접속 인원 ${n}/${MAX_PLAYERS}명`;
 }
+setInterval(()=>{
+  updSharedWeather();
+  if(!socket?.connected||mode!=='game')return;
+  const now=Date.now();
+  for(const [id,peer] of latestPeers){if(now-peer.seen>PEER_TTL){latestPeers.delete(id);dropOther(id)}}
+  for(const id of others.keys())if(!latestPeers.has(id))dropOther(id);
+  if(!joining)reconcileCapacity();sendHello();if(online)sendPresence(true)
+  updPeople();
+},4000);
+addEventListener('pagehide',()=>{if(socket?.connected){publish('bye/'+myPeer,{id:myPeer});socket.end(true)}});
 function upOther(p){
   const s=p.state||{};if(!Number.isFinite(s.x)||!Number.isFinite(s.z))return;
   let o=others.get(p.id);
@@ -1349,15 +1364,6 @@ function upOther(p){
   o.el.textContent=(o.nick||'산객')+(o.alt?` · ${o.alt}m`:'');
 }
 function dropOther(id){const o=others.get(id);if(!o)return;scene.remove(o.av.root);o.el.remove();others.delete(id)}
-function updPeople(count){currentCount=Number.isFinite(count)?count:(online?others.size+1:0);$('people').textContent=`접속 인원 ${currentCount}/4명`}
-let presT=0,lastSent='';
-function sendPresence(force){
-  if(!online||!myPeer)return;
-  const md=me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':'i';
-  const s={x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:md,alt:Math.round(P.y*ALT_K),g:Math.min(6,totalCount())};
-  if(lastFound)s.f=lastFound;
-  const k=JSON.stringify(s);if(!force&&k===lastSent)return;lastSent=k;netSend({type:'move',state:s});
-}
 function updOthers(dt){
   const f=1-Math.exp(-dt*8);
   for(const o of others.values()){o.x=lerp(o.x,o.tx,f);o.z=lerp(o.z,o.tz,f);o.y=lerp(o.y,o.ty,f);let dh=o.th-o.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));o.h+=dh*f;
@@ -1447,7 +1453,7 @@ function updSky(){
   for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
 }
 
-/* ---------- shared weather visuals: server-selected weather ---------- */
+/* ---------- shared weather visuals: deterministic KST weather ---------- */
 const rainGeo=new THREE.BufferGeometry(),rainPos=new Float32Array(360*3),rainRand=rngOf(451);
 for(let i=0;i<360;i++){rainPos[i*3]=(rainRand()-.5)*55;rainPos[i*3+1]=rainRand()*29;rainPos[i*3+2]=(rainRand()-.5)*55}
 rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPos,3));
