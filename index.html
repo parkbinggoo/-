@@ -86,6 +86,8 @@
   .wl.msg{font-family:'Nanum Myeongjo',serif;font-weight:700;background:rgba(244,239,227,.92);padding:4px 10px;border-radius:6px;text-shadow:none;border:1px solid rgba(31,43,40,.2)}
   .nametag{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;padding:3px 8px;border-radius:999px;background:rgba(31,43,40,.7);color:#f4efe3}
   #people{margin-top:6px;font-size:12px;opacity:.85}
+  #connection{font-size:12px;margin-top:3px;opacity:.85}
+  #weather{font-size:12px;margin-top:3px;opacity:.85}
   #joy{position:fixed;left:22px;bottom:26px;width:120px;height:120px;border-radius:50%;background:rgba(244,239,227,.35);border:1.5px solid rgba(244,239,227,.8);z-index:6;touch-action:none}
   #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(244,239,227,.9);box-shadow:0 4px 12px rgba(0,0,0,.2)}
   #help{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,28,26,.4);z-index:11}
@@ -141,6 +143,8 @@
   <div class="plate">
     <div id="alt"><small>해발</small>0m</div>
     <div id="clock"></div>
+    <div id="weather">날씨 확인 중</div>
+    <div id="connection">서버 연결 전</div>
     <div id="count">채집 0</div>
     <div id="people" class="hide"></div>
   </div>
@@ -1237,37 +1241,60 @@ $('mapBtn').onclick=()=>toggleMap(true);$('mapClose').onclick=()=>toggleMap(fals
 $('mapView').addEventListener('pointerdown',e=>{if(e.target.id==='mapView')toggleMap(false)});
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||mode!=='game')return;if(e.code==='KeyM')toggleMap();if(e.code==='Escape')toggleMap(false)});
 
-/* ================= MULTIPLAYER (room presence) ================= */
-let room=null,userCap=null;const others=new Map();const nameCache={};
-function cleanNick(s){return String(s||'').replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯﻿]/g,'').trim().slice(0,12)}
-async function connectRoom(){
-  try{if(!window.claude||typeof window.claude.use!=='function')return;room=await window.claude.use('room')}catch(e){room=null}
-  if(!room)return;
-  try{userCap=await window.claude.use('user')}catch(e){}
-  room.onPeers(ch=>{for(const p of ch.left)dropOther(p.peer);for(const p of ch.joined)upOther(p);for(const p of ch.updated)upOther(p);updPeople()},()=>{});
-  $('people').classList.remove('hide');updPeople();
+/* ================= MULTIPLAYER (WebSocket / up to 4) ================= */
+const others=new Map();
+let socket=null, myPeer=null, online=false, retryTimer=null, netAccumulator=0;
+let serverOffset=0, sharedEpoch=0, synced=false, sharedWeather='clear';
+const WEATHER_KO={clear:'맑음',cloudy:'흐림',rain:'비'};
+function cleanNick(s){return String(s||'').replace(/[\u0000-\u001f\u007f-\u009f]/g,'').trim().slice(0,12)}
+function netSend(data){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(data))}
+function connectRoom(){
+  if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;
+  clearTimeout(retryTimer);
+  const address=(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws';
+  try{socket=new WebSocket(address)}catch(e){setConnection('연결 실패');return}
+  $('people').classList.remove('hide');setConnection('접속 중…');
+  socket.onopen=()=>{online=true;setConnection('서버 연결됨');netSend({type:'join',nick:cleanNick(save.nick),color:save.color|0});};
+  socket.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(_){return}
+    if(m.type==='full'){setConnection('접속 불가 · 최대 4명');toast('현재 4명이 접속 중입니다. 빈자리가 생기면 다시 접속할 수 있습니다.');socket.close();return}
+    if(m.type==='welcome'){
+      myPeer=m.id;setSync(m);for(const p of m.players||[])if(p.id!==myPeer)upOther(p);updPeople(m.count);
+      toast(`백약산에 입장했습니다 · 접속 ${m.count}/4명`);sendPresence(true);
+    }else if(m.type==='state'){setSync(m);updPeople(m.count)}
+    else if(m.type==='joined'){if(m.player&&m.player.id!==myPeer)upOther(m.player);updPeople(m.count);toast(`${cleanNick(m.player?.nick)||'산객'}님이 입장했습니다`)}
+    else if(m.type==='left'){dropOther(m.id);updPeople(m.count)}
+    else if(m.type==='move'){if(m.player&&m.player.id!==myPeer)upOther(m.player)}
+  };
+  socket.onerror=()=>setConnection('연결 오류');
+  socket.onclose=()=>{online=false;myPeer=null;socket=null;for(const id of [...others.keys()])dropOther(id);updPeople(0);if($('connection').textContent.includes('접속 불가'))return;setConnection('연결 끊김 · 재접속 중');retryTimer=setTimeout(()=>{if(mode==='game')connectRoom()},3000)};
+}
+function setConnection(t){$('connection').textContent=t}
+function setSync(m){
+  if(typeof m.serverTime==='number')serverOffset=m.serverTime-Date.now();
+  if(typeof m.epoch==='number')sharedEpoch=m.epoch;
+  if(typeof m.weather==='string')sharedWeather=m.weather;
+  synced=true;
+  $('weather').textContent='날씨 · '+(WEATHER_KO[sharedWeather]||'맑음');
 }
 function upOther(p){
-  if(p.sameTab||p.kind!=='viewer')return;const s=p.presence||{};if(!isFinite(s.x)||!isFinite(s.z))return;
-  let o=others.get(p.peer);
-  if(!o){const col=JACKETS[(s.c|0)%JACKETS.length]||JACKETS[1];const av=makeHiker(col);scene.add(av.root);const el=document.createElement('div');el.className='nametag';$('labels').appendChild(el);
-    o={av,el,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',lastF:0,by:p.by,nick:''};others.set(p.peer,o);resolveName(o)}
-  o.tx=+s.x;o.tz=+s.z;o.ty=+s.y||H(o.tx,o.tz);o.th=+s.h||0;o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);setGreens(o.av,+s.g|0);
+  const s=p.state||{};if(!Number.isFinite(s.x)||!Number.isFinite(s.z))return;
+  let o=others.get(p.id);
+  if(!o){const col=JACKETS[(p.color|0)%JACKETS.length]||JACKETS[1];const av=makeHiker(col);scene.add(av.root);const el=document.createElement('div');el.className='nametag';$('labels').appendChild(el);
+    o={av,el,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',lastF:0,nick:''};others.set(p.id,o)}
+  o.tx=s.x;o.tz=s.z;o.ty=Number.isFinite(s.y)?s.y:H(s.x,s.z);o.th=Number.isFinite(s.h)?s.h:0;o.nick=cleanNick(p.nick);o.alt=Math.round(s.alt||0);setGreens(o.av,s.g|0);
   const md=s.a==='w'?'walk':s.a==='d'?'dig':s.a==='j'?'joy':'idle';if(md!==o.mode){o.mode=md;o.av.mode=md;o.av.t=0}
   if(s.f&&typeof s.f==='object'&&s.f.t!==o.lastF&&(HERBS[s.f.k]||MUSH[s.f.k])){o.lastF=s.f.t;if(Date.now()-s.f.t<8000){const nm=(HERBS[s.f.k]||MUSH[s.f.k]).name;worldLabel(new THREE.Vector3(o.tx,o.ty+1.4,o.tz),`${nm}을(를) 찾았다!`,'msg',2.2)}}
-  renderTag(o);
+  o.el.textContent=(o.nick||'산객')+(o.alt?` · ${o.alt}m`:'');
 }
-async function resolveName(o){if(!userCap||!o.by)return;try{if(!(o.by in nameCache)){const ps=await userCap.profiles([o.by]);nameCache[o.by]=(ps&&ps[o.by]&&ps[o.by].name)||''}renderTag(o)}catch(e){}}
-function renderTag(o){o.el.textContent=(o.nick||nameCache[o.by]||'산객')+(o.alt?` · ${o.alt}m`:'')}
-function dropOther(peer){const o=others.get(peer);if(!o)return;scene.remove(o.av.root);o.el.remove();others.delete(peer)}
-function updPeople(){const n=others.size;$('people').textContent=n?`지금 함께 오르는 사람 ${n}명`:'지금 산에는 나 혼자';}
+function dropOther(id){const o=others.get(id);if(!o)return;scene.remove(o.av.root);o.el.remove();others.delete(id)}
+function updPeople(count){$('people').textContent=`접속 인원 ${Number.isFinite(count)?count:online?others.size+1:0}/4명`}
 let presT=0,lastSent='';
 function sendPresence(force){
-  if(!room)return;
+  if(!online||!myPeer)return;
   const md=me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':'i';
-  const s={x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:md,c:save.color|0,n:cleanNick(save.nick),alt:Math.round(P.y*ALT_K),g:Math.min(6,totalCount())};
+  const s={x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:md,alt:Math.round(P.y*ALT_K),g:Math.min(6,totalCount())};
   if(lastFound)s.f=lastFound;
-  const k=JSON.stringify(s);if(!force&&k===lastSent)return;lastSent=k;room.presence(s).catch(()=>{});
+  const k=JSON.stringify(s);if(!force&&k===lastSent)return;lastSent=k;netSend({type:'move',state:s});
 }
 function updOthers(dt){
   const f=1-Math.exp(-dt*8);
@@ -1276,7 +1303,6 @@ function updOthers(dt){
     const far=Math.hypot(o.x-P.x,o.z-P.z);o.av.root.visible=far<220;
     v3.set(o.x,o.y+2.15,o.z).project(camera);if(v3.z>1||far>220){o.el.style.display='none'}else{o.el.style.display='';o.el.style.transform=`translate(${(v3.x*.5+.5)*W}px,${(-v3.y*.5+.5)*Hh}px) translate(-50%,-100%)`}}
 }
-
 /* bump into boulders and trunks, slide along them */
 function collide(x,z){
   const ccx=Math.floor(x/CH),ccz=Math.floor(z/CH);
@@ -1316,7 +1342,11 @@ function applyPerf(){
 
 /* ================= 시간 : 현실 20분 = 산속 하루 ================= */
 const DAY_SEC=20*60;
-let gameMin=isFinite(save.gameMin)?save.gameMin:6*60+10,dayNo=save.dayNo||1;
+let gameMin=6*60+10,dayNo=1;
+function syncGameClock(dt){
+  if(synced&&sharedEpoch){const total=(Date.now()+serverOffset-sharedEpoch)/1000*1440/DAY_SEC+370;dayNo=Math.max(1,Math.floor(total/1440)+1);gameMin=((total%1440)+1440)%1440}
+  else{gameMin+=dt*1440/DAY_SEC;if(gameMin>=1440){gameMin-=1440;dayNo++}}
+}
 function phaseOf(h){if(h>=20||h<4)return'밤';if(h<6)return'새벽';if(h<10)return'아침';if(h<17)return'낮';return'저녁'}
 // 시각, 하늘 위, 하늘 아래(지평선·안개), 햇빛, 하늘빛, 밤 정도
 const SKYK=[[0,'#0b1126','#18213d',0,.17,1],[4,'#0f1730','#212a47',0,.18,1],[5.2,'#38406a','#d39a8c',.1,.28,.6],[6.3,'#8fb2d4','#f2d6b0',.45,.45,.1],[8,'#a5c6dc','#eef0e6',.7,.55,0],
@@ -1333,12 +1363,14 @@ function updSky(){
   const key=S.top+S.bot;if(key!==skyKey2){skyKey2=key;document.body.style.background=`linear-gradient(${S.top},${S.bot})`}
   const inCloud=clamp(1-Math.abs(P.y-CLOUD_Y)/28,0,1);
   scene.fog.color.set(S.bot).lerp(_white.setScalar(lerp(.96,.3,night)),inCloud);
-  scene.fog.near=lerp(45*PERF.fogK,4,inCloud);scene.fog.far=lerp(180*PERF.fogK,38,inCloud);
-  hemi.intensity=S.hemi;
+  const weatherFog=sharedWeather==='rain'?.56:sharedWeather==='cloudy'?.78:1;
+  scene.fog.near=lerp(45*PERF.fogK*weatherFog,4,inCloud);scene.fog.far=lerp(180*PERF.fogK*weatherFog,38,inCloud);
+  hemi.intensity=S.hemi*(sharedWeather==='rain'?.62:sharedWeather==='cloudy'?.78:1);
   // 해: 동(+x)에서 떠서 남(+z) 하늘을 지나 서(-x)로 짐. 밤에는 달빛
   const t=(hr-6)/12*Math.PI,el=Math.sin(t),az=Math.cos(t);
   if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun;sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
   else{sun.position.set(P.x-az*80,P.y+25-el*100,P.z+30);sun.intensity=.16*night;sun.color.setHex(0x9fb0ff)}
+  sun.intensity*=sharedWeather==='rain'?.45:sharedWeather==='cloudy'?.7:1;
   sun.target.position.set(P.x,P.y,P.z);
   stars.material.opacity=night;stars.position.set(P.x,0,P.z);
   lamp.intensity=night*1.3;lamp.position.set(P.x,P.y+1.75,P.z);lamp.target.position.set(P.x+Math.sin(P.h)*8,P.y-.6,P.z+Math.cos(P.h)*8);
@@ -1350,6 +1382,18 @@ function updSky(){
   for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
 }
 
+/* ---------- shared weather visuals: server-selected weather ---------- */
+const rainGeo=new THREE.BufferGeometry(),rainPos=new Float32Array(360*3),rainRand=rngOf(451);
+for(let i=0;i<360;i++){rainPos[i*3]=(rainRand()-.5)*55;rainPos[i*3+1]=rainRand()*29;rainPos[i*3+2]=(rainRand()-.5)*55}
+rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPos,3));
+const rainMesh=new THREE.Points(rainGeo,new THREE.PointsMaterial({color:0xb8d6ea,size:.11,transparent:true,opacity:.7,depthWrite:false}));
+scene.add(rainMesh);rainMesh.visible=false;
+function updWeather(dt){
+  rainMesh.visible=sharedWeather==='rain';if(!rainMesh.visible)return;
+  rainMesh.position.set(P.x,P.y,P.z);
+  for(let i=0;i<rainPos.length;i+=3){rainPos[i+1]-=dt*24;if(rainPos[i+1]<0){rainPos[i+1]+=29;rainPos[i]=(rainRand()-.5)*55;rainPos[i+2]=(rainRand()-.5)*55}}
+  rainGeo.attributes.position.needsUpdate=true;
+}
 /* ================= 숲 소리 (전부 WebAudio로 합성) ================= */
 let AMB=null;
 function ambInit(){
@@ -1413,7 +1457,7 @@ const shaking=new Set();
 let clock=0;
 function updateGame(dt){
   // 시간
-  gameMin+=dt*1440/DAY_SEC;if(gameMin>=1440){gameMin-=1440;dayNo++;toast(`${dayNo}일째 아침이 밝아 온다`)}
+  syncGameClock(dt);
   // 입력: 누른 쪽을 보고 걷기 (달리기 없음)
   const up=(keys.KeyW||keys.ArrowUp)?1:0,dn=(keys.KeyS||keys.ArrowDown)?1:0,lf=(keys.KeyA||keys.ArrowLeft)?1:0,rt=(keys.KeyD||keys.ArrowRight)?1:0;
   const fwd=up-dn-joy.y,str=rt-lf+joy.x;
@@ -1456,11 +1500,11 @@ function updateGame(dt){
   // 주변 정리
   updateChunks(P.x,P.z,false,dt);
   for(let i=pulls.length-1;i>=0;i--){const p=pulls[i];p.t+=dt;const k=clamp(p.t/.7,0,1);p.m.position.y=p.y0+ease(k)*p.d;p.m.rotation.z=Math.sin(p.t*9)*.15*(1-k);if(p.t>1.1)p.m.scale.setScalar(Math.max(.001,1-(p.t-1.1)/.4));if(p.t>1.5){p.m.parent&&p.m.parent.remove(p.m);pulls.splice(i,1)}}
-  updParticles(dt);updLabels(dt);updOthers(dt);updSky();updAmbience(dt);
+  updParticles(dt);updLabels(dt);updOthers(dt);updSky();updWeather(dt);updAmbience(dt);
   hudT+=dt;if(hudT>.25){hudT=0;updHud()}
   presT+=dt;if(presT>.1){presT=0;sendPresence(false)}
   if(mapOpen){mapT+=dt;if(mapT>.15){mapT=0;drawMap()}}
-  saveT+=dt;if(saveT>3){saveT=0;save.pos={x:+P.x.toFixed(1),z:+P.z.toFixed(1)};save.gameMin=Math.round(gameMin*10)/10;save.dayNo=dayNo;persist()}
+  saveT+=dt;if(saveT>3){saveT=0;save.pos={x:+P.x.toFixed(1),z:+P.z.toFixed(1)};persist()}
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').classList.remove('on')}
   if(foundTimer>0){foundTimer-=dt;if(foundTimer<=0)$('found').classList.remove('on')}
 }
