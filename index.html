@@ -1132,7 +1132,7 @@ const MILES=['솔바람이 등을 민다','능선 너머로 다른 산들이 내
 let lastMile=-1,toastT=0;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');toastT=3}
 let hudKey='';
-function updHud(){const alt=Math.max(0,Math.round(P.y*ALT_K)),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount();if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`한국시간 · ${ph} · ${ck}`;$('count').textContent=`채집 ${totalCount()} · ${Object.keys(save.inv).length}/${HERB_KEYS.length+MUSH_KEYS.length}종`}
+function updHud(){const alt=Math.max(0,Math.round(P.y*ALT_K)),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount();if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`산속 시간 · ${ph} · ${ck}`;$('count').textContent=`채집 ${totalCount()} · ${Object.keys(save.inv).length}/${HERB_KEYS.length+MUSH_KEYS.length}종`}
   const m=Math.floor(alt/300);if(lastMile<0)lastMile=m;if(m>lastMile){lastMile=m;toast(`해발 ${m*300}m — ${MILES[Math.min(MILES.length-1,m-1)]}`);tone(392,.4,'sine',.06);tone(587,.6,'sine',.05,1,.15)}}
 $('bagBtn').onclick=()=>{buildBag();$('bag').classList.remove('hide')};
 $('bagClose').onclick=()=>$('bag').classList.add('hide');
@@ -1263,7 +1263,12 @@ function updatePeople(){
   const el=$('people');el.classList.toggle('hide',count<=1||!mqttOnline);
   if(count>1&&mqttOnline)el.textContent='함께 오르는 산객 '+Math.min(count,4)+'/4명';
 }
-function netDrop(id){const o=others.get(id);if(o){scene.remove(o.av.root);o.el.remove();others.delete(id)}peerSeen.delete(id);updatePeople()}
+function netDrop(id){const o=others.get(id);if(o){
+    // Remove remote player's light and target as well as the avatar.
+    if(o.headLamp){scene.remove(o.headLamp);scene.remove(o.headLamp.target);o.headLamp.dispose&&o.headLamp.dispose()}
+    if(o.lampLens){o.av.root.remove(o.lampLens);o.lampLens.geometry.dispose();o.lampLens.material.dispose()}
+    scene.remove(o.av.root);o.el.remove();others.delete(id)
+  }peerSeen.delete(id);updatePeople()}
 function netCleanup(){const now=Date.now();if(now-lastPeerCleanup<1500)return;lastPeerCleanup=now;
   for(const [id,peer] of peerSeen)if(now-peer.seen>11000)netDrop(id);
   // All participating browsers use the same ordering for the cooperative 4-seat cap.
@@ -1310,7 +1315,14 @@ function upOther(p){
   if(p.sameTab||p.kind!=='viewer')return;const s=p.presence||{};if(!isFinite(s.x)||!isFinite(s.z))return;
   let o=others.get(p.peer);
   if(!o){const col=JACKETS[((s.c|0)%JACKETS.length+JACKETS.length)%JACKETS.length];const av=makeHiker(col);scene.add(av.root);const el=document.createElement('div');el.className='nametag';$('labels').appendChild(el);
-    o={av,el,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',nick:''};others.set(p.peer,o)}
+    // A remote headlamp: independent cone, aimed along the avatar's networked heading.
+    // Shadow casting stays disabled to protect mobile performance (max 3 peers).
+    const headLamp=new THREE.SpotLight(0xffefd0,0,26,.62,.6,1.4);
+    headLamp.castShadow=false;scene.add(headLamp);scene.add(headLamp.target);
+    const lampLens=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),
+      new THREE.MeshBasicMaterial({color:0xfff2bd,transparent:true,opacity:0}));
+    lampLens.position.set(0,1.77,.13);av.root.add(lampLens);
+    o={av,el,headLamp,lampLens,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',nick:''};others.set(p.peer,o)}
   o.tx=+s.x;o.tz=+s.z;o.ty=Number.isFinite(+s.y)?+s.y:H(o.tx,o.tz);o.th=+s.h||0;
   o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);setGreens(o.av,+s.g|0);
   const md=s.a==='w'?'walk':s.a==='d'?'dig':s.a==='j'?'joy':'idle';if(md!==o.mode){o.mode=md;o.av.mode=md;o.av.t=0}
@@ -1329,6 +1341,16 @@ function updOthers(dt){
   for(const o of others.values()){o.x=lerp(o.x,o.tx,f);o.z=lerp(o.z,o.tz,f);o.y=lerp(o.y,o.ty,f);let dh=o.th-o.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));o.h+=dh*f;
     o.av.root.position.set(o.x,o.y,o.z);o.av.root.rotation.y=o.h;poseHiker(o.av,dt,1);
     const far=Math.hypot(o.x-P.x,o.z-P.z);o.av.root.visible=far<220;
+    // Lanterns automatically follow the same 20-minute day/night clock as ours.
+    // Position and facing are already shared by multiplayer state packets.
+    const night=skyAtHour(gameMin/60).night;
+    const nearEnough=far<55;
+    o.headLamp.intensity=nearEnough?night*1.3:0;
+    o.headLamp.position.set(o.x+Math.sin(o.h)*.12,o.y+1.75,o.z+Math.cos(o.h)*.12);
+    o.headLamp.target.position.set(o.x+Math.sin(o.h)*8,o.y-.6,o.z+Math.cos(o.h)*8);
+    o.headLamp.target.updateMatrixWorld();
+    o.lampLens.material.opacity=night*.95;
+    o.lampLens.visible=o.av.root.visible&&night>.05;
     v3.set(o.x,o.y+2.15,o.z).project(camera);if(v3.z>1||far>220){o.el.style.display='none'}else{o.el.style.display='';o.el.style.transform=`translate(${(v3.x*.5+.5)*W}px,${(-v3.y*.5+.5)*Hh}px) translate(-50%,-100%)`}}
 }
 setInterval(()=>{if(mode!=='game')return;netCleanup();if(mqttOnline&&!netJoined&&!netChecking)tryNetJoin();if(netJoined)sendPresence(false)},2000);
@@ -1370,11 +1392,16 @@ function applyPerf(){
   try{localStorage.setItem('baekyaksan-eco',PERF.eco?'1':'0')}catch(e){}
 }
 
-/* ================= 시간 : 현실 20분 = 산속 하루 ================= */
-// 한국 표준시(KST, UTC+9): 모두가 현실과 같은 시각을 봅니다.
+/* ================= 공동 게임 시간 : KST 20분 = 산속 하루 ================= */
+// KST 00/20/40분을 산속 자정으로 맞춰 모든 기기에서 같은 시각을 계산합니다.
 const KST_OFFSET=9*60*60*1000;
+const GAME_DAY_MS=20*60*1000;
 let gameMin=0,dayNo=1;
-function syncKST(){const k=new Date(Date.now()+KST_OFFSET);gameMin=k.getUTCHours()*60+k.getUTCMinutes()+k.getUTCSeconds()/60;dayNo=Math.floor((Date.now()+KST_OFFSET)/86400000)+1;}
+function syncKST(){
+  const kstMs=Date.now()+KST_OFFSET;
+  gameMin=((kstMs%GAME_DAY_MS)+GAME_DAY_MS)%GAME_DAY_MS/GAME_DAY_MS*1440;
+  dayNo=Math.floor(kstMs/GAME_DAY_MS)+1;
+}
 syncKST();
 function phaseOf(h){if(h>=20||h<4)return'밤';if(h<6)return'새벽';if(h<10)return'아침';if(h<17)return'낮';return'저녁'}
 // 시각, 하늘 위, 하늘 아래(지평선·안개), 햇빛, 하늘빛, 밤 정도
@@ -1384,24 +1411,80 @@ const SKYNOW={top:'',bot:'',sun:0,hemi:0,night:0};
 function skyAtHour(h){let i=0;while(i<SKYK.length-2&&h>=SKYK[i+1][0])i++;const a=SKYK[i],b=SKYK[i+1],k=(h-a[0])/(b[0]-a[0]);
   SKYNOW.top=mixHex(a[1],b[1],k);SKYNOW.bot=mixHex(a[2],b[2],k);SKYNOW.sun=lerp(a[3],b[3],k);SKYNOW.hemi=lerp(a[4],b[4],k);SKYNOW.night=lerp(a[5],b[5],k);return SKYNOW}
 function clockText(){const h=Math.floor(gameMin/60)%24,m=Math.floor(gameMin%60);return `${h<12?'오전':'오후'} ${h%12===0?12:h%12}:${String(m).padStart(2,'0')}`}
-// 모든 방문자가 같은 30분 구간에 동일한 날씨를 계산합니다 (실제 기상자료는 아님).
-const WEATHER=['맑음','흐림','비'];let weatherName='',weatherType=0;
+
+/* ================= 공동 날씨 : 장기 시드와 가변 지속시간 ================= */
+// 날씨는 게임의 20분 주기와 무관하게 진행됩니다. 이벤트별로 다른 길이를
+// 갖고, KST 밀리초 및 고정 시드를 통해 어느 기기에서도 결과가 같습니다.
+// 공개 MQTT에 의존하지 않으므로 늦게 입장해도 즉시 같은 날씨를 봅니다.
+const WEATHER_ANCHOR=Date.UTC(2026,0,1)-KST_OFFSET;
+const WEATHER_SEED=0x6a35b42d;
+const WEATHER_TYPES=[
+  {name:'맑음',type:0,cloud:0,rain:0},
+  {name:'구름 조금',type:1,cloud:.22,rain:0},
+  {name:'흐림',type:1,cloud:.65,rain:0},
+  {name:'소나기',type:2,cloud:.78,rain:.72},
+  {name:'비',type:2,cloud:.85,rain:.62},
+  {name:'장마',type:2,cloud:1,rain:1}
+];
+// 기상 이벤트마다 결정적인 의사난수를 사용합니다. 브라우저별로 Math.random()을 쓰지 않습니다.
+function weatherRandom(index,salt){
+  let x=(WEATHER_SEED^Math.imul(index+1,0x9e3779b1)^Math.imul(salt+1,0x85ebca6b))>>>0;
+  x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);
+  return ((x^(x>>>16))>>>0)/4294967296;
+}
+function weatherEvent(index,prevKind){
+  const pick=weatherRandom(index,0);
+  let kind=pick<.36?0:pick<.54?1:pick<.75?2:pick<.86?3:pick<.96?4:5;
+  // 비가 끝나자마자 맑아지기보다는 흐림을 한 번 거치도록 합니다.
+  if((prevKind===3||prevKind===4||prevKind===5)&&kind===0)kind=2;
+  const r=weatherRandom(index,1),minute=60000;
+  // 소나기는 짧게, 장마는 길게, 맑음과 흐림도 수십 분간 유지합니다.
+  const ranges=[[35,95],[18,48],[24,66],[3,8],[12,28],[55,130]];
+  const [lo,hi]=ranges[kind];
+  return {kind,duration:(lo+(hi-lo)*r)*minute};
+}
+// 최종 이벤트가 끝날 때까지 계산하되, 평소에는 캐시된 구간만 확인합니다.
+let weatherStart=WEATHER_ANCHOR,weatherEnd=WEATHER_ANCHOR,weatherIndex=0,weatherPrevious=-1;
+let weatherKind=0,weatherPriorKind=0,weatherType=0,weatherName='',weatherRain=0,weatherCloud=0;
+function advanceWeather(){
+  weatherPriorKind=weatherKind;
+  const event=weatherEvent(weatherIndex,weatherPrevious);
+  weatherStart=weatherEnd;weatherEnd=weatherStart+event.duration;
+  weatherKind=event.kind;weatherPrevious=event.kind;weatherIndex++;
+}
 function syncWeather(){
-  const slot=Math.floor((Date.now()+KST_OFFSET)/1800000);
-  let x=Math.imul(slot^0x2a7b4d19,1664525)+1013904223|0;
-  x^=x>>>16;x=Math.imul(x,2246822519);x^=x>>>13;
-  const n=(x>>>0)%10;
-  const type=n<5?0:n<8?1:2;
-  if(weatherType!==type||!weatherName){weatherType=type;weatherName=WEATHER[type];$('weather').textContent='날씨 · '+weatherName;}
+  const now=Date.now();
+  if(now<WEATHER_ANCHOR){weatherStart=now;weatherEnd=WEATHER_ANCHOR;weatherKind=0;}
+  else {
+    // 기기의 시계가 과거로 바뀌거나 절전 복귀 시에도 계산을 복원합니다.
+    if(now<weatherStart){weatherStart=WEATHER_ANCHOR;weatherEnd=WEATHER_ANCHOR;weatherIndex=0;weatherPrevious=-1;}
+    while(now>=weatherEnd)advanceWeather();
+  }
+  const event=WEATHER_TYPES[weatherKind];
+  // 짧은 소나기는 빠르게, 오래 가는 날씨는 천천히 전환합니다.
+  const fade=Math.min(event.kind===3?24000:90000,(weatherEnd-weatherStart)*.20);
+  const inT=clamp((now-weatherStart)/Math.max(1,fade),0,1);
+  const prev=WEATHER_TYPES[weatherPriorKind]||event;
+  const smooth=inT*inT*(3-2*inT);
+  weatherCloud=lerp(prev.cloud,event.cloud,smooth);
+  weatherRain=lerp(prev.rain,event.rain,smooth);
+  const outgoing=Math.min(event.kind===3?24000:90000,(weatherEnd-weatherStart)*.20);
+  const nextT=clamp((now-(weatherEnd-outgoing))/Math.max(1,outgoing),0,1);
+  // 종료 구간에는 급격히 끊지 않고 강우가 조금씩 약해지도록 합니다.
+  if(event.rain>0&&nextT>0){weatherRain*=1-.28*nextT*nextT;}
+  weatherType=event.type;
+  if(weatherName!==event.name){weatherName=event.name;$('weather').textContent='날씨 · '+weatherName;}
 }
 syncWeather();
-const rainCount=210,rainXYZ=new Float32Array(rainCount*3),rainRand=rngOf(2026);
+const rainCount=310,rainXYZ=new Float32Array(rainCount*3),rainRand=rngOf(2026);
 for(let i=0;i<rainCount;i++){rainXYZ[3*i]=(rainRand()-.5)*26;rainXYZ[3*i+1]=rainRand()*16;rainXYZ[3*i+2]=(rainRand()-.5)*26}
 const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainXYZ,3));
 const rainPoints=new THREE.Points(rainGeo,new THREE.PointsMaterial({color:0xbdd8eb,size:.09,transparent:true,opacity:.55,depthWrite:false}));
 scene.add(rainPoints);rainPoints.visible=false;
-function updateRain(dt){rainPoints.visible=weatherType===2;if(!rainPoints.visible)return;
-  for(let i=0;i<rainCount;i++){const j=i*3;rainXYZ[j+1]-=dt*13;if(rainXYZ[j+1]<0){rainXYZ[j+1]+=16;rainXYZ[j]=(rainRand()-.5)*26;rainXYZ[j+2]=(rainRand()-.5)*26;}}
+function updateRain(dt){rainPoints.visible=weatherRain>.015;if(!rainPoints.visible)return;
+  rainPoints.material.opacity=.12+.53*weatherRain;
+  rainGeo.setDrawRange(0,Math.round(rainCount*weatherRain));
+  for(let i=0;i<rainCount;i++){const j=i*3;rainXYZ[j+1]-=dt*(10+7*weatherRain);if(rainXYZ[j+1]<0){rainXYZ[j+1]+=16;rainXYZ[j]=(rainRand()-.5)*26;rainXYZ[j+2]=(rainRand()-.5)*26;}}
   rainGeo.attributes.position.needsUpdate=true;rainPoints.position.set(P.x,P.y+1,P.z);
 }
 // 밤에는 이마에 단 헤드랜턴
@@ -1414,14 +1497,14 @@ function updSky(){
   scene.fog.color.set(S.bot).lerp(_white.setScalar(lerp(.96,.3,night)),inCloud);
   scene.fog.near=lerp(45*PERF.fogK,4,inCloud);scene.fog.far=lerp(180*PERF.fogK,38,inCloud);
   // 공통 날씨의 명암/안개 표현
-  if(weatherType===1||weatherType===2){
-    scene.fog.color.lerp(_fogTmp.set(weatherType===2?0x879aa1:0xb5c2c3),weatherType===2?.42:.20);
-    scene.fog.far*=weatherType===2?.64:.82;
+  if(weatherCloud>.01){
+    scene.fog.color.lerp(_fogTmp.set(weatherRain>.02?0x879aa1:0xb5c2c3),weatherCloud*(weatherRain>.02?.42:.20));
+    scene.fog.far*=1-weatherCloud*.18-weatherRain*.22;
   }
-  hemi.intensity=S.hemi*(weatherType===2?.72:weatherType===1?.84:1);
+  hemi.intensity=S.hemi*(1-weatherCloud*.16-weatherRain*.18);
   // 해: 동(+x)에서 떠서 남(+z) 하늘을 지나 서(-x)로 짐. 밤에는 달빛
   const t=(hr-6)/12*Math.PI,el=Math.sin(t),az=Math.cos(t);
-  if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun*(weatherType===2?.48:weatherType===1?.7:1);sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
+  if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun*(1-weatherCloud*.27-weatherRain*.30);sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
   else{sun.position.set(P.x-az*80,P.y+25-el*100,P.z+30);sun.intensity=.16*night;sun.color.setHex(0x9fb0ff)}
   sun.target.position.set(P.x,P.y,P.z);
   stars.material.opacity=night;stars.position.set(P.x,0,P.z);
