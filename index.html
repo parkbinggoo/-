@@ -15,6 +15,15 @@
   canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
   .hide{display:none!important}
 
+  /* iOS WebGL CanvasTexture cloud fallback: CSS gradients avoid rainbow GPU artifacts. */
+  #iosClouds{position:fixed;inset:0;z-index:4;pointer-events:none;overflow:hidden;display:none}
+  #iosClouds .cloud-side{position:absolute;top:-12%;height:124%;width:82%;opacity:.9;will-change:transform,opacity;
+    background:radial-gradient(ellipse 45% 23% at 25% 22%,rgba(255,255,255,.90),transparent 94%),
+               radial-gradient(ellipse 54% 30% at 58% 45%,rgba(255,255,255,.85),transparent 96%),
+               radial-gradient(ellipse 56% 24% at 35% 73%,rgba(255,255,255,.82),transparent 95%),
+               radial-gradient(ellipse 55% 30% at 68% 94%,rgba(255,255,255,.75),transparent 98%)}
+  #iosClouds .left{left:-30%}#iosClouds .right{right:-30%;transform:scaleX(-1)}
+
   /* Intro */
   #intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14vh;pointer-events:none;z-index:5}
   #title{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:clamp(44px,9vw,96px);letter-spacing:.18em;color:#1d2a27;opacity:0;transition:opacity 2.2s ease, transform 2.2s ease;transform:translateY(10px);text-shadow:0 2px 24px rgba(255,255,255,.6)}
@@ -127,6 +136,7 @@
 <body>
 <canvas id="c"></canvas>
 <div id="labels"></div>
+<div id="iosClouds" aria-hidden="true"><div class="cloud-side left"></div><div class="cloud-side right"></div></div>
 
 <div id="intro">
   <div id="title">백약산</div>
@@ -182,6 +192,8 @@
 <script>
 (()=>{
 'use strict';
+const IOS_CLOUD_SAFE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+if(IOS_CLOUD_SAFE) document.getElementById('iosClouds').style.display='block';
 if(!window.THREE){document.body.innerHTML='<p style="padding:40px;font-family:sans-serif">3D 엔진을 불러오지 못했습니다. 새로고침해 주세요.</p>';return}
 /* ================= DATA ================= */
 const HERBS = {
@@ -271,8 +283,8 @@ function H(x,z){
 
 /* ---------- renderer ---------- */
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+const renderer=new THREE.WebGLRenderer({canvas,antialias:!IOS_CLOUD_SAFE,alpha:true,powerPreference:IOS_CLOUD_SAFE?'default':'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,IOS_CLOUD_SAFE?1.5:2));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.setClearColor(0x000000,0);
 const camera=new THREE.PerspectiveCamera(55,1,.1,4000);
@@ -326,12 +338,13 @@ const iSun=new THREE.DirectionalLight(0xfff1dc,.55);iSun.position.set(300,500,40
 }
 const iClouds=[];
 {const r=rngOf(21);for(let i=0;i<70;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.95,fog:false}));
-  const x=(r()-.5)*900,y=(r()-.1)*520,z=380+r()*220;sp.position.set(x,y,z);const s=180+r()*260;sp.scale.set(s*1.6,s,1);sp.userData={x0:x,side:x<0?-1:1,sp:.6+r()*.8};iScene.add(sp);iClouds.push(sp)}}
+  const x=(r()-.5)*900,y=(r()-.1)*520,z=380+r()*220;sp.position.set(x,y,z);const s=180+r()*260;sp.scale.set(s*1.6,s,1);sp.userData={x0:x,side:x<0?-1:1,sp:.6+r()*.8};iScene.add(sp);sp.visible=!IOS_CLOUD_SAFE;iClouds.push(sp)}}
 let introT=0, zoomT=-1, mode='intro';
 function drawIntro(dt){
   introT+=dt;const t=introT;
   const part=ease(clamp((t-.8)/3.6,0,1));
   for(const c of iClouds){c.position.x=c.userData.x0+c.userData.side*part*(700+300*c.userData.sp)+Math.sin(t*.3+c.userData.sp*9)*8;c.material.opacity=.95*(1-part*.5)}
+  if(IOS_CLOUD_SAFE){const fog=$('iosClouds');fog.children[0].style.transform=`translateX(${-part*125}%)`;fog.children[1].style.transform=`scaleX(-1) translateX(${-part*125}%)`;fog.style.opacity=String(1-part*.75);}
   const z=zoomT>=0?ease(clamp(zoomT/1.8,0,1)):0;
   iCam.position.set(0,lerp(170,60,z)+Math.sin(t*.25)*3,lerp(1150,60,z)-Math.min(t,8)*6*(1-z));
   iCam.lookAt(0,lerp(260,120,z),-520);
@@ -355,10 +368,10 @@ const farMts=[];
 {const r=rngOf(55);for(let i=0;i<26;i++){const a=i/26*Math.PI*2+(r()-.5)*.15,dist=900+r()*500,h=160+r()*300;
   const m=makeMountain(h*1.3,h,100+i,[0x8fa6a2,0x7d958f,0x9db2ae][i%3],0xeef0ea,{fog:false,snowLine:.8});m.userData={a,dist,y0:-60-r()*40};farGroup.add(m);farMts.push(m)}}
 const summit=makeMountain(900,1700,999,0x3a544e,0xf8f8f4,{seg:20,hs:14,fog:false,snowLine:.7});scene.add(summit);
-const cloudSea=[0,1].map(i=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshBasicMaterial({map:i?cloudSeaTex.clone():cloudSeaTex,transparent:true,opacity:i?.7:.95,depthWrite:false,fog:false}));
-  if(i){m.material.map.wrapS=m.material.map.wrapT=THREE.RepeatWrapping;m.material.map.repeat.set(3,3);m.material.map.needsUpdate=true}
+const cloudSea=[0,1].map(i=>{const tex=IOS_CLOUD_SAFE?null:(i?cloudSeaTex.clone():cloudSeaTex);const m=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshBasicMaterial({map:tex,color:0xffffff,transparent:true,opacity:IOS_CLOUD_SAFE?(i?.13:.30):(i?.7:.95),depthWrite:false,fog:false}));
+  if(i&&m.material.map){m.material.map.wrapS=m.material.map.wrapT=THREE.RepeatWrapping;m.material.map.repeat.set(3,3);m.material.map.needsUpdate=true}
   m.rotation.x=-Math.PI/2;m.position.y=CLOUD_Y+i*10;m.renderOrder=2;scene.add(m);return m});
-const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);skyPuffs.push(sp)}}
+const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);sp.visible=!IOS_CLOUD_SAFE;skyPuffs.push(sp)}}
 const stars=(()=>{const n=600,p=new Float32Array(n*3),r=rngOf(4);for(let i=0;i<n;i++){const u=r()*2-1,a=r()*Math.PI*2,s=Math.sqrt(1-u*u);p[i*3]=Math.cos(a)*s*1500;p[i*3+1]=Math.abs(u)*1500+100;p[i*3+2]=Math.sin(a)*s*1500}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xfffff0,size:2.2,sizeAttenuation:false,transparent:true,opacity:0,fog:false,depthWrite:false}));scene.add(m);return m})();
 
@@ -1512,8 +1525,8 @@ function updSky(){
   for(const m of farMts){const u=m.userData;m.position.set(P.x+Math.cos(u.a)*u.dist,u.y0,P.z+Math.sin(u.a)*u.dist)}
   summit.position.set(P.x,P.y-1250,P.z-1500);
   const shade=lerp(1,.22,night);
-  for(const cs of cloudSea){cs.position.x=P.x;cs.position.z=P.z;cs.material.map.offset.set(P.x/600+clock*.002,-P.z/600);cs.material.color.setScalar(shade)}
-  cloudSea[0].material.opacity=P.y<CLOUD_Y?.55:.95;
+  for(const cs of cloudSea){cs.position.x=P.x;cs.position.z=P.z;if(cs.material.map)cs.material.map.offset.set(P.x/600+clock*.002,-P.z/600);cs.material.color.setScalar(shade)}
+  cloudSea[0].material.opacity=IOS_CLOUD_SAFE?(P.y<CLOUD_Y?.16:.30):(P.y<CLOUD_Y?.55:.95);
   for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
 }
 
@@ -1640,7 +1653,7 @@ $('startBtn').addEventListener('click',e=>{e.stopPropagation();if(zoomT>=0)retur
 function beginGame(){
   if(mode==='game')return;mode='game';ambInit();
   scene.remove(me.root);const nm=makeHiker(JACKETS[save.color%JACKETS.length]);Object.assign(me,nm);scene.add(me.root);setGreens(me,totalCount());
-  $('intro').classList.add('hide');$('hud').classList.remove('hide');
+  $('intro').classList.add('hide');$('iosClouds').style.display='none';$('hud').classList.remove('hide');
   if(IS_TOUCH){$('joy').classList.remove('hide');$('jumpBtn').classList.remove('hide')}
   updateChunks(P.x,P.z,true);
   camera.position.set(P.x-Math.sin(camYaw)*7.7,P.y+3.2,P.z-Math.cos(camYaw)*7.7);
