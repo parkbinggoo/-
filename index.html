@@ -37,6 +37,9 @@
   #faintOverlay p{font-size:15px;opacity:.8}
   #faintCountdown{font-size:40px;font-weight:bold;font-variant-numeric:tabular-nums}
   #faintOverlay small{opacity:.55}
+  #boarWarning{position:fixed;left:50%;bottom:calc(135px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:min(380px,90vw);width:max-content;padding:11px 15px;border-radius:10px;border:1px solid #8f5e3d;background:rgba(58,43,32,.91);color:#fff0d7;box-shadow:0 6px 22px #0005;text-align:center;font-size:14px;line-height:1.5;pointer-events:none;z-index:13}
+  #boarWarning strong{display:block;font-size:15px;font-weight:700;margin-bottom:2px}
+  @media(max-width:760px){#boarWarning{bottom:calc(168px + env(safe-area-inset-bottom));font-size:12px}}
   .faintSymbol{font-size:45px;opacity:.4}
   /* Intro */
   #intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14vh;pointer-events:none;z-index:5}
@@ -291,9 +294,10 @@
   </div>
 </div>
 
+<div id="boarWarning" class="hide" role="status" aria-live="polite"><strong>⚠ 야생동물 주의</strong>어디선가 고약한 냄새가 난다…<br>멧돼지가 가까이 있을지도 모른다!</div>
 <div id="toast"></div>
 <div id="radioToast" class="hide"></div><div id="radioPanel" class="hide"><div class="radioHead">📻 산객 무전기 <button id="radioClose" class="btn">닫기</button></div><div id="radioChoices"></div><div id="radioLog"></div></div>
-<div id="faintOverlay" class="hide"><div class="faintSymbol">✦</div><h2>잠시 정신을 잃었습니다</h2><p id="faintMessage">산짐승을 피해 쉬고 있습니다.</p><div id="faintCountdown"></div><small>현실 시간 5분 동안 움직일 수 없습니다.</small></div>
+<div id="faintOverlay" class="hide"><div class="faintSymbol">✦</div><h2>잠시 정신을 잃었습니다</h2><p id="faintMessage">산짐승을 피해 쉬고 있습니다.</p><div id="faintCountdown"></div><small>현실 시간 3분 동안 움직일 수 없습니다.</small></div>
 <div id="joy" class="hide"><div id="knob"></div></div>
 <button id="jumpBtn" class="hide">점프</button>
 
@@ -534,20 +538,50 @@ const cloudSeaTex=canvasTex(512,512,(g)=>{g.clearRect(0,0,512,512);const r=rngOf
 cloudSeaTex.wrapS=cloudSeaTex.wrapT=THREE.RepeatWrapping;cloudSeaTex.repeat.set(5,5);
 function textTex(txt,w=256,h=96,bg='#d9c49a',fg='#3a2a1a',font='bold 44px "Nanum Myeongjo",serif'){return canvasTex(w,h,(g)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);g.strokeStyle='#6b4a2a';g.lineWidth=6;g.strokeRect(3,3,w-6,h-6);g.fillStyle=fg;g.font=font;g.textAlign='center';g.textBaseline='middle';g.fillText(txt,w/2,h/2+2)})}
 
-function tent3D(){
+function tent3D(styleIdx=0){
   const g=new THREE.Group();
-  const clothA=M(0xca8a44),clothB=M(0xb47031),trim=M(0x5d4027),chest=M(0x8a4c3f),rope=M(0x6b5744);
-  const mk=(geo,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);o.scale.set(sx,sy,sz);o.castShadow=true;o.receiveShadow=true;g.add(o);return o};
-  mk(new THREE.BoxGeometry(2.5,.14,3.2),trim,0,.08,0,0,0,0,1,1,1);
-  mk(new THREE.BoxGeometry(1.52,.08,3.04),clothA,-.72,1.08,0,0,0,Math.PI/3.4,1,1,1);
-  mk(new THREE.BoxGeometry(1.52,.08,3.04),clothB,.72,1.08,0,0,0,-Math.PI/3.4,1,1,1);
-  mk(new THREE.BoxGeometry(.08,1.78,3.04),trim,0,1.33,0);
-  mk(new THREE.BoxGeometry(.06,1.55,.06),rope,0,1.28,-1.25);
-  mk(new THREE.BoxGeometry(.06,1.55,.06),rope,0,1.28,1.25);
-  mk(new THREE.BoxGeometry(.74,.48,.54),chest,-.46,.26,.46);
-  const hit=new THREE.Mesh(new THREE.BoxGeometry(3.3,2.2,3.8),new THREE.MeshBasicMaterial({transparent:true,opacity:0}));
-  hit.position.y=1; hit.userData.tent=true; g.add(hit);
-  return {group:g,hit};
+  const palettes=[
+    {cloth:0xd6a33b,door:0xe6c28f,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffb257},
+    {cloth:0xc36f34,door:0xd9b48b,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffaf63},
+    {cloth:0xa8a05f,door:0xd7d0ad,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffc27b},
+    {cloth:0x6d8d84,door:0xbfd1ca,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffc17b},
+    {cloth:0x8d6f95,door:0xd4bfd7,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffbf72}
+  ];
+  const pal=palettes[((styleIdx%palettes.length)+palettes.length)%palettes.length];
+  const mkMat=(c,em=0)=>new THREE.MeshPhongMaterial({color:c,flatShading:true,shininess:0,specular:0x000000,emissive:em?pal.glow:0x000000,emissiveIntensity:0,transparent:false});
+  const clothMat=mkMat(pal.cloth,1), doorMat=mkMat(pal.door,1), trimMat=mkMat(pal.trim), poleMat=mkMat(pal.pole), ropeMat=mkMat(pal.rope);
+  const glowMats=[clothMat,doorMat];
+  const add=(geo,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);o.scale.set(sx,sy,sz);o.castShadow=true;o.receiveShadow=true;g.add(o);return o};
+  // low-poly dome body similar to a 2-person tunnel tent
+  add(new THREE.BoxGeometry(2.95,.18,4.15),trimMat,0,.09,0);
+  const shell=add(new THREE.SphereGeometry(1.88,8,6,0,Math.PI*2,0,Math.PI*.64),clothMat,0,.06,0,0,0,0,1,.95,1.14);
+  shell.material.side=THREE.DoubleSide;
+  // front and back lower walls
+  add(new THREE.BoxGeometry(2.85,1.08,.08),clothMat,0,.62,2.02);
+  add(new THREE.BoxGeometry(2.85,1.08,.08),clothMat,0,.62,-2.02);
+  // black skirt around base
+  add(new THREE.BoxGeometry(2.98,.24,4.18),trimMat,0,.12,0);
+  // door panel and vestibule arch, matching the reference image
+  const door=add(new THREE.CylinderGeometry(.74,.74,.08,7,1,false,Math.PI,Math.PI),doorMat,0,.82,2.05,Math.PI/2,0,0,1.08,1.06,1);
+  door.material.side=THREE.DoubleSide;
+  add(new THREE.TorusGeometry(.94,.04,5,10,Math.PI),poleMat,0,.92,2.08,0,0,Math.PI);
+  add(new THREE.TorusGeometry(1.62,.04,6,12,Math.PI),poleMat,0,1.46,0,0,0,Math.PI/2,1,1.08,1.22);
+  add(new THREE.TorusGeometry(1.54,.035,6,12,Math.PI),poleMat,0,1.4,-.08,0,0,Math.PI/2,1,1.04,1.16);
+  // guy lines and pegs
+  const pegPts=[[-1.42,.14,1.88,-2.22,.08,2.48],[1.42,.14,1.88,2.22,.08,2.48],[-1.46,.14,-1.78,-2.18,.08,-2.34],[1.46,.14,-1.78,2.18,.08,-2.34]];
+  for(const [x1,y1,z1,x2,y2,z2] of pegPts){
+    const dx=x2-x1,dy=y2-y1,dz=z2-z1,len=Math.hypot(dx,dy,dz);const cx=(x1+x2)/2,cy=(y1+y2)/2,cz=(z1+z2)/2;
+    const line=add(new THREE.CylinderGeometry(.015,.015,len,4),ropeMat,cx,cy,cz); line.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,dz).normalize());
+    add(new THREE.CylinderGeometry(.02,.03,.2,4),trimMat,x2,.08,z2,0,0,Math.PI/12);
+  }
+  // brand patch as a simple dark mark rather than direct logo text
+  add(new THREE.BoxGeometry(.34,.18,.02),trimMat,.84,1.04,1.95,0,-.2,0);
+  // invisible interaction volume
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(3.4,2.35,4.55),new THREE.MeshBasicMaterial({transparent:true,opacity:0}));
+  hit.position.y=1.05; hit.userData.tent=true; g.add(hit);
+  g.userData.glowMats=glowMats;
+  g.userData.setGlow=(on,boost=1)=>{for(const m of glowMats)m.emissiveIntensity=on?boost:0};
+  return {group:g,hit,palette:pal};
 }
 const tents=[];const tentHintWorld=new THREE.Vector3();
 function zForAltitude(targetAlt){
@@ -574,22 +608,78 @@ function ensureTents(){
       if(score<site.score)site={x:tx,z:tz,y:ty,score};
     }
     const px=site.x,pz=site.z,py=site.y;
-    const made=tent3D();const group=made.group;group.position.set(px,py,pz);group.rotation.y=(side<0?Math.PI*.35:-Math.PI*.35)+(r()-.5)*.18;
+    const styleIdx=Math.floor(r()*5)+idx;
+    const made=tent3D(styleIdx);const group=made.group;group.position.set(px,py,pz);group.rotation.y=(side<0?Math.PI*.35:-Math.PI*.35)+(r()-.5)*.18;
     group.visible=false; group.userData.tent={id:'tent-'+idx}; made.hit.userData.tent={id:'tent-'+idx};
     scene.add(group);
     const label=document.createElement('div');label.className='nametag';label.textContent='⛺ 쉼터 · 클릭하여 들어가기';label.style.display='none';$('labels').appendChild(label);
-    const tent={id:'tent-'+idx,x:px,y:py,z:pz,alt:Math.round(py*ALT_K),mesh:group,hit:made.hit,label};
+    const tent={id:'tent-'+idx,x:px,y:py,z:pz,alt:Math.round(py*ALT_K),mesh:group,hit:made.hit,label,style:styleIdx,palette:made.palette};
     group.userData.tent=tent; made.hit.userData.tent=tent; tents.push(tent);
     idx++; targetAlt += 500+r()*200;
   }
 }
-function updateTents(){for(const t of tents){
- const d=Math.hypot(t.x-P.x,t.z-P.z);t.mesh.visible=d<180;
- if(mode!=='game'||inTent||d>16){t.label.style.display='none';continue}
- tentHintWorld.set(t.x,t.y+2.6,t.z).project(camera);
- if(tentHintWorld.z<=-1||tentHintWorld.z>=1||Math.abs(tentHintWorld.x)>1.1||Math.abs(tentHintWorld.y)>1.1){t.label.style.display='none';continue}
- t.label.style.display='';t.label.style.transform=`translate(${(tentHintWorld.x*.5+.5)*W}px,${(-tentHintWorld.y*.5+.5)*Hh}px) translate(-50%,-100%)`;
-}}
+/* Pink ribbons tied onto real tree branches near each tent.
+   Purely seeded by tree coordinates, so everyone sees the same markers. */
+const TENT_RIBBON_RADIUS=80, TENT_RIBBON_REVEAL=96;
+const RIBBON_BRANCH_GEO=keep(new THREE.CylinderGeometry(.045,.065,1,5));
+const RIBBON_KNOT_GEO=keep(new THREE.OctahedronGeometry(1,0));
+const RIBBON_TAIL_GEO=keep(new THREE.BoxGeometry(1,1,1));
+const RIBBON_PINK=M(0xd77c9f),RIBBON_PINK_LIGHT=M(0xeeaac5),RIBBON_BRANCH=M(0x73543b);
+function closestTentToTree(t){
+  let best=null,dist=TENT_RIBBON_RADIUS;
+  for(const tent of tents){const d=Math.hypot(tent.x-t.x,tent.z-t.z);if(d<dist){best=tent;dist=d}}
+  return best;
+}
+function makeBranchRibbon(tree){
+  const g=new THREE.Group();
+  const sc=.6+tree.s*.37; const yaw=tree.rot+Math.PI*.26;
+  g.position.set(tree.x,tree.y+3.6*tree.s,tree.z);g.rotation.y=yaw;
+  const piece=(geo,mat,x,y,z,sx,sy,sz,rz=0)=>{
+    const o=new THREE.Mesh(geo,mat);o.position.set(x*sc,y*sc,z*sc);o.scale.set(sx*sc,sy*sc,sz*sc);o.rotation.z=rz;g.add(o);return o;
+  };
+  // A short woody twig extends out from the real trunk.
+  piece(RIBBON_BRANCH_GEO,RIBBON_BRANCH,.47,.07,0,1.08,1,1,-Math.PI/2+.13);
+  // Two bow loops, a visible central knot and two separate hanging ribbon tails.
+  piece(RIBBON_KNOT_GEO,RIBBON_PINK_LIGHT,.89,.13,0,.12,.11,.07);
+  piece(RIBBON_KNOT_GEO,RIBBON_PINK,.76,.18,.025,.18,.09,.055,.38);
+  piece(RIBBON_KNOT_GEO,RIBBON_PINK,1.02,.18,-.025,.18,.09,.055,-.38);
+  piece(RIBBON_TAIL_GEO,RIBBON_PINK,.81,-.15,.022,.082,.39,.025,.18);
+  piece(RIBBON_TAIL_GEO,RIBBON_PINK_LIGHT,.98,-.19,-.02,.075,.45,.024,-.20);
+  return g;
+}
+function placeTentTrailRibbons(c,grp){
+  c.ribbons=[];let n=0;
+  for(const tree of c.trees){
+    if(tree.s<.38||n>=5)continue;
+    const closest=closestTentToTree(tree);if(!closest)continue;
+    // Only some branches get a knot. No Math.random(): stable across browsers.
+    const seed=h2(Math.round(tree.x*11)+318,Math.round(tree.z*11)+741);
+    if(seed>.14)continue;
+    const marker=makeBranchRibbon(tree);marker.visible=false;marker.userData.zoneVisible=false;
+    tree.ribbon=marker;grp.add(marker);c.ribbons.push({mesh:marker,tent:closest,tree});n++;
+  }
+}
+let lastRibbonRefresh=0;
+function updateRibbonVisibility(force=false){
+  const now=Date.now();if(!force&&now-lastRibbonRefresh<350)return;lastRibbonRefresh=now;
+  for(const c of chunks.values())for(const marker of c.ribbons||[]){
+    const visible=!inTent&&Math.hypot(P.x-marker.tent.x,P.z-marker.tent.z)<TENT_RIBBON_REVEAL;
+    marker.mesh.userData.zoneVisible=visible;
+    marker.mesh.visible=visible&&!marker.tree.hidden;
+  }
+}
+function updateTents(){
+ updateRibbonVisibility();
+ const hour=(gameMin/60)%24; const night=(hour>=18.3||hour<=5.4); const glowBoost=night ? .28 : .05;
+ for(const t of tents){
+   const d=Math.hypot(t.x-P.x,t.z-P.z);t.mesh.visible=d<180;
+   if(t.mesh.userData.setGlow)t.mesh.userData.setGlow(night,glowBoost);
+   if(mode!=='game'||inTent||d>16){t.label.style.display='none';continue}
+   tentHintWorld.set(t.x,t.y+2.6,t.z).project(camera);
+   if(tentHintWorld.z<=-1||tentHintWorld.z>=1||Math.abs(tentHintWorld.x)>1.1||Math.abs(tentHintWorld.y)>1.1){t.label.style.display='none';continue}
+   t.label.style.display='';t.label.style.transform=`translate(${(tentHintWorld.x*.5+.5)*W}px,${(-tentHintWorld.y*.5+.5)*Hh}px) translate(-50%,-100%)`;
+ }
+}
 let inTent=false,activeTent=null,selectedSellKey='';
 // Public MQTT is peer-to-peer coordination, so concurrent arrivals use a deterministic tie-break.
 // Strict atomic admission would require an authoritative server; do not claim otherwise.
@@ -1664,6 +1754,7 @@ function buildChunk(cx,cz){
     else if(t.kind==='chestnut')oc.setHSL(.29+h2(i,k+3)*.028,.42,.24+k*.035);
     else oc.setHSL(.26+h2(i,k+3)*.06,.36,.28+k*.04+h2(i,9)*.05);
     return oc}));
+  placeTentTrailRibbons(c,grp);
   // undergrowth: bushes and ferns
   {const nb=Math.round(46*dens);const im=new THREE.InstancedMesh(BUSH,foliage,nb);const o=new THREE.Object3D(),bc=new THREE.Color();let k=0;
    for(let i=0;i<nb;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;if(inRock(x,z,.2)||nearStart(x,z,2))continue;const sc=.22+r()*.38;
@@ -1756,6 +1847,7 @@ function updParticles(dt){
 /* ================= PLAYER ================= */
 const me=makeHiker(JACKETS[save.color%JACKETS.length]);scene.add(me.root);
 const P={x:pathX(24),z:24,y:0,h:Math.PI,vy:0,air:false,speed:0};
+const BASE_CAMP={x:pathX(24),z:24,r:34};
 if(save.pos&&isFinite(save.pos.z)){P.x=save.pos.x;P.z=save.pos.z}
 P.y=H(P.x,P.z);
 let camYaw=P.h,camPitch=.26,camDist=8,yawOff=0,lastDrag=-9;
@@ -1976,6 +2068,18 @@ function drawMap(){
     const t=fmt(v,'E','W'),tw=g.measureText(t).width;g.fillStyle='rgba(244,239,227,.85)';g.fillRect(x-tw/2-2,Hm-24,tw+4,13);g.fillStyle='#1f2b28';g.textAlign='center';g.fillText(t,x,Hm-14)}
   // 테두리 눈금자
   g.strokeStyle='#1f2b28';g.lineWidth=2;g.strokeRect(1,1,Wm-2,Hm-2);
+  // 베이스 캠프 권역: 정확한 점이 아닌 넓은 범위로만 표시
+  { const [bx,by]=toPx(BASE_CAMP.x,BASE_CAMP.z), rr=BASE_CAMP.r/s;
+    g.save();
+    g.fillStyle='rgba(233,156,61,.13)'; g.strokeStyle='rgba(181,102,23,.88)'; g.lineWidth=2; g.setLineDash([8,6]);
+    g.beginPath(); g.arc(bx,by,rr,0,Math.PI*2); g.fill(); g.stroke(); g.setLineDash([]);
+    if(rr>22){
+      g.font='12px "Gowun Dodum",sans-serif'; g.textAlign='center';
+      const text='베이스 캠프 권역', tw=g.measureText(text).width;
+      g.fillStyle='rgba(244,239,227,.9)'; g.fillRect(bx-tw/2-6,by-6,tw+12,18);
+      g.fillStyle='#7a4716'; g.fillText(text,bx,by+7);
+    }
+    g.restore(); }
   // 내 위치
   const b=bearingOf(P.h)*Math.PI/180;g.save();g.translate(cx,cy);
   g.fillStyle='rgba(216,52,44,.18)';g.beginPath();g.arc(0,0,17,0,7);g.fill();
@@ -2086,6 +2190,14 @@ function connectRoom(){
       if(d.type==='harvest'){if(typeof d.resource==='string')markTaken(d.resource,+d.until,false);return}
       if(d.type==='harvestSync'){if(Array.isArray(d.items))for(const e of d.items)if(Array.isArray(e)&&e.length===2)markTaken(e[0],+e[1],false);return}
       if(d.type==='radio'){if(typeof d.msg==='string'&&d.msg.length<=180)showRadioLine(cleanNick(d.name)||'산객',d.msg);return}
+      if(d.type==='boarDisperse'){
+        // Nearby hikers see the same temporary clearing when someone wakes.
+        const peer=others.get(d.id);
+        if(peer&&Number.isFinite(d.x)&&Number.isFinite(d.z)&&
+           Math.hypot(peer.x-d.x,peer.z-d.z)<45)
+          disperseBoars(d.x,d.z,+d.until,false);
+        return;
+      }
       if(!['hello','state'].includes(d.type))return;
       if(!Number.isFinite(d.joined)||Math.abs(Date.now()-d.joined)>86400000)return;
       const prev=peerSeen.get(d.id);
@@ -2157,7 +2269,7 @@ function collide(x,z){
 }
 /* keep foliage from swallowing the camera: walk the target→camera segment and stop before the first crown */
 const hiddenTrees=new Set(),ZERO=new THREE.Matrix4().makeScale(0,0,0);
-function setTreeHidden(t,h){if(!!t.hidden===h)return;t.hidden=h;if(h)hiddenTrees.add(t);else hiddenTrees.delete(t);for(const e of t.inst||[]){e.im.setMatrixAt(e.i,h?ZERO:e.m);e.im.instanceMatrix.needsUpdate=true}if(t.mush)t.mush.visible=!h}
+function setTreeHidden(t,h){if(!!t.hidden===h)return;t.hidden=h;if(h)hiddenTrees.add(t);else hiddenTrees.delete(t);for(const e of t.inst||[]){e.im.setMatrixAt(e.i,h?ZERO:e.m);e.im.instanceMatrix.needsUpdate=true}if(t.mush)t.mush.visible=!h;if(t.ribbon)t.ribbon.visible=!h&&!!t.ribbon.userData.zoneVisible}
 function occlusion(tx,ty,tz,cx,cy,cz,collect){
   const ccx=Math.floor(tx/CH),ccz=Math.floor(tz/CH);let best=1;
   for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const c=chunks.get((ccx+dx)+','+(ccz+dz));if(!c)continue;
@@ -2402,6 +2514,42 @@ const WILDLIFE=[
  {id:'eagleowl',name:'수리부엉이',hab:'tree',color:0x786249,scale:.49,fear:19,active:'night'}
 ];
 const animals=new Map();let animalBuildT=0,lastAnimalAttack=0;
+const BOAR_SMELL_RANGE=10,BOAR_CHARGE_RANGE=6.0,BOAR_CHASE_LIMIT=8.5,BOAR_CONTACT_RANGE=1.4;
+// When a hiker wakes up, the nearby boars disperse. The small temporary
+// safety zone prevents the deterministic chunk spawner from immediately
+// putting the same boar back beside the recovered hiker.
+const BOAR_WAKE_RADIUS=32,BOAR_WAKE_CLEAR_MS=2*60*1000;
+const boarSafeZones=[];
+function clearExpiredBoarZones(now=Date.now()){
+  for(let i=boarSafeZones.length-1;i>=0;i--)if(boarSafeZones[i].until<=now)boarSafeZones.splice(i,1);
+}
+function isBoarFreeArea(x,z,now=Date.now()){
+  return boarSafeZones.some(zone=>zone.until>now&&Math.hypot(x-zone.x,z-zone.z)<BOAR_WAKE_RADIUS);
+}
+function removeWildAnimal(key,animal){
+  if(!animal)return;
+  animal.nameEl?.remove();scene.remove(animal.mesh);animals.delete(key);
+}
+function disperseBoars(x,z,until=Date.now()+BOAR_WAKE_CLEAR_MS,broadcast=false){
+  const now=Date.now();
+  if(!Number.isFinite(x)||!Number.isFinite(z)||Math.abs(x)>20000||Math.abs(z)>20000||
+     !Number.isFinite(until)||until<=now||until>now+BOAR_WAKE_CLEAR_MS+10000)return;
+  clearExpiredBoarZones(now);
+  const existing=boarSafeZones.find(zone=>Math.hypot(zone.x-x,zone.z-z)<8);
+  if(existing){existing.until=Math.max(existing.until,until)}
+  else {boarSafeZones.push({x,z,until});if(boarSafeZones.length>8)boarSafeZones.shift()}
+  for(const [key,a] of animals){
+    if(a.kind.id==='boar'&&(
+      Math.hypot(a.x-x,a.z-z)<BOAR_WAKE_RADIUS||
+      Math.hypot(a.originX-x,a.originZ-z)<BOAR_WAKE_RADIUS
+    ))removeWildAnimal(key,a);
+  }
+  const alert=document.getElementById('boarWarning');
+  if(alert)alert.classList.add('hide');boarAlertActive=false;
+  if(broadcast)netPublish('boarDisperse',{x:+x.toFixed(2),z:+z.toFixed(2),until});
+}
+
+let boarAlertActive=false;
 let lastWildSoundAt=0;
 const ANIMAL_SOUND={squirrel:'squirrel',redsquirrel:'redsquirrel',rabbit:'rabbit',deer:'deer',boar:'boar',magpie:'magpie',woodpecker:'woodpecker',pheasant:'pheasant',turtledove:'turtledove',owl:'owlNearby',eagleowl:'eagleowl'};
 function animalAwake(spec){const h=gameMin/60;return spec.active==='day'?(h>=6&&h<17):spec.active==='night'?(h>=17||h<6):true}
@@ -2578,10 +2726,16 @@ function poseAnimal(a,dt,speed,charging){
  }
  if(j.tail){j.tail.rotation.y=Math.sin(a.step*.55)*.16;j.tail.rotation.x=-.2+Math.sin(a.step*.6)*.09}
 }
-function refreshAnimals(){const near=new Set();const cx=Math.floor(P.x/CH),cz=Math.floor(P.z/CH);
+function refreshAnimals(){clearExpiredBoarZones();const near=new Set();const cx=Math.floor(P.x/CH),cz=Math.floor(P.z/CH);
  for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){const x=cx+dx,z=cz+dz,id=x+','+z;const rr=rngOf((Math.imul(x,24173)^Math.imul(z,11369)^0x61ac)>>>0);
- for(let j=0;j<2;j++){const kind=WILDLIFE[Math.floor(rr()*WILDLIFE.length)],key=id+':animal'+j;
- if(!animals.has(key)){let xx=x*CH+5+rr()*(CH-10),zz=z*CH+5+rr()*(CH-10);const c=chunks.get(id);
+ for(let j=0;j<2;j++){let kind=WILDLIFE[Math.floor(rr()*WILDLIFE.length)],key=id+':animal'+j;
+ // About one fifth fewer boars; use a separate location hash so every
+ // browser makes the same choice without altering other animals' positions.
+ if(kind.id==='boar'&&h2(x*37+j*13+1041,z*43-j*19-191)>.80)
+   kind=WILDLIFE[h2(x*11+j*31+81,z*23-57)>.5?2:3]; // rabbit / water deer
+ if(!animals.has(key)){let xx=x*CH+5+rr()*(CH-10),zz=z*CH+5+rr()*(CH-10);
+   if(kind.id==='boar'&&isBoarFreeArea(xx,zz))continue;
+   const c=chunks.get(id);
  let homeTree=null;
  if(kind.hab==='tree'&&c&&c.trees.length){homeTree=c.trees[Math.floor(rr()*c.trees.length)];
    // Squirrels begin on the earth beside a trunk; they never spawn suspended in air.
@@ -2594,10 +2748,11 @@ function refreshAnimals(){const near=new Set();const cx=Math.floor(P.x/CH),cz=Ma
  animals.set(key,{key,kind,mesh,nameEl,x:xx,z:zz,originX:xx,originZ:zz,phase:rr()*6.28,range:2+rr()*5,treeY:kind.hab==='tree'?2+rr()*5:0,
    homeTree,climbHeight:0,climbTarget:0,climbing:false})}
  near.add(key)}}
- for(const [id,a] of animals)if(!near.has(id)){a.nameEl?.remove();scene.remove(a.mesh);animals.delete(id)}
+ for(const [id,a] of animals)if(!near.has(id))removeWildAnimal(id,a);
 }
-const FAINT_MS=5*60*1000;
-let faintUntil=+(localStorage.getItem('baek_faint_until')||0),faintReason='';
+
+const FAINT_MS=3*60*1000;
+let faintUntil=Math.min(+(localStorage.getItem('baek_faint_until')||0),Date.now()+FAINT_MS),faintReason='';
 function faintAnimal(spec){if(Date.now()<faintUntil)return;faintUntil=Date.now()+FAINT_MS;faintReason=spec.name;
  try{localStorage.setItem('baek_faint_until',String(faintUntil))}catch(e){}persist();
  target=null;pending=null;joy.x=0;joy.y=0;me.mode='faint';me.t=0;$('faintOverlay').classList.remove('hide');
@@ -2607,7 +2762,15 @@ function faintAnimal(spec){if(Date.now()<faintUntil)return;faintUntil=Date.now()
 }
 function updFaint(){const left=faintUntil-Date.now();const overlay=$('faintOverlay');
  faintSoundVolume(left);
- if(left<=0){overlay.classList.add('hide');if(faintUntil){faintUntil=0;try{localStorage.removeItem('baek_faint_until')}catch(e){};persist();me.mode='idle';sendPresence(true)}return false}
+ if(left<=0){overlay.classList.add('hide');if(faintUntil){
+    faintUntil=0;
+    try{localStorage.removeItem('baek_faint_until')}catch(e){}
+    // Remove boars immediately on waking and suppress nearby respawns for
+    // two real minutes, including after the next chunk refresh.
+    disperseBoars(P.x,P.z,Date.now()+BOAR_WAKE_CLEAR_MS,true);
+    persist();me.mode='idle';sendPresence(true);
+    toast('정신을 차렸다. 주변의 멧돼지는 숲속으로 달아났다.');
+  }return false}
  overlay.classList.remove('hide');const secs=Math.ceil(left/1000);$('faintCountdown').textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;return true}
 function nearestHiker(x,z){
  let best={x:P.x,z:P.z,dist:Math.hypot(P.x-x,P.z-z),moving:P.speed>.07&&me.mode==='walk',self:true};
@@ -2616,6 +2779,20 @@ function nearestHiker(x,z){
    if(d<best.dist)best={x:o.x,z:o.z,dist:d,moving:o.mode==='walk',self:false};
  }
  return best;
+}
+function updateBoarWarning(){
+  let close=false;
+  if(!inTent&&Date.now()>=faintUntil){
+    for(const a of animals.values()){
+      if(a.kind.id!=='boar'||!a.mesh.visible)continue;
+      const vertical=Math.abs(H(a.x,a.z)-P.y);
+      if(vertical>3.5)continue;
+      if(Math.hypot(a.x-P.x,a.z-P.z)<BOAR_SMELL_RANGE){close=true;break}
+    }
+  }
+  const el=$('boarWarning');el.classList.toggle('hide',!close);
+  if(close&&!boarAlertActive){toast('어디선가 고약한 냄새가 난다… 멧돼지를 조심하자!')}
+  boarAlertActive=close;
 }
 function updateAnimals(dt){
  animalBuildT+=dt;if(animalBuildT>5){animalBuildT=0;refreshAnimals()}
@@ -2629,7 +2806,8 @@ function updateAnimals(dt){
    woodpecker:{idle:.8,flee:4.6},pheasant:{idle:.9,flee:4.3},
    turtledove:{idle:1.4,flee:5.2},owl:{idle:.9,flee:4.5},eagleowl:{idle:1.0,flee:4.7}
  };
- for(const a of animals.values()){
+ for(const [animalKey,a] of animals){
+   if(a.kind.id==='boar'&&isBoarFreeArea(a.x,a.z)){removeWildAnimal(animalKey,a);continue}
    const sp=a.kind,person=nearestHiker(a.x,a.z),awake=animalAwake(sp);
    const ang=t*.24+a.phase,baseX=a.originX+Math.sin(ang)*a.range*.65,baseZ=a.originZ+Math.cos(ang)*a.range*.65;
    const squirrel=(sp.id==='squirrel'||sp.id==='redsquirrel');
@@ -2660,15 +2838,18 @@ function updateAnimals(dt){
    // A boar ignores a stationary person. Movement while within its alert range
    // makes it charge fast; the charge only knocks down after physical contact.
    if(danger){
-     if(person.dist<sp.fear&&person.moving&&awake&&Date.now()>=(a.chargeCooldown||0)){
-       a.chargeUntil=Date.now()+4200;
+     const nearbyTerrain=Math.abs(H(a.x,a.z)-H(person.x,person.z))<2.6;
+     // Only a nearby moving hiker provokes the boar; stationary hikers are ignored.
+     if(person.dist<BOAR_CHARGE_RANGE&&nearbyTerrain&&person.moving&&awake&&Date.now()>=(a.chargeCooldown||0)&&Date.now()>=(a.chargeUntil||0)){
+       a.chargeUntil=Date.now()+2500;
        a.chargeTarget={x:person.x,z:person.z};
      }
+     // Cancel pursuit when the hiker escaped, changed elevation, or the charge expired.
+     if(person.dist>BOAR_CHASE_LIMIT||!nearbyTerrain||!awake){a.chargeUntil=0;a.chargeTarget=null;}
      const charging=Date.now()<(a.chargeUntil||0);
      if(charging){
-       const dx=person.x-a.x,dz=person.z-a.z;
-       if(person.dist<24){destX=person.x;destZ=person.z}else if(a.chargeTarget){destX=a.chargeTarget.x;destZ=a.chargeTarget.z}
-       spd=8.0;
+       destX=person.x;destZ=person.z;
+       spd=7.0;
      }else if(person.dist<4.5){
        // Quietly pass beside a stationary human instead of walking through them.
        const dx=a.x-person.x,dz=a.z-person.z,len=Math.hypot(dx,dz)||1;
@@ -2726,13 +2907,14 @@ function updateAnimals(dt){
    a.mesh.visible=awake&&Math.hypot(a.x-P.x,a.z-P.z)<95;
    poseAnimal(a,step,actualSpeed,danger&&Date.now()<(a.chargeUntil||0));
    if(danger&&Date.now()<(a.chargeUntil||0)&&Date.now()-lastAnimalAttack>10000){
-     // Never attack someone standing still; movement is a required trigger.
+     // Real contact only: horizontal collision AND terrain-level proximity.
      const meDist=Math.hypot(a.x-P.x,a.z-P.z);
-     if(P.speed>.07&&me.mode==='walk'&&meDist<1.75&&Math.abs(yy-P.y)<2.5){
+     if(P.speed>.07&&me.mode==='walk'&&meDist<BOAR_CONTACT_RANGE&&Math.abs(yy-P.y)<1.4){
        lastAnimalAttack=Date.now();a.chargeUntil=0;a.chargeCooldown=Date.now()+16000;faintAnimal(sp)
      }
    }
  }
+ updateBoarWarning();
  nearbyWildSound(Date.now());
 }
 /* Wildlife nameplates: the exact same look and 5m proximity rule as other hikers. */
@@ -2753,7 +2935,7 @@ let clock=0,lastRespawnCheck=-10;
 function updateGame(dt){
   // 시간 / 야생동물 / 공유 채집 재생성
   syncKST();syncWeather();updateRain(dt);
-  const fainted=updFaint();if(!fainted&&!inTent)updateAnimals(dt);
+  const fainted=updFaint();if(!fainted&&!inTent)updateAnimals(dt);else if(boarAlertActive){$('boarWarning').classList.add('hide');boarAlertActive=false;}
   // Newly discovered fruits fall from the canopy and settle on the forest floor.
   for(const c of chunks.values())for(const it of c.items)if(it.kind==='fruit'&&it.mesh&&it.fall!==false){
     const age=Math.max(0,(Date.now()-it.born)/1000),u=Math.min(1,age/2.8);
@@ -2856,7 +3038,7 @@ function normalizeRecord(raw){
   if(p&&Number.isFinite(p.x)&&Number.isFinite(p.z)&&Math.abs(p.x)<20000&&p.z<=34&&p.z>-20000){
     pos={x:clamp(p.x,pathX(p.z)-55,pathX(p.z)+55),z:p.z};
   }
-  const until=Number.isFinite(raw?.faintUntil)?clamp(raw.faintUntil,0,Date.now()+5*60*1000):0;
+  const until=Number.isFinite(raw?.faintUntil)?clamp(raw.faintUntil,0,Date.now()+3*60*1000):0;
   return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0};
 }
 function setSwatchSelection(){[...$('swatches').children].forEach((b,i)=>b.classList.toggle('on',i===(save.color|0)))}
