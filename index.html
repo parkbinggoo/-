@@ -585,7 +585,7 @@ function refreshRespawns(){const now=Date.now(),expired=new Set();
  // Only the chunks containing respawned resources are rebuilt. Do not
  // discard the entire mountain every time one herb becomes available again.
  for(const key of expired){const c=chunks.get(key);if(!c)continue;
-   disposeChunk(c);showPendingGround(c.cx,c.cz);
+   disposeChunk(c);
  }
  chunkKey='';chunkQueue=[];updateChunks(P.x,P.z,false,0);
 }
@@ -1957,8 +1957,7 @@ function addAlpineVegetation(c,r,ox,oz,group,nearStart,inRock){
     if(k){im.count=k;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.receiveShadow=true;group.add(im)}
   }
 }
-function buildChunk(cx,cz){
-  const r=rngOf((Math.imul(cx,73856093)^Math.imul(cz,19349663))>>>0);
+function makeRealGround(cx,cz){
   const ox=cx*CH+CH/2,oz=cz*CH+CH/2;
   const geo=new THREE.PlaneGeometry(CH,CH,RES,RES);geo.rotateX(-Math.PI/2);
   const pos=geo.attributes.position,cols=new Float32Array(pos.count*3);
@@ -1976,6 +1975,12 @@ function buildChunk(cx,cz){
     cols[i*3]=tmp.r;cols[i*3+1]=tmp.g;cols[i*3+2]=tmp.b}
   geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
   const ground=new THREE.Mesh(geo,terrainMat);ground.receiveShadow=true;ground.frustumCulled=false;ground.userData.terrain=true;
+  return ground;
+}
+function buildChunk(cx,cz){
+  const r=rngOf((Math.imul(cx,73856093)^Math.imul(cz,19349663))>>>0);
+  const ox=cx*CH+CH/2,oz=cz*CH+CH/2;
+  const ground=makeRealGround(cx,cz);
   const grp=new THREE.Group();grp.add(ground);
   const c={key:cx+','+cz,cx,cz,grp,ground,trees:[],items:[],treeMeshes:[]};
   const altHere=H(ox,oz)*ALT_K, dens=clamp(1-(altHere-1200)/1380,.015,1);
@@ -2085,100 +2090,29 @@ function disposeChunk(c){
   c.grp.traverse(o=>{if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();if(o.isInstancedMesh&&o.dispose)o.dispose();if(o.material&&o.material.map&&o.material.map!==sparkTex&&o.material.map!==weaveTex&&o.isMesh&&!o.isSprite)o.material.map.dispose()});
   chunks.delete(c.key);
 }
-// Scenery-first loading: every visible zone has a ground tile, small trees
-// and herb-shaped foliage until its full collectible chunk is ready.
-// The lightweight previews never change actual resource locations or saves.
-const pendingGround=new Map();
-const previewHerbGeo=keep(new THREE.ConeGeometry(.12,.42,5,1));
-previewHerbGeo.translate(0,.23,0);
-function showPendingGround(cx,cz){
-  const key=cx+','+cz;
-  if(chunks.has(key)||pendingGround.has(key))return;
-  const ox=cx*CH+CH/2,oz=cz*CH+CH/2;
-  const group=new THREE.Group();group.userData.sceneryPreview=true;
-  // Attach immediately. A failed decoration must never prevent ground rendering.
-  scene.add(group);pendingGround.set(key,group);
-  try{
-    const geo=new THREE.PlaneGeometry(CH,CH,12,12);geo.rotateX(-Math.PI/2);
-    const pos=geo.attributes.position,col=new Float32Array(pos.count*3),shade=new THREE.Color();
-    for(let i=0;i<pos.count;i++){
-      const x=pos.getX(i)+ox,z=pos.getZ(i)+oz,y=H(x,z),alt=y*ALT_K;
-      pos.setXYZ(i,x,y,z);
-      shade.copy(cGrass).lerp(cRock,clamp((alt-900)/1000,0,.7));
-      if(alt>1500)shade.lerp(cSnow,clamp((alt-1500)/850,0,.92));
-      if(Math.abs(x-pathX(z))<2.6)shade.lerp(cPath,.55);
-      col[i*3]=shade.r;col[i*3+1]=shade.g;col[i*3+2]=shade.b;
-    }
-    geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.computeVertexNormals();
-    const tile=new THREE.Mesh(geo,terrainMat);tile.receiveShadow=true;tile.frustumCulled=false;tile.userData.terrain=true;group.add(tile);
-  }catch(e){console.warn('임시 지면 생성 실패:',key,e)}
-  try{
-    // Limited-cost preview forest. Actual trees and herbs replace this entire
-    // group atomically when buildChunk finishes; previews are not collectible.
-    const r=rngOf((Math.imul(cx,73856093)^Math.imul(cz,19349663)^0x5c716a3b)>>>0);
-    const alt=H(ox,oz)*ALT_K,dens=clamp(1-(alt-1200)/1380,.03,1);
-    const pine=[],oak=[],sprigs=[];
-    for(let i=0;i<Math.round(19*dens);i++){
-      const x=ox+(r()-.5)*(CH-5),z=oz+(r()-.5)*(CH-5);
-      if(Math.abs(x-pathX(z))>53||Math.hypot(x-pathX(24),z-24)<8||streamD(x,z)<2.5)continue;
-      const sc=(.50+r()*.38)*clamp(1-(alt-1550)/1100,.19,1);
-      (r()<clamp(.57+alt/2500,.55,.96)?pine:oak).push({x,y:H(x,z)-.2,z,sc});
-    }
-    for(let i=0;i<14;i++){
-      const x=ox+(r()-.5)*(CH-4),z=oz+(r()-.5)*(CH-4);
-      if(Math.abs(x-pathX(z))>52||streamD(x,z)<2.4)continue;
-      const a=H(x,z)*ALT_K,sc=.45+r()*.7;
-      if(a>2450||r()>.8)continue;
-      sprigs.push({x,y:H(x,z)+.01,z,sc});
-    }
-    const addInstances=(geo,mat,locs,scaleFn,tint)=>{
-      if(!locs.length)return;
-      const im=new THREE.InstancedMesh(geo,mat,locs.length),obj=new THREE.Object3D(),color=new THREE.Color();
-      im.frustumCulled=false;
-      locs.forEach((t,i)=>{
-        obj.position.set(t.x,t.y,t.z);obj.rotation.set(0,(i*2.39996)%6.28,0);scaleFn(obj.scale,t.sc);obj.updateMatrix();im.setMatrixAt(i,obj.matrix);
-        if(tint){color.setHex(tint[i%tint.length]);im.setColorAt(i,color)}
-      });
-      im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;
-      group.add(im);
-    };
-    addInstances(pineTrunk,barkPine,pine,(v,s)=>v.setScalar(s));
-    addInstances(pineC[2],foliage,pine,(v,s)=>v.setScalar(s),[0x42644f,0x4b6d59,0x506e58]);
-    addInstances(oakTrunk,barkOak,oak,(v,s)=>v.setScalar(s));
-    addInstances(oakF1,foliage,oak,(v,s)=>v.setScalar(s),[0x65824e,0x718c53,0x567a4b]);
-    addInstances(previewHerbGeo,foliage,sprigs,(v,s)=>v.setScalar(s),[0x68905a,0x8a9954,0x5e8058,0x9b8f6a]);
-  }catch(e){console.warn('임시 숲 생성 실패 (지면은 유지):',key,e)}
-}
-function hidePendingGround(key){
-  const group=pendingGround.get(key);if(!group)return;
-  scene.remove(group);
-  group.traverse(o=>{
-    if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();
-    // Instanced preview meshes have no private materials or texture maps.
-  });
-  pendingGround.delete(key);
-}
+// Do not render low-resolution placeholder landscape: its mesh differs from
+// the actual H(x,z) collision terrain, so it can appear as floating green land.
+// Only the authentic terrain mesh is displayed, including in fallback regions.
 let chunkQueue=[];
 let chunkKey='',chunkBuildT=0;
 const chunkFailures=new Map();
 function rescueTrailChunk(key,cx,cz){
-  // On persistent low-memory failures, retain the visible preview as an
-  // actual local chunk and add real collectible plants if possible.
-  if(!pendingGround.has(key))showPendingGround(cx,cz);
-  const grp=pendingGround.get(key);if(!grp)return false;
-  const c={key,cx,cz,grp,ground:grp.children.find(o=>o.userData.terrain)||null,
-    trees:[],items:[],treeMeshes:[],rocks:[]};
-  try{ensureTrailFlora(c,rngOf((Math.imul(cx,741103597)^Math.imul(cz,195871091)^0x5f2519)>>>0),
-      cx*CH+CH/2,cz*CH+CH/2,grp)}catch(e){console.warn('산길 대체 약초 생성 오류:',key,e)}
-  chunks.set(key,c);
-  pendingGround.delete(key); // Keep the mesh in the world; it is no longer a preview.
-  chunkFailures.delete(key);
-  return true;
+  // A detailed chunk may fail on a memory-limited phone. Recover with the
+  // exact SAME terrain surface (not a visibly higher, non-collidable proxy).
+  try{
+    const grp=new THREE.Group(),ground=makeRealGround(cx,cz);
+    grp.add(ground);
+    const c={key,cx,cz,grp,ground,trees:[],items:[],treeMeshes:[],rocks:[]};
+    try{ensureTrailFlora(c,rngOf((Math.imul(cx,741103597)^Math.imul(cz,195871091)^0x5f2519)>>>0),
+        cx*CH+CH/2,cz*CH+CH/2,grp)}catch(e){console.warn('산길 대체 약초 생성 오류:',key,e)}
+    scene.add(grp);chunks.set(key,c);chunkFailures.delete(key);
+    return true;
+  }catch(e){console.warn('실제 지형 복구 실패:',key,e);return false}
 }
 function buildQueuedChunk(key){
-  if(chunks.has(key)){hidePendingGround(key);chunkFailures.delete(key);return true}
+  if(chunks.has(key)){chunkFailures.delete(key);return true}
   const [x,z]=key.split(',').map(Number);
-  try{buildChunk(x,z);hidePendingGround(key);chunkFailures.delete(key);return true}
+  try{buildChunk(x,z);chunkFailures.delete(key);return true}
   catch(e){
     const f=chunkFailures.get(key)||{attempts:0,until:0};f.attempts++;
     // Log the original failure, not a cascade of redraws on every frame.
@@ -2190,8 +2124,7 @@ function buildQueuedChunk(key){
   }
 }
 function updateChunks(px,pz,force,dt){
-  // Visible terrain is drawn only once per chunk: the temporary tile or the
-  // finished collectible chunk, never a second overlapping foundation.
+  // Draw only real, height-correct terrain. Never place green preview sheets.
   const ccx=Math.floor(px/CH),ccz=Math.floor(pz/CH);
   if(!force){chunkBuildT+=dt||0;const k=ccx+','+ccz+','+VIEW;
     if(k===chunkKey){
@@ -2211,18 +2144,11 @@ function updateChunks(px,pz,force,dt){
     }
     chunkKey=k;
   }
-  const want=new Set(),previewWant=new Set();
-  const range=VIEW+1;
-  for(let dz=-range;dz<=range;dz++)for(let dx=-range;dx<=range;dx++){
-    const dd=dx*dx+dz*dz;
-    if(dd<=range*range+1)previewWant.add((ccx+dx)+','+(ccz+dz));
-    if(dd<=VIEW*VIEW+1)want.add((ccx+dx)+','+(ccz+dz));
+  const want=new Set();
+  for(let dz=-VIEW;dz<=VIEW;dz++)for(let dx=-VIEW;dx<=VIEW;dx++){
+    if(dx*dx+dz*dz<=VIEW*VIEW+1)want.add((ccx+dx)+','+(ccz+dz));
   }
   for(const [key,c] of [...chunks])if(!want.has(key))disposeChunk(c);
-  for(const key of previewWant)if(!chunks.has(key)){
-    const [x,z]=key.split(',').map(Number);showPendingGround(x,z);
-  }
-  for(const key of [...pendingGround.keys()])if(!previewWant.has(key))hidePendingGround(key);
   // Prioritize current tile, direction of travel, then the remaining radius.
   // Repeated visits re-use exactly the same random seed and resource IDs.
   chunkQueue=[...want].filter(key=>!chunks.has(key)).sort((a,b)=>{
@@ -2231,6 +2157,12 @@ function updateChunks(px,pz,force,dt){
     return da-db||((az-ccz)-(bz-ccz));
   });
   for(const key of [...chunkFailures.keys()])if(!want.has(key))chunkFailures.delete(key);
+  const currentKey=ccx+','+ccz;
+  if(!chunks.has(currentKey)){
+    const i=chunkQueue.indexOf(currentKey);
+    if(i>=0)chunkQueue.splice(i,1);
+    if(!buildQueuedChunk(currentKey))chunkQueue.unshift(currentKey);
+  }
   if(force){
     // Only the immediate landing area needs to be synchronous. Doing every
     // tile in one frame causes Safari to stall or WebGL to lose context.
@@ -2884,15 +2816,15 @@ function updSky(){
   _mistDense.setHex(0xf3f4f4).lerp(_mistNight.setHex(0x9ca5b2),night*.77);
   scene.fog.color.copy(_mistBase).lerp(_mistDense,clamp(inCloud*1.2,0,1));
   // Full concealment at a distance while still seeing nearby ground and herbs.
-  scene.fog.near=lerp(45*PERF.fogK,12,inCloud);
-  scene.fog.far=lerp(180*PERF.fogK,64,inCloud);
+  scene.fog.near=lerp(34*PERF.fogK,9,inCloud);
+  scene.fog.far=lerp(Math.min(132*PERF.fogK,(VIEW-.35)*CH),52,inCloud);
   if(weatherCloud>.01){
     scene.fog.color.lerp(_fogTmp.setHex(weatherRain>.02?0x99a5b1:0xc4cbd0),weatherCloud*(weatherRain>.02?.31:.15));
     scene.fog.far*=1-weatherCloud*.18-weatherRain*.22;
   }
   // The WebGL canvas has alpha, so empty sky pixels would otherwise expose
   // the old pale-green gradient even after foreground geometry has faded.
-  const mistAmount=clamp(inCloud*1.12,0,1);
+  const mistAmount=clamp(.55+inCloud*.50,0,1);
   _skyFogTop.set(S.top).lerp(scene.fog.color,mistAmount);
   _skyFogBottom.set(S.bot).lerp(scene.fog.color,mistAmount);
   const key=S.top+S.bot+Math.round(mistAmount*100)+'-'+Math.round(weatherCloud*20)+'-'+Math.round(weatherRain*20);
@@ -2903,9 +2835,11 @@ function updSky(){
   // The decorative distant mountains explicitly bypass Three.js fog. Hide
   // those non-collidable silhouettes *inside* mist so they cannot show as a
   // solid dark-green wall floating through an otherwise white cloud layer.
-  const distantVisible=inCloud<.28;
-  farGroup.visible=distantVisible;
-  summit.visible=distantVisible;
+  // Decorative distant mountains have no collision. In the hiking world
+  // they can look like a floating green surface, so only actual terrain is shown.
+  // The real 2,500 m summit stone/flag is a separate object and stays visible.
+  farGroup.visible=false;
+  summit.visible=false;
   hemi.intensity=S.hemi*(1-weatherCloud*.16-weatherRain*.18);
   const t=(hr-6)/12*Math.PI,el=Math.sin(t),az=Math.cos(t);
   if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun*(1-weatherCloud*.27-weatherRain*.30);sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
