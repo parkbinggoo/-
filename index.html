@@ -898,32 +898,60 @@ function sellSelected(){
  toast(`${name} ${q}개 판매 · ${won(sum)} 획득`);refreshBagUpgrade();
 }
 /* ---------- low-poly 2-person tent room (same primitive / matte material language as herbs) ---------- */
-const tentScene=new THREE.Scene();tentScene.background=new THREE.Color(0x020202);
+const tentScene=new THREE.Scene();tentScene.background=new THREE.Color(0x211b17);
 const tentCam=new THREE.PerspectiveCamera(43,1,.1,80);
 const tentFurniture=new THREE.Group();tentScene.add(tentFurniture);
-tentScene.add(new THREE.HemisphereLight(0xffe8be,0x261f17,.82));
+tentScene.add(new THREE.HemisphereLight(0xffe8be,0x403126,1.12));
 const tentSun=new THREE.DirectionalLight(0xffdfb2,.75);tentSun.position.set(1.5,3.6,4.5);tentScene.add(tentSun);
-const tentLight=new THREE.PointLight(0xffd28a,.72,8,2);tentLight.position.set(-1.45,1.1,-.8);tentScene.add(tentLight);
+const tentLight=new THREE.PointLight(0xffd28a,1.35,9,2);tentLight.position.set(-1.5,1.35,-1.18);tentScene.add(tentLight);
 const tentMat={canvas:M(0xca8d48),back:M(0xb4763a),seam:M(0x664b31),mat:M(0x514b40),edge:M(0x32312c),green:M(0x60735f),blue:M(0x506b93),pillow:M(0xcfc5ae),wood:M(0x986c49),chest:M(0x87513b),metal:M(0x5d635e),gold:M(0xd9af61)};
 const tentAdd=(geo,mat,x,y,z,parent=tentFurniture)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);parent.add(m);return m};
 function tentTriangle(a,b,c,d,e,f,mat){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute([...a,...b,...c,...c,...b,...d],3));geo.computeVertexNormals();const o=tentAdd(geo,mat,0,0,0);o.material.side=THREE.DoubleSide;return o}
 function setupTentInterior(){
- tentCam.position.set(0,2.45,7.8);tentCam.lookAt(0,1.05,-.5);
- tentAdd(new THREE.BoxGeometry(4.2,.10,3.8),tentMat.mat,0,.06,0);
- const n=10,rx=2,hh=2.74;const ptsRoof=[],ptsRear=[];
- for(let i=0;i<n;i++){
-   const a=i*Math.PI/n,b=(i+1)*Math.PI/n;
-   const x1=rx*Math.cos(a),x2=rx*Math.cos(b),y1=.12+hh*Math.sin(a),y2=.12+hh*Math.sin(b);
-   ptsRoof.push(x1,y1,-1.8,x2,y2,-1.8,x1,y1,1.8,x1,y1,1.8,x2,y2,-1.8,x2,y2,1.8);
-   ptsRear.push(0,.12,-1.8,x1,y1,-1.8,x2,y2,-1.8);
+ // Camera must face the actual interior, not stand several metres beyond the vestibule.
+ tentCam.position.set(0,1.77,3.52);
+ tentCam.lookAt(0,1.27,-.72);
+ const near=2.05,far=-2.26,radius=2.06,height=2.62,seg=12;
+ // Independent, visible low-poly floor and full arched canopy. No sleeping mats.
+ tentAdd(new THREE.BoxGeometry(4.12,.10,4.36),tentMat.mat,0,.055,-.10);
+ tentMat.canvas.side=THREE.DoubleSide;tentMat.canvas.needsUpdate=true;
+ tentMat.back.side=THREE.DoubleSide;tentMat.back.needsUpdate=true;
+ const canopy=[],rear=[];
+ for(let i=0;i<seg;i++){
+   const a=i*Math.PI/seg,b=(i+1)*Math.PI/seg;
+   const x1=radius*Math.cos(a),x2=radius*Math.cos(b);
+   const y1=.11+height*Math.sin(a),y2=.11+height*Math.sin(b);
+   canopy.push(x1,y1,far,x2,y2,far,x1,y1,near,
+               x1,y1,near,x2,y2,far,x2,y2,near);
+   rear.push(0,.11,far,x1,y1,far,x2,y2,far);
  }
- for(const [pts,mat] of [[ptsRoof,tentMat.canvas],[ptsRear,tentMat.back]]){
-   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));geo.computeVertexNormals();tentAdd(geo,mat).material.side=THREE.DoubleSide;
+ // Build separate double-sided cloth meshes with real surface normals.
+ for(const [points,material] of [[canopy,tentMat.canvas],[rear,tentMat.back]]){
+   const geometry=new THREE.BufferGeometry();
+   geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));
+   geometry.computeVertexNormals();
+   const cloth=tentAdd(geometry,material);
+   cloth.frustumCulled=false;
  }
- const pole=tentAdd(new THREE.CylinderGeometry(.035,.035,3.65,6),tentMat.seam,0,2.9,0);pole.rotation.x=Math.PI/2;
- for(const x of [-1.85,1.85]){tentAdd(new THREE.CylinderGeometry(.035,.05,.35,6),tentMat.seam,x,.24,1.6)}
- tentAdd(new THREE.CylinderGeometry(.09,.12,.26,6),tentMat.metal,-1.5,.42,-.98);
- tentAdd(new THREE.IcosahedronGeometry(.10,0),tentMat.gold,-1.5,.59,-.98);
+ // Clearly visible dark curved seam along each arch: front and rear.
+ for(const z of [near-.035,far+.025]){
+   const arch=[];
+   for(let i=0;i<=seg;i++){
+     const a=i*Math.PI/seg;
+     arch.push(new THREE.Vector3(radius*Math.cos(a),.11+height*Math.sin(a),z));
+   }
+   tentAdd(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arch),seg*2,.033,5,false),tentMat.seam);
+ }
+ // Ceiling seam and tent edge reinforce the enclosed shape on portrait screens.
+ const ridge=tentAdd(new THREE.CylinderGeometry(.025,.025,near-far,5),tentMat.seam,0,.11+height,(near+far)/2);
+ ridge.rotation.x=Math.PI/2;
+ for(const x of [-1.90,1.90])tentAdd(new THREE.CylinderGeometry(.035,.045,.42,5),tentMat.seam,x,.31,1.83);
+ // Warm lantern: visible glowing glass and a small metal body.
+ tentAdd(new THREE.CylinderGeometry(.09,.12,.30,6),tentMat.metal,-1.50,.34,-1.16);
+ const glowMat=new THREE.MeshBasicMaterial({color:0xffc278});
+ tentAdd(new THREE.CylinderGeometry(.09,.09,.17,6),glowMat,-1.50,.56,-1.16);
+ tentAdd(new THREE.ConeGeometry(.13,.09,6),tentMat.metal,-1.50,.70,-1.16);
+ // Existing sale chest is preserved in front of the two seated hikers.
  const chestGroup=new THREE.Group();chestGroup.position.set(0,.18,1.03);tentFurniture.add(chestGroup);
  tentAdd(new THREE.BoxGeometry(.85,.45,.55),tentMat.chest,0,.27,0,chestGroup);
  tentAdd(new THREE.BoxGeometry(.93,.12,.61),tentMat.wood,0,.54,0,chestGroup);
@@ -962,7 +990,7 @@ function updateTentSeats(dt){
 function syncTentChestButton(){
  if(!inTent)return;
  tentCam.aspect=Math.max(1,W)/Math.max(1,Hh);
- tentCam.fov=clamp(2*Math.atan(Math.tan(43*Math.PI/360)/Math.min(1,tentCam.aspect)*1.12)*180/Math.PI,43,90);
+ tentCam.fov=tentCam.aspect<1 ? clamp(2*Math.atan(Math.tan(54*Math.PI/360)/tentCam.aspect)*180/Math.PI,64,80) : 54;
  tentCam.updateProjectionMatrix();
  const p=tentFurniture.userData.chestPoint.clone().project(tentCam);
  $('tentChest').style.left=((p.x+1)*W/2)+'px';
@@ -2842,18 +2870,42 @@ function updateAlpineSnow(dt,elevation){
   snowGeo.attributes.position.needsUpdate=true;snowFall.position.set(P.x,P.y+2,P.z);
 }
 const lamp=new THREE.SpotLight(0xfff0d0,0,26,.62,.6,1.4);scene.add(lamp);scene.add(lamp.target);
-const _white=new THREE.Color(),_fogTmp=new THREE.Color();let skyKey2='';
+// Neutral, opaque-looking volumetric-distance mist (never a walk-through plane).
+// Fog and the transparent canvas's CSS sky must use the same grey-white hue;
+// otherwise the greenish low-horizon background shows through as false terrain.
+const _mistBase=new THREE.Color(),_mistDense=new THREE.Color(),_mistNight=new THREE.Color(),
+      _fogTmp=new THREE.Color(),_skyFogTop=new THREE.Color(),_skyFogBottom=new THREE.Color();
+let skyKey2='';
 function updSky(){
   const hr=gameMin/60,S=skyAtHour(hr),night=S.night;
-  const key=S.top+S.bot;if(key!==skyKey2){skyKey2=key;document.body.style.background=`linear-gradient(${S.top},${S.bot})`}
   const inCloud=clamp(1-Math.abs(P.y-CLOUD_Y)/28,0,1);
-  scene.fog.color.set(S.bot).lerp(_white.setScalar(lerp(.96,.3,night)),inCloud);
-  // Keep trail, nearby trees and herbs visible even when passing the cloud layer.
-  scene.fog.near=lerp(45*PERF.fogK,26,inCloud);scene.fog.far=lerp(180*PERF.fogK,112,inCloud);
+  // Mist itself has a neutral grey-white tint, including on clear days.
+  _mistBase.setHex(0xe8ebed).lerp(_mistNight.setHex(0x7b8498),night*.74);
+  _mistDense.setHex(0xf3f4f4).lerp(_mistNight.setHex(0x9ca5b2),night*.77);
+  scene.fog.color.copy(_mistBase).lerp(_mistDense,clamp(inCloud*1.2,0,1));
+  // Full concealment at a distance while still seeing nearby ground and herbs.
+  scene.fog.near=lerp(45*PERF.fogK,12,inCloud);
+  scene.fog.far=lerp(180*PERF.fogK,64,inCloud);
   if(weatherCloud>.01){
-    scene.fog.color.lerp(_fogTmp.set(weatherRain>.02?0x879aa1:0xb5c2c3),weatherCloud*(weatherRain>.02?.42:.20));
+    scene.fog.color.lerp(_fogTmp.setHex(weatherRain>.02?0x99a5b1:0xc4cbd0),weatherCloud*(weatherRain>.02?.31:.15));
     scene.fog.far*=1-weatherCloud*.18-weatherRain*.22;
   }
+  // The WebGL canvas has alpha, so empty sky pixels would otherwise expose
+  // the old pale-green gradient even after foreground geometry has faded.
+  const mistAmount=clamp(inCloud*1.12,0,1);
+  _skyFogTop.set(S.top).lerp(scene.fog.color,mistAmount);
+  _skyFogBottom.set(S.bot).lerp(scene.fog.color,mistAmount);
+  const key=S.top+S.bot+Math.round(mistAmount*100)+'-'+Math.round(weatherCloud*20)+'-'+Math.round(weatherRain*20);
+  if(key!==skyKey2){
+    skyKey2=key;
+    document.body.style.background=`linear-gradient(${_skyFogTop.getStyle()},${_skyFogBottom.getStyle()})`;
+  }
+  // The decorative distant mountains explicitly bypass Three.js fog. Hide
+  // those non-collidable silhouettes *inside* mist so they cannot show as a
+  // solid dark-green wall floating through an otherwise white cloud layer.
+  const distantVisible=inCloud<.28;
+  farGroup.visible=distantVisible;
+  summit.visible=distantVisible;
   hemi.intensity=S.hemi*(1-weatherCloud*.16-weatherRain*.18);
   const t=(hr-6)/12*Math.PI,el=Math.sin(t),az=Math.cos(t);
   if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun*(1-weatherCloud*.27-weatherRain*.30);sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
@@ -3796,7 +3848,7 @@ function takeMemorialPhoto(){
     photo.width=source.width;photo.height=source.height;
     const ctx=photo.getContext('2d');if(!ctx)throw new Error('캔버스 만들기 실패');
     const sky=skyAtHour(gameMin/60),gradient=ctx.createLinearGradient(0,0,0,photo.height);
-    gradient.addColorStop(0,sky.top);gradient.addColorStop(1,sky.bot);
+    gradient.addColorStop(0,inTent?sky.top:_skyFogTop.getStyle());gradient.addColorStop(1,inTent?sky.bot:_skyFogBottom.getStyle());
     ctx.fillStyle=inTent?'#050505':gradient;ctx.fillRect(0,0,photo.width,photo.height);
     ctx.drawImage(source,0,0,photo.width,photo.height);
     const image=photo.toDataURL('image/png'),a=document.createElement('a');
