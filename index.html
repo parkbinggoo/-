@@ -235,7 +235,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #tentView .tentExitBtn{top:calc(12px + env(safe-area-inset-top));right:12px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script async src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -355,30 +355,11 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
   </div>
 </div></div>
 <div id="fade"></div>
-<script id="baekCore">
+<script>
 (()=>{
 'use strict';const IOS_CLOUD_SAFE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
-const MOBILE_SAFE=IOS_CLOUD_SAFE||/Android|Mobile/i.test(navigator.userAgent);
-if(MOBILE_SAFE) document.getElementById('iosClouds').style.display='block';
-if(!window.THREE){
-  // Some in-app browsers block a single CDN. Retry independently without erasing saved-profile UI.
-  const fail=()=>{const e=document.getElementById('profileStatus');
-    if(e){e.textContent='3D 엔진 연결이 차단되었습니다. Safari 또는 Chrome에서 게임 주소를 다시 열어 주세요.';e.style.color='#a1261d'}
-    const p=document.getElementById('startPanel');if(p){p.classList.add('on');}
-    document.getElementById('title')?.classList.add('on');
-  };
-  const alt=document.createElement('script');
-  alt.src='https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
-  alt.onload=()=>{
-    if(!window.THREE){fail();return}
-    const original=document.getElementById('baekCore');
-    if(!original)return fail();
-    const run=document.createElement('script');run.textContent=original.textContent;
-    document.body.appendChild(run);run.remove();
-  };
-  alt.onerror=fail;document.head.appendChild(alt);
-  return;
-}
+if(IOS_CLOUD_SAFE) document.getElementById('iosClouds').style.display='block';
+if(!window.THREE){document.body.innerHTML='<p style="padding:40px;font-family:sans-serif">3D 엔진을 불러오지 못했습니다. 새로고침해 주세요.</p>';return}
 /* ================= DATA ================= */
 const HERBS = {
   sansam:  {name:'산삼',  w:1.6, need:6, rar:5, root:true,  desc:'깊은 그늘에서 수십 년을 버틴 뿌리. 붉은 열매가 신호다. 심봤다!'},
@@ -535,8 +516,8 @@ function H(x,z){
 
 /* ---------- renderer ---------- */
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:!MOBILE_SAFE,alpha:true,powerPreference:MOBILE_SAFE?'low-power':'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,MOBILE_SAFE?1:2));
+const renderer=new THREE.WebGLRenderer({canvas,antialias:!IOS_CLOUD_SAFE,alpha:true,powerPreference:IOS_CLOUD_SAFE?'default':'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,IOS_CLOUD_SAFE?1.5:2));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.setClearColor(0x000000,0);
 const camera=new THREE.PerspectiveCamera(55,1,.1,4000);
@@ -904,13 +885,13 @@ const iSun=new THREE.DirectionalLight(0xfff1dc,.55);iSun.position.set(300,500,40
 }
 const iClouds=[];
 {const r=rngOf(21);for(let i=0;i<70;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.95,fog:false}));
-  const x=(r()-.5)*900,y=(r()-.1)*520,z=380+r()*220;sp.position.set(x,y,z);const s=180+r()*260;sp.scale.set(s*1.6,s,1);sp.userData={x0:x,side:x<0?-1:1,sp:.6+r()*.8};iScene.add(sp);sp.visible=!MOBILE_SAFE;iClouds.push(sp)}}
+  const x=(r()-.5)*900,y=(r()-.1)*520,z=380+r()*220;sp.position.set(x,y,z);const s=180+r()*260;sp.scale.set(s*1.6,s,1);sp.userData={x0:x,side:x<0?-1:1,sp:.6+r()*.8};iScene.add(sp);sp.visible=!IOS_CLOUD_SAFE;iClouds.push(sp)}}
 let introT=0, zoomT=-1, mode='intro';
 function drawIntro(dt){
   introT+=dt;const t=introT;
   const part=ease(clamp((t-.8)/3.6,0,1));
   for(const c of iClouds){c.position.x=c.userData.x0+c.userData.side*part*(700+300*c.userData.sp)+Math.sin(t*.3+c.userData.sp*9)*8;c.material.opacity=.95*(1-part*.5)}
-  if(MOBILE_SAFE){const fog=$('iosClouds');fog.children[0].style.transform=`translateX(${-part*125}%)`;fog.children[1].style.transform=`scaleX(-1) translateX(${-part*125}%)`;fog.style.opacity=String(1-part*.75);}
+  if(IOS_CLOUD_SAFE){const fog=$('iosClouds');fog.children[0].style.transform=`translateX(${-part*125}%)`;fog.children[1].style.transform=`scaleX(-1) translateX(${-part*125}%)`;fog.style.opacity=String(1-part*.75);}
   const z=zoomT>=0?ease(clamp(zoomT/1.8,0,1)):0;
   iCam.position.set(0,lerp(170,60,z)+Math.sin(t*.25)*3,lerp(1150,60,z)-Math.min(t,8)*6*(1-z));
   iCam.lookAt(0,lerp(260,120,z),-520);
@@ -932,10 +913,10 @@ const farMts=[];
 {const r=rngOf(55);for(let i=0;i<26;i++){const a=i/26*Math.PI*2+(r()-.5)*.15,dist=900+r()*500,h=160+r()*300;
   const m=makeMountain(h*1.3,h,100+i,[0x8fa6a2,0x7d958f,0x9db2ae][i%3],0xeef0ea,{fog:false,snowLine:.8});m.userData={a,dist,y0:-60-r()*40};farGroup.add(m);farMts.push(m)}}
 const summit=makeMountain(900,1700,999,0x3a544e,0xf8f8f4,{seg:20,hs:14,fog:false,snowLine:.7});scene.add(summit);
-const cloudSea=[0,1].map(i=>{const tex=MOBILE_SAFE?null:(i?cloudSeaTex.clone():cloudSeaTex);const m=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshBasicMaterial({map:tex,color:0xffffff,transparent:true,opacity:MOBILE_SAFE?(i?.13:.30):(i?.7:.95),depthWrite:false,fog:false}));
+const cloudSea=[0,1].map(i=>{const tex=IOS_CLOUD_SAFE?null:(i?cloudSeaTex.clone():cloudSeaTex);const m=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshBasicMaterial({map:tex,color:0xffffff,transparent:true,opacity:IOS_CLOUD_SAFE?(i?.13:.30):(i?.7:.95),depthWrite:false,fog:false}));
   if(i&&m.material.map){m.material.map.wrapS=m.material.map.wrapT=THREE.RepeatWrapping;m.material.map.repeat.set(3,3);m.material.map.needsUpdate=true}
   m.rotation.x=-Math.PI/2;m.position.y=CLOUD_Y+i*10;m.renderOrder=2;scene.add(m);return m});
-const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);sp.visible=!MOBILE_SAFE;skyPuffs.push(sp)}}
+const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);sp.visible=!IOS_CLOUD_SAFE;skyPuffs.push(sp)}}
 const stars=(()=>{const n=600,p=new Float32Array(n*3),r=rngOf(4);for(let i=0;i<n;i++){const u=r()*2-1,a=r()*Math.PI*2,s=Math.sqrt(1-u*u);p[i*3]=Math.cos(a)*s*1500;p[i*3+1]=Math.abs(u)*1500+100;p[i*3+2]=Math.sin(a)*s*1500}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xfffff0,size:2.2,sizeAttenuation:false,transparent:true,opacity:0,fog:false,depthWrite:false}));scene.add(m);return m})();
 /* ---------- shared geometries ---------- */
@@ -1743,7 +1724,7 @@ function placeRockPlants(c,r,grp){
    const spec=(r()<.18&&moist>.30)?null:list[Math.floor(r()*list.length)];
    const type=spec?spec.id:'seogi';if(type==='seogi'&&moist<.26)continue;
    const ang=r()*Math.PI*2,rr=rock.r*(.13+r()*.25);
-   const px=x+Math.cos(ang)*rr,pz=z+Math.sin(ang)*rr,py=rockSurfaceY(rock,px,pz)-.05;
+   const px=x+Math.cos(ang)*rr,pz=z+Math.sin(ang)*rr,py=rock.topY-.04;
    const id=`${c.key}:rock${i}`;if(takenUntil(id))continue;
    const isMush=type==='seogi';
    const mesh=isMush?mush3D(type):makePlantMesh(spec,Math.floor(r()*3));
@@ -1774,7 +1755,7 @@ function placeExtraMushrooms(c,r,grp,nearStart){
  }
 }
 /* ---------- world chunks ---------- */
-const CH=48,RES=MOBILE_SAFE?18:32;let VIEW=3;
+const CH=48,RES=IOS_CLOUD_SAFE?24:32;let VIEW=3;
 const chunks=new Map();
 const terrainMat=new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:0,specular:0x000000});
 const barkPine=M(0x8a5236),barkOak=M(0x6e5a48),foliage=new THREE.MeshPhongMaterial({color:0xffffff,flatShading:true,shininess:0,specular:0x000000});
@@ -1920,111 +1901,17 @@ function buildChunk(cx,cz){
   }
   scene.add(grp);chunks.set(c.key,c);return c;
 }
-// Fast, low-poly backup terrain keeps the ground visible while a full chunk is streamed.
-// Detailed chunk meshes replace these only AFTER they have been added successfully.
-const backupGround=new Map(),chunkRetryAfter=new Map();
-function addBackupGround(cx,cz){
-  const key=cx+','+cz;
-  if(chunks.has(key)||backupGround.has(key))return;
-  const res=MOBILE_SAFE?10:14,ox=cx*CH+CH/2,oz=cz*CH+CH/2;
-  const geo=new THREE.PlaneGeometry(CH,CH,res,res);geo.rotateX(-Math.PI/2);
-  const pos=geo.attributes.position,col=new Float32Array(pos.count*3),tone=new THREE.Color();
-  for(let i=0;i<pos.count;i++){
-    const x=pos.getX(i)+ox,z=pos.getZ(i)+oz,y=H(x,z),alt=y*ALT_K;
-    pos.setXYZ(i,x,y,z);
-    tone.copy(cGrass).lerp(cRock,clamp((alt-900)/900,0,.7));
-    const snow=clamp((alt-1500)/950,0,1)*clamp(.65+vn(x*.044+4,z*.044-3)*.35,0,1);
-    tone.lerp(cSnow,snow*.93);
-    if(Math.abs(x-pathX(z))<2.1)tone.lerp(cPath,.6);
-    col[i*3]=tone.r;col[i*3+1]=tone.g;col[i*3+2]=tone.b;
-  }
-  geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.computeVertexNormals();
-  const mesh=new THREE.Mesh(geo,terrainMat);mesh.receiveShadow=true;mesh.userData.terrain=true;
-  scene.add(mesh);backupGround.set(key,mesh);
-}
-function removeBackupGround(key){
-  const mesh=backupGround.get(key);if(!mesh)return;
-  scene.remove(mesh);mesh.geometry.dispose();backupGround.delete(key);
-}
-function disposeChunk(c){
-  // Do not dispose shared texture maps or cached plant/tree materials: other
-  // visible chunks are still using those resources on the same WebGL context.
-  for(const t of c.trees||[])hiddenTrees.delete(t);
-  scene.remove(c.grp);
-  c.grp.traverse(o=>{if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();if(o.isInstancedMesh&&o.dispose)o.dispose()});
-  chunks.delete(c.key);
-}
+function disposeChunk(c){scene.remove(c.grp);c.grp.traverse(o=>{if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();if(o.isInstancedMesh&&o.dispose)o.dispose();if(o.material&&o.material.map&&o.material.map!==sparkTex&&o.material.map!==weaveTex&&o.isMesh&&!o.isSprite)o.material.map.dispose()});chunks.delete(c.key)}
 let chunkQueue=[];
 let chunkKey='',chunkBuildT=0;
-function loadQueuedChunk(){
-  for(let n=chunkQueue.length;n>0;n--){
-    const key=chunkQueue.shift();if(chunks.has(key)){removeBackupGround(key);continue}
-    if(Date.now()<(chunkRetryAfter.get(key)||0)){chunkQueue.push(key);continue}
-    const [x,z]=key.split(',').map(Number);
-    try{buildChunk(x,z);removeBackupGround(key);chunkRetryAfter.delete(key)}
-    catch(e){
-      console.warn('백약산 지형 장식 생성 오류 (지면은 유지)',key,e);
-      chunkRetryAfter.set(key,Date.now()+6500);chunkQueue.push(key);
-    }
-    return;
-  }
-}
-// Mobile needs cheap distant terrain beyond the detailed chunk radius.
-// Without this ring, a blue/blank gap is visible before the 180m fog horizon.
-let distantGroundQueue=[];
-function fillDistantGround(limit=2){
-  for(let i=0;i<limit&&distantGroundQueue.length;i++){
-    const key=distantGroundQueue.shift();
-    if(chunks.has(key)||backupGround.has(key))continue;
-    try{const[x,z]=key.split(',').map(Number);addBackupGround(x,z)}
-    catch(e){console.warn('먼 지면 생성 오류',key,e)}
-  }
-}
 function updateChunks(px,pz,force,dt){
-  const ccx=Math.floor(px/CH),ccz=Math.floor(pz/CH),locationKey=ccx+','+ccz+','+VIEW;
-  if(!force){
-    chunkBuildT+=dt||0;
-    if(locationKey===chunkKey){
-      fillDistantGround(2);
-      if(chunkQueue.length&&chunkBuildT>=PERF.chunkEvery){chunkBuildT=0;loadQueuedChunk()}
-      return;
-    }
-  }
-  chunkKey=locationKey;
-  const want=new Set(),groundWant=new Set(),groundRadius=VIEW+(MOBILE_SAFE?1:0);
-  for(let dz=-groundRadius;dz<=groundRadius;dz++)for(let dx=-groundRadius;dx<=groundRadius;dx++){
-    const n=dx*dx+dz*dz,key=(ccx+dx)+','+(ccz+dz);
-    if(n<=groundRadius*groundRadius+1)groundWant.add(key);
-    if(n<=VIEW*VIEW+1)want.add(key);
-  }
-  // First ensure the entire near circle has ground, even before scenery is built.
-  for(const key of want)if(!chunks.has(key)){
-    try{const[x,z]=key.split(',').map(Number);addBackupGround(x,z)}
-    catch(e){console.warn('간이 지면 생성 오류',key,e)}
-  }
-  // A rock with a hiker on it must never disappear while they climb or walk.
-  const activeRock=onRock||(climbing&&climbing.rock);
-  if(activeRock)for(const [key,c] of chunks)if(c.rocks&&c.rocks.includes(activeRock)){
-    want.add(key);groundWant.add(key);
-  }
-  for(const [key,c] of [...chunks])if(!want.has(key)){
-    disposeChunk(c);
-    // Replace outgoing detailed terrain with the cheap horizon, without a blank frame.
-    if(groundWant.has(key))try{addBackupGround(c.cx,c.cz)}catch(e){console.warn('지면 연결 오류',e)}
-  }
-  for(const key of [...backupGround.keys()])if(!groundWant.has(key))removeBackupGround(key);
-  for(const key of [...chunkRetryAfter.keys()])if(!want.has(key))chunkRetryAfter.delete(key);
-  distantGroundQueue=[...groundWant].filter(key=>!chunks.has(key)&&!backupGround.has(key)).sort((a,b)=>{
-    const[ax,az]=a.split(',').map(Number),[bx,bz]=b.split(',').map(Number);
-    return ((ax-ccx)**2+(az-ccz)**2)-((bx-ccx)**2+(bz-ccz)**2);
-  });
-  fillDistantGround(2); // stream the far ring over a few frames
-  chunkQueue=[...want].filter(key=>!chunks.has(key)).sort((a,b)=>{
-    const[ax,az]=a.split(',').map(Number),[bx,bz]=b.split(',').map(Number);
-    return((ax-ccx)**2+(az-ccz)**2)-((bx-ccx)**2+(bz-ccz)**2);
-  });
-  // Never block game entry on building dozens of full-detail chunks.
-  if(force)loadQueuedChunk();
+  const ccx=Math.floor(px/CH),ccz=Math.floor(pz/CH);
+  if(!force){chunkBuildT+=dt||0;const k=ccx+','+ccz+','+VIEW;if(k===chunkKey){if(chunkQueue.length&&chunkBuildT>=PERF.chunkEvery){chunkBuildT=0;const[x,z]=chunkQueue.shift().split(',').map(Number);if(!chunks.has(x+','+z))buildChunk(x,z)}return}chunkKey=k}
+  const want=new Set();
+  for(let dz=-VIEW;dz<=VIEW;dz++)for(let dx=-VIEW;dx<=VIEW;dx++){if(dx*dx+dz*dz>VIEW*VIEW+1)continue;want.add((ccx+dx)+','+(ccz+dz))}
+  for(const [k,c] of chunks)if(!want.has(k))disposeChunk(c);
+  chunkQueue=[...want].filter(k=>!chunks.has(k)).sort((a,b)=>{const[ax,az]=a.split(',').map(Number),[bx,bz]=b.split(',').map(Number);return((ax-ccx)**2+(az-ccz)**2)-((bx-ccx)**2+(bz-ccz)**2)});
+  const n=force?chunkQueue.length:0;for(let i=0;i<n&&chunkQueue.length;i++){const[x,z]=chunkQueue.shift().split(',').map(Number);buildChunk(x,z)}
 }
 /* ---------- 백약산 해발 2,500m 정상 ---------- */
 const SUMMIT_X=pathX(SUMMIT_Z);
@@ -2422,7 +2309,7 @@ function tryNetJoin(){if(!mqttOnline||netJoined||netChecking)return;netChecking=
 }
 function connectRoom(){
   if(mqttClient)return;
-  if(!window.mqtt||typeof window.mqtt.connect!=='function')return;
+  if(!window.mqtt||typeof window.mqtt.connect!=='function'){toast('멀티플레이 모듈을 불러오지 못했습니다');return}
   try{mqttClient=window.mqtt.connect(MQTT_BROKER,{clientId:'baek_'+myId,clean:true,keepalive:25,reconnectPeriod:3000,connectTimeout:12000,
     will:{topic:MQTT_TOPIC+'bye/'+myId,payload:JSON.stringify({id:myId,type:'bye'}),qos:0,retain:false}});
     mqttClient.on('connect',()=>{mqttOnline=true;netJoined=false;netChecking=false;
@@ -2525,11 +2412,11 @@ function occlusion(tx,ty,tz,cx,cy,cz,collect){
 const IS_TOUCH=matchMedia('(pointer:coarse)').matches;
 const PERF={eco:false,fps:60,view:3,fogK:1,occEvery:.08,chunkEvery:.06};
 // Keep the player's chosen setting; on a first visit choose lighter rendering for iPhones.
-try{const pref=localStorage.getItem('baekyaksan-eco');PERF.eco=MOBILE_SAFE||pref==='1'}catch(e){PERF.eco=MOBILE_SAFE}
+try{const pref=localStorage.getItem('baekyaksan-eco');PERF.eco=IOS_CLOUD_SAFE||pref==='1'}catch(e){PERF.eco=IOS_CLOUD_SAFE}
 function applyPerf(){
   const dpr=devicePixelRatio||1;
-  PERF.fps=PERF.eco?30:60;PERF.view=MOBILE_SAFE?1:(PERF.eco?2:3);PERF.fogK=PERF.eco?.72:1;PERF.occEvery=PERF.eco?.18:.08;PERF.chunkEvery=MOBILE_SAFE?.34:(PERF.eco?.20:.06);
-  renderer.setPixelRatio(PERF.eco?Math.min(dpr,MOBILE_SAFE?1:1.2)*.8:Math.min(dpr,IS_TOUCH?1.5:1.75));
+  PERF.fps=PERF.eco?30:60;PERF.view=PERF.eco?2:3;PERF.fogK=PERF.eco?.72:1;PERF.occEvery=PERF.eco?.16:.08;PERF.chunkEvery=PERF.eco?.20:.06;
+  renderer.setPixelRatio(PERF.eco?Math.min(dpr,1)*.75:Math.min(dpr,IS_TOUCH?1.5:1.75));
   sun.castShadow=!PERF.eco;
   if(sun.shadow.map&&sun.shadow.mapSize.x!==(IS_TOUCH?1024:2048)){sun.shadow.map.dispose();sun.shadow.map=null}
   sun.shadow.mapSize.set(IS_TOUCH?1024:2048,IS_TOUCH?1024:2048);
@@ -2624,10 +2511,10 @@ function updateRain(dt,elevation){
 }
 // Local alpine snow: the higher the hiker climbs, the denser the snow becomes.
 // This is deterministic altitude-based scenery, not a new per-player random weather.
-const snowCount=MOBILE_SAFE?115:220,snowRnd=rngOf(2500),snowXYZ=new Float32Array(snowCount*3);
+const snowCount=IOS_CLOUD_SAFE?115:220,snowRnd=rngOf(2500),snowXYZ=new Float32Array(snowCount*3);
 for(let i=0;i<snowCount;i++){snowXYZ[3*i]=(snowRnd()-.5)*34;snowXYZ[3*i+1]=snowRnd()*18;snowXYZ[3*i+2]=(snowRnd()-.5)*34;}
 const snowGeo=new THREE.BufferGeometry();snowGeo.setAttribute('position',new THREE.BufferAttribute(snowXYZ,3));
-const snowFall=new THREE.Points(snowGeo,new THREE.PointsMaterial({color:0xfcffff,size:MOBILE_SAFE?.12:.14,transparent:true,opacity:.8,depthWrite:false}));scene.add(snowFall);snowFall.visible=false;
+const snowFall=new THREE.Points(snowGeo,new THREE.PointsMaterial({color:0xfcffff,size:IOS_CLOUD_SAFE?.12:.14,transparent:true,opacity:.8,depthWrite:false}));scene.add(snowFall);snowFall.visible=false;
 function updateAlpineSnow(dt,elevation){
   const base=clamp((elevation-1590)/860,0,1);
   const amount=base*clamp(.48+weatherRain*.7,0,1);
@@ -2664,7 +2551,7 @@ function updSky(){
   summit.position.set(P.x,P.y-1250,P.z-1500);
   const shade=lerp(1,.22,night);
   for(const cs of cloudSea){cs.position.x=P.x;cs.position.z=P.z;if(cs.material.map)cs.material.map.offset.set(P.x/600+clock*.002,-P.z/600);cs.material.color.setScalar(shade)}
-  cloudSea[0].material.opacity=MOBILE_SAFE?(P.y<CLOUD_Y?.16:.30):(P.y<CLOUD_Y?.55:.95);
+  cloudSea[0].material.opacity=IOS_CLOUD_SAFE?(P.y<CLOUD_Y?.16:.30):(P.y<CLOUD_Y?.55:.95);
   for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
 }
 /* ================= 숲 소리 (전부 WebAudio로 합성) ================= */
@@ -3139,11 +3026,11 @@ function updateAnimalLookLabel(){
    the existing 3-minute faint system. Touch and keyboard use the same action.
 */
 let climbing=null,onRock=null;
+// Walk on the actual top of the rock, not the terrain beneath it.
 const rockFootRay=new THREE.Raycaster(),rockWalkLimit=.40;
 const rockFootOrigin=new THREE.Vector3(),rockFootDown=new THREE.Vector3(0,-1,0);
 function rockSurfaceY(rock,x,z){
   if(!rock||!rock.mesh||!rock.mesh.parent)return rock?rock.topY+.1:H(x,z);
-  // Real collision height from the surface rather than the terrain under the rock.
   rock.mesh.updateWorldMatrix(true,false);
   rockFootOrigin.set(x,rock.mesh.position.y+rock.mesh.scale.y*3+3,z);
   rockFootRay.set(rockFootOrigin,rockFootDown);rockFootRay.near=0;rockFootRay.far=rock.r*7+6;
@@ -3198,7 +3085,7 @@ function climbAct(){
  const rock=climbing.rock,k=climbing.steps/CLIMB_STEPS;
  P.x=rock.x+climbing.dirX*lerp(rock.r*.86,rock.r*.20,k);
  P.z=rock.z+climbing.dirZ*lerp(rock.r*.86,rock.r*.20,k);
- P.y=lerp(rock.groundY,rockSurfaceY(rock,P.x,P.z),k);
+  P.y=lerp(rock.groundY,rockSurfaceY(rock,P.x,P.z),k);
  P.air=false;P.speed=0;
  tone(365+k*160,.12,'sine',.075,1.18);
  if(climbing.steps>=CLIMB_STEPS){
@@ -3251,8 +3138,7 @@ function updateGame(dt){
   if(inTent){moveAmt=0; mvx=mvz=0;}
   if(moveAmt){
     if(onRock){
-      // Stay on the flat-ish center of this specific boulder; never walk into
-      // the empty air or let trunk/ground collision push the hiker off it.
+      // Walk freely within this boulder's safe upper surface.
       const speed=2.55,limit=onRock.r*rockWalkLimit;
       let nx=P.x+mvx*moveAmt*speed*dt,nz=P.z+mvz*moveAmt*speed*dt;
       const dx=nx-onRock.x,dz=nz-onRock.z,d=Math.hypot(dx,dz);
@@ -3350,8 +3236,7 @@ async function getCredential(){
   const payload='baekyaksan-v2|'+normalized+'|'+pin;
   let verifier;
   if(canNative){
-    try{const digest=await Promise.race([window.crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload)),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('crypto timeout')),1600))]);
+    try{const digest=await window.crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload));
       verifier=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
     }catch(e){verifier=sha256Backup(payload)}
   }else verifier=sha256Backup(payload);
@@ -3374,14 +3259,7 @@ function normalizeRecord(raw){
   const color=Number.isInteger(raw?.color)?clamp(raw.color,0,JACKETS.length-1):0;
   let pos=null;const p=raw?.pos;
   if(p&&Number.isFinite(p.x)&&Number.isFinite(p.z)&&Math.abs(p.x)<20000&&p.z<=34&&p.z>-20000){
-    // Carry old progress across mountain revisions, without carrying impossible spawn positions.
-    const z=clamp(p.z,SUMMIT_Z+19,24);
-    const trail=pathX(z),outOfRange=p.z<SUMMIT_Z+19||p.z>24;
-    let x=outOfRange||Math.abs(p.x-trail)>15?trail:p.x;
-    const ground=H(x,z),step=Math.max(Math.abs(H(x+1,z)-ground),Math.abs(H(x-1,z)-ground),
-      Math.abs(H(x,z+1)-ground),Math.abs(H(x,z-1)-ground));
-    if(!Number.isFinite(ground)||step>2.3)x=trail;
-    pos={x,z};
+    const z=Math.max(SUMMIT_Z+2,p.z);pos={x:p.z<SUMMIT_Z+2?pathX(z):clamp(p.x,pathX(z)-55,pathX(z)+55),z};
   }
   const until=Number.isFinite(raw?.faintUntil)?clamp(raw.faintUntil,0,Date.now()+3*60*1000):0;
   return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0};
@@ -3426,9 +3304,11 @@ async function enterProfile(){
     if(resolved.origin==='이전 버전 기록')try{localStorage.setItem('baekyaksan-legacy-migrated',cred.verifier)}catch(e){}
     profileNotice(resolved.origin==='새 산객'?'새 산행을 시작합니다.':'저장 기록을 이어서 시작합니다.');
     try{ac();faintSoundVolume(faintUntil-Date.now());tone(392,.6,'sine',.07);tone(523,.9,'sine',.06,1,.2)}catch(e){console.warn('입장 효과음 건너뜀',e)}
-    // Enter on this tap: no dependency on an intro animation, sound, network or terrain FPS.
-    zoomT=0;
-    try{beginGame()}catch(e){showStartError(e)}
+    // A successful profile load enters the same game, regardless of intro WebGL FPS.
+    zoomT=0;$('intro').style.transition='opacity .55s';$('intro').style.opacity=0;
+    setTimeout(()=>{if(mode==='intro'&&zoomT>=0){
+      try{beginGame()}catch(e){showStartError(e)}
+    }},650);
   }catch(e){profileNotice('기록 확인 오류: '+String(e&&e.message||e).slice(0,100),true);console.error(e)}
   finally{btn.disabled=false}
 }
@@ -3608,18 +3488,16 @@ addEventListener('keydown',e=>{if(e.code==='Escape'&&inTent){if(!$('sellPanel').
 addEventListener('pagehide',()=>{if(mode==='game')persist()});
 function beginGame(){
   if(mode==='game')return;
-  // Switch the UI first; optional geometry, network and audio cannot block entry.
-  mode='game';
-  $('intro').classList.add('hide');$('intro').style.opacity='';$('iosClouds').style.display='none';
-  $('hud').classList.remove('hide');$('fade').classList.remove('on');
+  // Immediate screen transition matches the previously working build.
+  // Do not block this button on audio, terrain, networking or summit generation.
   const jacket=JACKETS[((save.color|0)%JACKETS.length+JACKETS.length)%JACKETS.length];
-  try{scene.remove(me.root);const nm=makeHiker(jacket);Object.assign(me,nm);scene.add(me.root);setGreens(me,totalCount());}
-  catch(err){console.warn('새 캐릭터 모델 생성을 건너뛰었습니다',err);if(!me.root.parent)scene.add(me.root)}
-  me.root.position.set(P.x,P.y,P.z);
+  scene.remove(me.root);
+  const nm=makeHiker(jacket);Object.assign(me,nm);scene.add(me.root);
+  me.root.position.set(P.x,P.y,P.z);setGreens(me,totalCount());
   camera.position.set(P.x-Math.sin(camYaw)*7.7,P.y+3.2,P.z-Math.cos(camYaw)*7.7);
-  // Show a small safety patch immediately. Remaining ground streams on first frame.
-  // Only 1 low-poly patch runs on the login tap to protect phone entry performance.
-  try{addBackupGround(Math.floor(P.x/CH),Math.floor(P.z/CH))}catch(e){console.warn('초기 지면 표시 오류',e)}
+  mode='game';
+  $('intro').classList.add('hide');$('iosClouds').style.display='none';
+  $('hud').classList.remove('hide');$('fade').classList.remove('on');
   if(IS_TOUCH){$('joy').classList.remove('hide');$('jumpBtn').classList.remove('hide')}
   if(save.pos)toast(`지난번 오르던 해발 ${Math.round(P.y*ALT_K)}m에서 다시 걷는다`);
   // The update loop streams the nearby terrain incrementally. Heavy scenery
@@ -3629,49 +3507,22 @@ function beginGame(){
     try{ensureTents()}catch(e){console.warn('텐트 생성 오류',e)}
     try{ensureSummit()}catch(e){console.warn('정상 조형물 생성 오류',e)}
     try{updateTents()}catch(e){console.warn('텐트 표시 오류',e)}
-  },MOBILE_SAFE?1400:450);
+  },450);
   setTimeout(()=>{if(mode==='game')try{ambInit()}catch(e){console.warn('산속 효과음 건너뜀',e)}},100);
-  // MQTT loads async, so retry when its code arrives without blocking solo play.
-  for(const delay of [1500,4500,11000])setTimeout(()=>{
-    if(mode==='game'&&!mqttClient&&window.mqtt)try{connectRoom()}catch(e){console.warn('멀티플레이 연결 오류',e)}
-  },delay);
+  setTimeout(()=>{if(mode==='game')try{connectRoom()}catch(e){console.warn('멀티플레이 연결 오류',e)}},250);
 }
 let last=performance.now();
 let lastDraw=0;
-let mobileErrorCount=0,lastMobileError=0;
-function frame(now){
-  // If WebGL or a terrain module fails, the RAF loop survives and shows the reason.
-  requestAnimationFrame(frame);
+function frame(now){requestAnimationFrame(frame);
   const covered=mapOpen||!$('bag').classList.contains('hide'),cap=covered?8:PERF.fps;
   if(now-lastDraw<1000/cap-2)return;lastDraw=now;
   const raw=(now-last)/1000,dt=Math.min(.05,raw);last=now;clock+=dt;
-  try{
-    if(mode==='intro')drawIntro(Math.min(.25,raw));
-    else{updateGame(dt);if(inTent){syncTentChestButton();updateTentSeats(dt)}renderer.render(inTent?tentScene:scene,inTent?tentCam:camera)}
-    mobileErrorCount=0;
-  }catch(e){
-    mobileErrorCount++;
-    if(now-lastMobileError>5000){lastMobileError=now;console.error('백약산 화면 오류',e);
-      if(mode==='intro'){
-        $('title').classList.add('on');$('subtitle').classList.add('on');$('startPanel').classList.add('on');
-        profileNotice('3D 화면 오류 · 입장 버튼은 사용할 수 있습니다. '+String(e.message||e).slice(0,70),true);
-      } // No recovery pop-up: fix and retry silently in the next frames.
-    }
-    if(mobileErrorCount===2){PERF.eco=true;try{applyPerf()}catch(err){console.warn(err)}}
-    // A failure in animals/UI must not stop terrain streaming entirely.
-    if(mode==='game')try{updateChunks(P.x,P.z,false,dt)}catch(err){console.warn(err)}
-    if(mode==='game')try{renderer.render(inTent?tentScene:scene,inTent?tentCam:camera)}catch(err){}
-  }
-}
+  if(mode==='intro')drawIntro(Math.min(.25,raw));else{updateGame(dt);if(inTent){syncTentChestButton();updateTentSeats(dt)}renderer.render(inTent?tentScene:scene,inTent?tentCam:camera)}}
 addEventListener('resize',onResize);addEventListener('resize',()=>{if(inTent)syncTentChestButton()});applyPerf();requestAnimationFrame(frame);
 $('ecoBtn').onclick=()=>{PERF.eco=!PERF.eco;applyPerf();chunkKey='';toast(PERF.eco?'절전 모드: 화질과 시야를 줄여 가볍게 돌립니다':'절전 모드 해제')};
 function jump(){if(mode==='game'&&!climbing&&!onRock&&!inTent&&Date.now()>=faintUntil&&!P.air&&me.mode!=='dig'){P.vy=5.2;P.air=true}}
 $('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();climbAct()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();console.warn('백약산 WebGL context lost');},false);
-canvas.addEventListener('webglcontextrestored',()=>{
-  try{applyPerf();chunkKey='';updateChunks(P.x,P.z,false,0)}catch(e){console.warn('3D 렌더링 복구 오류',e)}
-},false);
 document.addEventListener('visibilitychange',()=>{if(!AMB)return;if(document.hidden)AMB.a.suspend();else AMB.a.resume()});
 })();
 </script>
