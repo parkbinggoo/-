@@ -2285,8 +2285,9 @@ function relocateRareInChunk(c){
      const options=trees.filter(t=>t.s>.42&&(!kind||t.kind===kind));
      for(let k=0;k<90&&options.length;k++){
        const t=options[Math.floor(r()*options.length)],a=r()*Math.PI*2;
-       const rr=sp?.onTree?.25*t.s:it.type==='sanghwang'?.37*t.s:.6+r()*1.35;
-       const x=t.x+Math.sin(a)*rr,z=t.z+Math.cos(a)*rr;
+      const trunkR=(t.kind==='pine'?.20:.24)*t.s + .06;
+      const rr=sp?.onTree ? trunkR+.02 : (it.type==='sanghwang'||it.type==='norugung') ? trunkR+.05 : .6+r()*1.35;
+      const x=t.x+Math.sin(a)*rr,z=t.z+Math.cos(a)*rr;
        const e=envAt(x,z,c);
        if(sp&&(e.alt<sp.alt[0]||e.alt>sp.alt[1]))continue;
        if(it.type==='songi'&&(e.alt<180||e.alt>1500||e.moist>.75))continue;
@@ -2467,10 +2468,15 @@ function repairChunkResources(c){
       Math.hypot(t.x-m.position.x,t.z-m.position.z)<4.5;
     if(onTrunk){
       const dir=Math.atan2(m.position.z-t.z,m.position.x-t.x),a=Number.isFinite(dir)?dir:0;
-      const d=.50*t.s+.50;
+      const trunkR=(t.kind==='pine'?.20:.24)*t.s + .06;
+      const extra=sp?.onTree ? .02 : (it.type==='sanghwang'||it.type==='norugung') ? .05 : .035;
+      const d=trunkR+extra;
       const px=t.x+Math.cos(a)*d,pz=t.z+Math.sin(a)*d;
-      // Low enough to reach from the ground, outside the solid trunk.
-      m.position.set(px,Math.max(resourceGroundY(c,px,pz)+.22,Math.min(m.position.y,resourceGroundY(c,px,pz)+1.18)),pz);
+      // Keep trunk resources visually attached to the bark, but never buried.
+      const gy=resourceGroundY(c,px,pz);
+      const targetY=sp?.onTree ? Math.max(gy+.72, Math.min(t.y+Math.min(1.55*t.s,1.9), gy+1.55))
+                               : Math.max(gy+.42, Math.min(m.position.y, gy+1.05));
+      m.position.set(px,targetY,pz);
       c.placementFixes++;
       continue;
     }
@@ -2525,9 +2531,9 @@ function buildChunk(cx,cz){
     const broadKind=broadType==='oak'&&altHere<1050&&h2(Math.round(x*2),Math.round(z*2))<.24?'acacia':broadType;
     const t={x,z,y:H(x,z)-.2,s:sz,rot:r()*6.28,lean:(r()-.5)*(sz>.6?.05:.12),kind:treeRoll<pineP?'pine':broadKind,id:`${c.key}:t${i}`,hits:0,searched:false};
     (t.kind==='pine'?pines:oaks).push(t);c.trees.push(t);
-    if(t.s>.5&&r()<.24){const mt=pickW(MUSH,COMMON_MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
+    if(t.s>.5&&r()<.24){const mt=pickW(MUSH,COMMON_MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,trunkR=(t.kind==='pine'?.20:.24)*t.s + .06,rr=trunkR+.045;
       const it={kind:'mush',type:mt,id:`${c.key}:m${i}`,hits:0,need:MUSH[mt].need,tree:t};
-      const placeY=t.y+.55+r()*.75;
+      const placeY=t.y+.48+r()*.52;
       if(!takenUntil(it.id)){const m=mush3D(mt);m.position.set(x+Math.cos(a)*rr,placeY,z+Math.sin(a)*rr);m.rotation.y=Math.atan2(Math.cos(a),Math.sin(a));m.scale.setScalar(1.6);it.mesh=m;t.mush=m;m.userData.item=it;grp.add(m);c.items.push(it)}}}
   const snowy=altHere>1550;
   const inst=(geo,mat,list,colFn)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,mat,list.length);im.frustumCulled=false;const o=new THREE.Object3D();
