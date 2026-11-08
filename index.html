@@ -468,6 +468,15 @@ Object.assign(MUSH,{
  ipsae:{name:'잎새버섯',w:.35,need:5,rar:4,hab:'참나무 고목의 뿌리 주변',desc:'나무 밑에서 여러 겹의 갈색 부채가 피어난다.'}
 });
 MUSH_KEYS.push('songi','neungi','norugung','kkotsongi','seogi','ipsae');
+// Four playable forest-honey resources.  The floral source (acacia/chestnut/mixed)
+// and the bee species (native honey) describe different aspects of honey.
+const HONEY={
+ mixedHoney:{name:'잡화꿀',rar:2,need:4,care:1.15,part:'벌집의 꿀',hab:'여러 야생화가 피는 낮은 숲 가장자리',desc:'여러 야생화에서 모은 꿀. 꽃이 많은 숲 가장자리의 작은 벌집에서 얻는다.'},
+ acaciaHoney:{name:'아카시아꿀',rar:3,need:5,care:1.25,part:'벌집의 꿀',hab:'아까시나무가 자라는 낮은 산기슭',desc:'흔히 아카시아꿀이라 부르지만, 실제 밀원은 아까시나무 꽃이다.'},
+ chestnutHoney:{name:'밤꿀',rar:4,need:6,care:1.35,part:'벌집의 꿀',hab:'밤나무 주변의 숲 가장자리',desc:'밤나무 꽃에서 모은 진한 풍미의 꿀. 벌집을 매우 조심스럽게 다뤄야 한다.'},
+ nativeHoney:{name:'토종벌꿀',rar:5,need:7,care:1.5,part:'벌집의 꿀',hab:'오래된 나무 밑과 낮은 산의 큰 바위 틈',desc:'토종벌의 자연 벌집에서 얻는 매우 귀한 꿀. 다른 벌꿀과 달리 벌의 종류를 기준으로 부르는 이름이다.'}
+};
+const HONEY_KEYS=Object.keys(HONEY);
 const BAG_LEVELS=[10,20,30,40,50,60,70,80,90,100,110];
 // Ten sequential upgrades, beginning at 50,000 won; each tier costs about 1.7x the previous one.
 const BAG_UPGRADE_COST={20:50000,30:85000,40:145000,50:246000,60:418000,70:711000,80:1209000,90:2055000,100:3494000,110:5940000};
@@ -483,7 +492,8 @@ Object.assign(MARKET_PRICE,{
  seokchangpo:4800,doldanpung:5400,bawichwi:4600,gorancho:7800,bawichaesong:5100,aegigirin:5300,
  gyeousari:4800,gyeousolip:800,gobawiikke:1300,jat:1200,
  gureumgukhwa:3800,dolyangji:2400,bawitteokpul:2600,siromi:4300,
- songi:36000,neungi:24000,norugung:16000,kkotsongi:23000,seogi:28000,ipsae:14000
+ songi:36000,neungi:24000,norugung:16000,kkotsongi:23000,seogi:28000,ipsae:14000,
+ mixedHoney:2800,acaciaHoney:5500,chestnutHoney:13500,nativeHoney:42000
 });
 const won=v=>Math.round(v).toLocaleString('ko-KR')+'원';
 const discoveredCount=()=>Object.keys(save.known||{}).length;
@@ -510,13 +520,15 @@ function uniqueRareAtLeast(stars){
 // Fruits are excluded: the requirement is all herbs, mountain greens, wild plants and mushrooms.
 function masterInventoryProgress(){
  const keys=[...HERB_KEYS,...MUSH_KEYS];
- const rare5=keys.filter(k=>itemInfo(k).rar===5);
+ // Honey is an additional category: only its five-star native honey is part
+ // of the 'hold three of every five-star resource' mastery requirement.
+ const rare5=[...keys,...HONEY_KEYS].filter(k=>itemInfo(k).rar===5);
  const held=keys.filter(k=>(save.inv[k]||0)>=1);
  const heldRare=rare5.filter(k=>(save.inv[k]||0)>=3);
  return {keys,rare5,held,heldRare,
    missing:keys.filter(k=>(save.inv[k]||0)<1),
    missingRare:rare5.filter(k=>(save.inv[k]||0)<3),
-   minimumSlots:keys.length+rare5.length*2};
+   minimumSlots:keys.length+rare5.reduce((n,k)=>n+(keys.includes(k)?2:3),0)};
 }
 function rankGoals(level){
  const r=RANKS[level-1],st=rankStats(),goals=[];
@@ -570,8 +582,8 @@ function renderRankGuide(){
   const goals=document.createElement('div');goals.textContent=l===1?'첫 입장 시 자동 부여':rankGoals(l).map(g=>g.label+' '+g.required+g.unit).join(' · ');section.appendChild(goals);guide.appendChild(section);
  }
 }
-function itemInfo(key){return HERBS[key]||MUSH[key]||FRUITS[key]||null}
-function itemKindOf(key){return FRUITS[key]?'fruit':MUSH[key]?'mush':HERBS[key]?'herb':null}
+function itemInfo(key){return HERBS[key]||MUSH[key]||FRUITS[key]||HONEY[key]||null}
+function itemKindOf(key){return HONEY[key]?'honey':FRUITS[key]?'fruit':MUSH[key]?'mush':HERBS[key]?'herb':null}
 function itemPrice(key){
   if(MARKET_PRICE[key])return MARKET_PRICE[key];
   const info=itemInfo(key);if(!info)return 0;
@@ -948,10 +960,10 @@ function buyBagUpgrade(){
 $('bagUpgradeBtn').addEventListener('click',openBagUpgrade);
 $('bagUpgradeClose').addEventListener('click',()=>$('bagUpgradePanel').classList.add('hide'));
 $('bagUpgradeBuy').addEventListener('click',buyBagUpgrade);
-const SELL_CATEGORIES=[['all','전체'],['herb','약초'],['leaf','나물'],['mush','버섯'],['fruit','열매']];
+const SELL_CATEGORIES=[['all','전체'],['herb','약초'],['leaf','나물'],['mush','버섯'],['fruit','열매'],['honey','벌꿀']];
 let sellCategory='all';
-function sellableKeys(){return [...HERB_KEYS,...MUSH_KEYS,...Object.keys(FRUITS)].filter(k=>(save.inv[k]||0)>0)}
-function sellCategoryOf(k){if(FRUITS[k])return 'fruit';if(MUSH[k])return 'mush';return HERBS[k]?.cat==='leaf'?'leaf':'herb'}
+function sellableKeys(){return [...HERB_KEYS,...MUSH_KEYS,...Object.keys(FRUITS),...HONEY_KEYS].filter(k=>(save.inv[k]||0)>0)}
+function sellCategoryOf(k){if(HONEY[k])return 'honey';if(FRUITS[k])return 'fruit';if(MUSH[k])return 'mush';return HERBS[k]?.cat==='leaf'?'leaf':'herb'}
 function buildSellTabs(){
  const host=$('sellTabs');host.replaceChildren();
  for(const [id,label] of SELL_CATEGORIES){const b=document.createElement('button');b.type='button';b.className=id===sellCategory?'on':'';b.textContent=label;b.onclick=()=>{sellCategory=id;selectedSellKey='';buildSellTabs();buildSellGrid()};host.appendChild(b)}
@@ -1916,9 +1928,27 @@ function fruit3D(type){
  }
  return g;
 }
+// Honeycomb used both in the world and in the field guide; no external texture.
+function hive3D(type){
+ const g=new THREE.Group(),rare=type==='nativeHoney';
+ const bark=M(rare?0x5b4936:0x826849),wax=M(type==='chestnutHoney'?0x9a6836:0xd0a154),
+       waxLight=M(rare?0xe6bc62:0xe7c078),dark=M(0x5a432c),beeDark=M(0x2b2924),beeGold=M(0xc5a148);
+ const add=(geo,mat,x,y,z,sx=1,sy=1,sz=1)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;g.add(m);return m};
+ // Short hollow-log cover and rounded, six-sided comb: recognisable from walking height.
+ add(new THREE.CylinderGeometry(.33,.40,.28,7),bark,0,.19,0);
+ add(new THREE.IcosahedronGeometry(.31,1),wax,0,.40,.12,.99,.88,.85);
+ for(let i=0;i<9;i++){const a=i*2.3999632297,rr=.09+(i%3)*.065;
+   add(new THREE.CylinderGeometry(.052,.052,.017,6),i%3?waxLight:dark,Math.cos(a)*rr,.40+Math.sin(a)*.15,.37,1,1,1).rotation.x=Math.PI/2;
+ }
+ for(let i=0;i<4;i++){const a=i*2.4;const bx=Math.sin(a)*(.29+i*.035),by=.59+(i%2)*.11,bz=Math.cos(a)*.23;
+   add(new THREE.IcosahedronGeometry(.045,0),beeGold,bx,by,bz,.8,.65,1.25);
+   add(new THREE.IcosahedronGeometry(.021,0),beeDark,bx+.02,by,bz+.018,1,1,1);
+ }
+ return g;
+}
 function renderIcon(kind,type){
   iconInit();while(iconScene.children.length>2)iconScene.remove(iconScene.children[2]);
-  let obj;if(kind==='herb'){obj=new THREE.Mesh(plantGeo(SPI[type],0),plantMat)}else if(kind==='fruit'){obj=fruit3D(type)}else{obj=mush3D(type);obj.rotation.y=-Math.PI/2}
+  let obj;if(kind==='herb'){obj=new THREE.Mesh(plantGeo(SPI[type],0),plantMat)}else if(kind==='fruit'){obj=fruit3D(type)}else if(kind==='honey'){obj=hive3D(type)}else{obj=mush3D(type);obj.rotation.y=-Math.PI/2}
   const grp=new THREE.Group();grp.add(obj);
   const box=new THREE.Box3().setFromObject(grp),sz=box.getSize(new THREE.Vector3()),ctr=box.getCenter(new THREE.Vector3());
   if(kind==='herb'&&SPI[type].root){const soil=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(sz.x,sz.z)*1.6+.1,Math.max(-box.min.y,.02)+.04),new THREE.MeshBasicMaterial({color:0x6b4f32,transparent:true,opacity:.28}));soil.position.set(ctr.x,(box.min.y-.02)/2,ctr.z-Math.max(sz.z,.05)*.6);grp.add(soil);
@@ -2157,6 +2187,47 @@ function placeExtraMushrooms(c,r,grp,nearStart){
    else if(oak&&alt>140&&alt<1300&&e.moist>.25&&r()<.24)mk('ipsae',`${c.key}:xm${i}`,x,H(x,z)+.03,z,1.45);
  }
 }
+/* ---------- Low-poly beehives: each is an accessible, carefully gathered resource ---------- */
+function honeyTreeHabitat(type,t,alt){
+ if(!t||t.s<.52||alt>1550||alt<35)return false;
+ if(type==='acaciaHoney')return t.kind==='acacia'&&alt<1050;
+ if(type==='chestnutHoney')return t.kind==='chestnut'&&alt<1250;
+ if(type==='nativeHoney')return t.kind==='oak'&&alt>=200&&alt<1450&&t.s>.8;
+ return alt<1150&&(t.kind==='oak'||t.kind==='acacia'||t.kind==='chestnut');
+}
+function placeForestHoney(c){
+ // Independent, fixed seed: adding hives never reshuffles existing herbs, trees or fruits.
+ const r=rngOf((Math.imul(c.cx,194719)^Math.imul(c.cz,771277)^0xbee55e)>>>0),grp=c.grp;
+ const create=(type,id,x,z,host=null,rock=null)=>{
+   if(takenUntil(id)||z<SUMMIT_Z+5||z>33||Math.abs(x-pathX(z))>48||streamD(x,z)<2.9)return;
+   const b=H(x,z);if(!Number.isFinite(b))return;
+   if(c.items.some(it=>it.mesh&&Math.hypot(it.mesh.position.x-x,it.mesh.position.z-z)<.72))return;
+   // Do not put nests inside opaque boulders or tree trunks.
+   if(c.rocks.some(k=>k!==rock&&Math.hypot(x-k.x,z-k.z)<resourceRockClearance(k)+.35))return;
+   const nest=hive3D(type);nest.position.set(x,b+.04,z);nest.rotation.y=r()*Math.PI*2;
+   const it={kind:'honey',type,id,hits:0,need:HONEY[type].need,mesh:nest,hostTree:host,hiveRock:rock};
+   nest.userData.item=it;grp.add(nest);c.items.push(it);
+ };
+ for(let i=0;i<c.trees.length;i++){
+   const t=c.trees[i],alt=H(t.x,t.z)*ALT_K;
+   const native=honeyTreeHabitat('nativeHoney',t,alt)&&r()<.028;
+   const acacia=honeyTreeHabitat('acaciaHoney',t,alt)&&r()<.14;
+   const chestnut=honeyTreeHabitat('chestnutHoney',t,alt)&&r()<.11;
+   const mixed=honeyTreeHabitat('mixedHoney',t,alt)&&r()<.045;
+   const type=native?'nativeHoney':acacia?'acaciaHoney':chestnut?'chestnutHoney':mixed?'mixedHoney':null;
+   if(!type)continue;
+   const a=r()*Math.PI*2,dist=.57*t.s+.92,x=t.x+Math.cos(a)*dist,z=t.z+Math.sin(a)*dist;
+   create(type,c.key+':honeyT'+i,x,z,t);
+ }
+ for(let i=0;i<c.rocks.length;i++){
+   const rock=c.rocks[i];if(rock.r<2.6)continue;
+   const alt=H(rock.x,rock.z)*ALT_K;if(alt<190||alt>1450)continue;
+   const type=r()<.04?'nativeHoney':r()<.09?'mixedHoney':null;
+   if(!type)continue;
+   const a=r()*Math.PI*2,dist=resourceRockClearance(rock)+.75;
+   create(type,c.key+':honeyR'+i,rock.x+Math.cos(a)*dist,rock.z+Math.sin(a)*dist,null,rock);
+ }
+}
 /* ---------- five-star resource migration: preserve slot counts and habitats ---------- */
 function rareSlotSeed(id,cycle){let h=2166136261;const str=id+'#'+cycle;
  for(let i=0;i<str.length;i++)h=Math.imul(h^str.charCodeAt(i),16777619);
@@ -2178,7 +2249,23 @@ function relocateRareInChunk(c){
      if(c.items.some(other=>other!==it&&other.mesh&&Math.hypot(x-other.mesh.position.x,z-other.mesh.position.z)<1.5))return;
      if(!candidate||score>candidate.score)candidate={x,y,z,score,hostRock};
    };
-   if(it.rock||sp?.rock||it.type==='seogi'){
+   if(it.kind==='honey'){
+     for(let k=0;k<100;k++){
+       const t=trees[Math.floor(r()*trees.length)];if(!t)break;
+       if(!honeyTreeHabitat(it.type,t,H(t.x,t.z)*ALT_K))continue;
+       const a=r()*Math.PI*2,d=.57*t.s+.92;
+       const x=t.x+Math.cos(a)*d,z=t.z+Math.sin(a)*d;
+       if(c.rocks.some(rock=>Math.hypot(x-rock.x,z-rock.z)<resourceRockClearance(rock)+.3))continue;
+       accept(x,H(x,z)+.04,z,1+r()*.2);
+     }
+     if(it.type==='nativeHoney')for(let k=0;k<45;k++){
+       const rock=rocks[Math.floor(r()*rocks.length)];if(!rock||rock.r<2.6)continue;
+       const alt=H(rock.x,rock.z)*ALT_K;if(alt<190||alt>1450)continue;
+       const a=r()*Math.PI*2,d=resourceRockClearance(rock)+.75;
+       const x=rock.x+Math.cos(a)*d,z=rock.z+Math.sin(a)*d;
+       accept(x,H(x,z)+.04,z,1+r()*.2);
+     }
+   }else if(it.rock||sp?.rock||it.type==='seogi'){
      // Lichens and rock-dwelling herbs must remain attached to a real rock.
      const atop=!!it.rock;
      const options=rocks.filter(k=>k.mesh&&(!atop||k.climbable)&&
@@ -2362,6 +2449,7 @@ function repairChunkResources(c){
   c.placementFixes=0;
   for(const it of c.items){
     const m=it.mesh;if(!m)continue;
+    if(it.kind==='honey'){m.position.y=H(m.position.x,m.position.z)+.04;continue}
     if(it.rock){
       // The top of an irregular rotated rock is not its bounding-box topY.
       // Put rock plants onto the real collision surface, inside the walkable crest.
@@ -2434,7 +2522,8 @@ function buildChunk(cx,cz){
     const cls=r(),sz=(cls<.55?.8+r()*.45:cls<.82?.42+r()*.3:.14+r()*.22)*clamp(1-(altHere-1550)/1100,.15,1);
     const gateDist=Math.hypot(x-pathX(24),z-24);
     const broadType=(gateDist<60&&altHere<420&&r()<.24)?'ginkgo':(altHere<950&&r()<.30)?'chestnut':'oak';
-    const t={x,z,y:H(x,z)-.2,s:sz,rot:r()*6.28,lean:(r()-.5)*(sz>.6?.05:.12),kind:treeRoll<pineP?'pine':broadType,id:`${c.key}:t${i}`,hits:0,searched:false};
+    const broadKind=broadType==='oak'&&altHere<1050&&h2(Math.round(x*2),Math.round(z*2))<.24?'acacia':broadType;
+    const t={x,z,y:H(x,z)-.2,s:sz,rot:r()*6.28,lean:(r()-.5)*(sz>.6?.05:.12),kind:treeRoll<pineP?'pine':broadKind,id:`${c.key}:t${i}`,hits:0,searched:false};
     (t.kind==='pine'?pines:oaks).push(t);c.trees.push(t);
     if(t.s>.5&&r()<.24){const mt=pickW(MUSH,COMMON_MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
       const it={kind:'mush',type:mt,id:`${c.key}:m${i}`,hits:0,need:MUSH[mt].need,tree:t};
@@ -2447,7 +2536,8 @@ function buildChunk(cx,cz){
   const pc=new THREE.Color(),oc=new THREE.Color();
   inst(pineTrunk,barkPine,pines);pineC.forEach((g,k)=>inst(g,foliage,pines,(t,i)=>{pc.setHSL(.37+h2(i,k)*.04,.34,.2+k*.03+h2(i,7)*.05);if(snowy&&k>1)pc.lerp(cSnow,.5);return pc}));
   inst(oakTrunk,barkOak,oaks);[oakF1,oakF2,oakF3].forEach((g,k)=>inst(g,foliage,oaks,(t,i)=>{
-    if(t.kind==='ginkgo')oc.setHSL(.16+h2(i,k+3)*.025,.47,.39+k*.045);
+    if(t.kind==='acacia')oc.setHSL(.31+h2(i,k+3)*.025,.38,.34+k*.045);
+    else if(t.kind==='ginkgo')oc.setHSL(.16+h2(i,k+3)*.025,.47,.39+k*.045);
     else if(t.kind==='chestnut')oc.setHSL(.29+h2(i,k+3)*.028,.42,.24+k*.035);
     else oc.setHSL(.26+h2(i,k+3)*.06,.36,.28+k*.04+h2(i,9)*.05);
     return oc}));
@@ -2476,6 +2566,7 @@ function buildChunk(cx,cz){
   try{placeRockPlants(c,r,grp)}catch(e){console.warn('바위식물 일부 생성 오류',e)}
   try{placeStreams(c,r,ox,oz,grp)}catch(e){console.warn('계곡 일부 생성 오류',e)}
   try{placeDecoyFlora(c,r,ox,oz,grp,nearStart,inRock,dens)}catch(e){console.warn('야생식물 일부 생성 오류',e)}
+  try{placeForestHoney(c)}catch(e){console.warn('벌집 일부 생성 오류',e)}
   const putFruit=(type,id,x,z,fall=true)=>{
     if(takenUntil(id))return;
     if(inRock(x,z,.12)||nearStart(x,z,3)||streamD(x,z)<2.6)return;
@@ -2701,7 +2792,7 @@ function act(tg){
     if(nearestClimbableRock()===rock)beginClimb(rock);
     return;
   }
-  if(tg.kind==='herb'&&HERBS[tg.item.type].care&&nearTo(tg.pos,2.4)){const gap=HERBS[tg.item.type].care,it=tg.item;if((me.mode==='dig'&&curAct&&curAct.item===it)||(queued&&queued.item===it)||(it.hits>0&&clock-(it.lastHit||-9)<gap)){queued=null;careFail(tg);return}}
+  if((tg.kind==='herb'||tg.kind==='honey')&&(tg.kind==='honey'?HONEY[tg.item.type]:HERBS[tg.item.type]).care&&nearTo(tg.pos,2.4)){const gap=(tg.kind==='honey'?HONEY[tg.item.type]:HERBS[tg.item.type]).care,it=tg.item;if((me.mode==='dig'&&curAct&&curAct.item===it)||(queued&&queued.item===it)||(it.hits>0&&clock-(it.lastHit||-9)<gap)){queued=null;careFail(tg);return}}
   const reach=tg.kind==='ground'?1.9:2.4;
   if(nearTo(tg.pos,reach)){target=null;pending=null;swing(tg)}
   else{target={x:tg.pos.x,z:tg.pos.z,stop:reach*.8};pending=tg}
@@ -2722,10 +2813,10 @@ function impact(tg){
     floatMsg(tg.pos,'도감에 없는 발견… ㅠㅠ');
     toast(it.spec.note);
     tone(277,.22,'sine',.038,.83);
-  }else if(tg.kind==='herb'||tg.kind==='mush'||tg.kind==='fruit'){
+  }else if(tg.kind==='herb'||tg.kind==='mush'||tg.kind==='fruit'||tg.kind==='honey'){
     const it=tg.item;if(takenUntil(it.id))return;it.hits++;it.lastHit=clock;
     if(it.mesh){it.mesh.userData.shake=.3;shaking.add(it)}
-    if(it.hits>=it.need){collect(it.kind,it.type,tg.pos,it)}else{pip(tg.pos,it.hits,it.need);if(it.kind==='herb'&&HERBS[it.type].care&&it.hits===1)setTimeout(()=>floatMsg(tg.pos,'뿌리가 여리다… 천천히'),350)}
+    if(it.hits>=it.need){collect(it.kind,it.type,tg.pos,it)}else{pip(tg.pos,it.hits,it.need);if(it.hits===1&&((it.kind==='herb'&&HERBS[it.type].care)||it.kind==='honey'))setTimeout(()=>floatMsg(tg.pos,it.kind==='honey'?'벌들이 예민하다… 천천히':'뿌리가 여리다… 천천히'),350)}
   }else if(tg.kind==='tree'){
     const t=tg.tree;if(t.searched){floatMsg(tg.pos,'이미 살펴본 나무');return}
     t.hits++;for(let i=0;i<6;i++){if(parts.length>=MAXP)parts.shift();parts.push({x:t.x+(Math.random()-.5)*3,y:t.y+4*t.s,z:t.z+(Math.random()-.5)*3,vx:(Math.random()-.5),vy:-.2,vz:(Math.random()-.5),t:0,life:2,c:new THREE.Color(0x5e8f3e)})}
@@ -2742,22 +2833,22 @@ function impact(tg){
 }
 let foundTimer=0,lastFound=null;
 function showInfoCard(kind,type,fromBag){
-  const info=kind==='herb'?HERBS[type]:kind==='fruit'?FRUITS[type]:MUSH[type];
+  const info=itemInfo(type);
   const fc=$('fCanvas'),g=fc.getContext('2d');g.clearRect(0,0,fc.width,fc.height);
-  g.drawImage(renderIcon(kind==='fruit'?'fruit':kind==='herb'?'herb':'mush',type),0,0,fc.width,fc.height);
-  $('fTag').textContent=fromBag?'도감':info.rar>=5?'심봤다!!':info.rar>=4?'귀한 것을 찾았다':'채집 성공';
+  g.drawImage(renderIcon(kind,type),0,0,fc.width,fc.height);
+  $('fTag').textContent=fromBag?'도감':kind==='honey'?'야생 벌꿀 채집':info.rar>=5?'심봤다!!':info.rar>=4?'귀한 것을 찾았다':'채집 성공';
   $('fName').textContent=info.name;$('fRar').textContent='★'.repeat(info.rar)+'☆'.repeat(5-info.rar);
-  $('fDesc').textContent=info.desc;$('fMeta').textContent=(info.part?`채취: ${info.part} · `:'')+(info.hab||'나무 줄기')+(info.care?' · 뿌리가 여려 천천히 캐야 함':'')+` · 등산가방 속 ${save.inv[type]||0}개`;
+  $('fDesc').textContent=info.desc;$('fMeta').textContent=(info.part?`채취: ${info.part} · `:'')+(info.hab||'나무 줄기')+(info.care?(kind==='honey'?' · 벌집을 천천히 채집해야 함':' · 뿌리가 여려 천천히 캐야 함'):'')+` · 등산가방 속 ${save.inv[type]||0}개`;
   $('fClose').classList.toggle('hide',!fromBag);
   $('found').classList.toggle('legend',info.rar>=4);$('found').classList.add('on');
   foundTimer=fromBag?0:(info.rar>=4?3.8:2.6);
 }
 function collect(kind,type,pos,it){
-  const info=kind==='herb'?HERBS[type]:kind==='fruit'?FRUITS[type]:MUSH[type];
+  const info=itemInfo(type);
   if(it&&takenUntil(it.id))return;
   if(totalCount()>=bagLimit()){ floatMsg(pos,'가방이 가득 찼다'); toast(`등산가방은 현재 ${bagLimit()}개까지 담을 수 있습니다. 텐트에서 판매하거나 가방을 확장하세요.`); tone(220,.24,'triangle',.055,.85); return; }
   if(it){markTaken(it.id,Date.now()+RESPAWN_MS,true,type);if(it.mesh&&it.mesh.parent){if(kind==='herb'){const sp=SPI[type];pulls.push({m:it.mesh,t:0,y0:it.mesh.position.y,d:(sp.root?sp.root.len+(sp.root.deep?.15:.05):0)+.25})}else it.mesh.parent.remove(it.mesh)}for(const c of chunks.values()){const i=c.items.indexOf(it);if(i>=0)c.items.splice(i,1)}}
-  save.inv[type]=(save.inv[type]||0)+1; save.known=save.known||{}; save.known[type]=1; recordHerbHarvest(type,info,kind==='herb'&&!!it);persist();
+  save.inv[type]=(save.inv[type]||0)+1; save.known=save.known||{}; save.known[type]=1; recordHerbHarvest(type,info,(kind==='herb'||kind==='honey')&&!!it);persist();
   me.mode='joy';me.t=0;joyT=2.3;curAct=null;queued=null;
   burst(new THREE.Vector3(pos.x,pos.y+.4,pos.z),info.rar>=4?40:20,info.rar>=4);hearts(new THREE.Vector3(P.x,P.y+2.1,P.z));
   chime(info.rar);setGreens(me,totalCount());
@@ -2817,7 +2908,7 @@ const MILES=['솔바람이 등을 민다','능선 너머로 다른 산들이 내
 let lastMile=-1,toastT=0;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');toastT=3}
 let hudKey='';
-function updHud(){const alt=Math.max(0,Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K))),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount()+'|'+discoveredCount()+'|'+bagLimit()+'|'+playerRank;if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`산속 시간 · ${ph} · ${ck}`;$('count').textContent=`가방 ${totalCount()}/${bagLimit()} · 도감 ${discoveredCount()}/${HERB_KEYS.length+MUSH_KEYS.length+Object.keys(FRUITS).length}종`}
+function updHud(){const alt=Math.max(0,Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K))),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount()+'|'+discoveredCount()+'|'+bagLimit()+'|'+playerRank;if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`산속 시간 · ${ph} · ${ck}`;$('count').textContent=`가방 ${totalCount()}/${bagLimit()} · 도감 ${discoveredCount()}/${HERB_KEYS.length+MUSH_KEYS.length+Object.keys(FRUITS).length+HONEY_KEYS.length}종`}
   const m=Math.floor(alt/300);if(lastMile<0)lastMile=m;if(m>lastMile){lastMile=m;toast(`해발 ${m*300}m — ${MILES[Math.min(MILES.length-1,m-1)]}`);tone(392,.4,'sine',.06);tone(587,.6,'sine',.05,1,.15)}}
 $('bagBtn').onclick=()=>{buildBag();$('bag').classList.remove('hide')};
 $('bagClose').onclick=()=>$('bag').classList.add('hide');
@@ -2827,21 +2918,21 @@ function buildBag(){
   const meta=document.createElement('div');meta.className='bagMeta';
   meta.textContent=`가방 최대 ${bagLimit()}개 · 현재 ${totalCount()}/${bagLimit()}개 · 정산금 ${won(+save.won||0)} · 텐트에서 최대 110칸까지 10단계로 확장할 수 있습니다.`;
   host.appendChild(meta);
-  const groups=[['root','뿌리·덩이 약초 (땅속)'],['leaf','산나물'],['herb','약초'],['mush','산속 버섯'],['fruit','숲에서 떨어지는 열매']];
+  const groups=[['root','뿌리·덩이 약초 (땅속)'],['leaf','산나물'],['herb','약초'],['mush','산속 버섯'],['fruit','숲에서 떨어지는 열매'],['honey','야생 벌꿀']];
   for(const [cat,title] of groups){
-    const keys=cat==='fruit'?Object.keys(FRUITS):cat==='mush'?MUSH_KEYS:HERB_KEYS.filter(k=>HERBS[k].cat===cat);
+    const keys=cat==='fruit'?Object.keys(FRUITS):cat==='mush'?MUSH_KEYS:cat==='honey'?HONEY_KEYS:HERB_KEYS.filter(k=>HERBS[k].cat===cat);
     const got=keys.filter(k=>(save.known||{})[k]).length;
     const h=document.createElement('h4');h.textContent=`${title} · ${got}/${keys.length}`;host.appendChild(h);
     const grid=document.createElement('div');grid.className='grid';host.appendChild(grid);
-    for(const key of keys){const info=cat==='fruit'?FRUITS[key]:cat==='mush'?MUSH[key]:HERBS[key],have=save.inv[key]||0,known=!!((save.known||{})[key]);
+    for(const key of keys){const info=itemInfo(key),have=save.inv[key]||0,known=!!((save.known||{})[key]);
       const c=document.createElement('div');c.className='card'+(known?'':' unk');
-      const img=document.createElement('img');img.src=iconURL(cat==='fruit'?'fruit':cat==='mush'?'mush':'herb',key);img.alt='';c.appendChild(img);
+      const img=document.createElement('img');img.src=iconURL(cat==='fruit'?'fruit':cat==='mush'?'mush':cat==='honey'?'honey':'herb',key);img.alt='';c.appendChild(img);
       const n=document.createElement('div');n.className='n';n.textContent=known?info.name:'???';
       const cc=document.createElement('div');cc.className='c';
       cc.textContent=!known?`${'★'.repeat(info.rar)} · 아직 못 찾음`:`${have}개 · ${'★'.repeat(info.rar)}`;
       c.appendChild(n);c.appendChild(cc);
       if(known&&info.hab){const hb=document.createElement('div');hb.className='hb';hb.textContent=info.hab+' · '+info.desc;c.appendChild(hb)}
-      if(known){c.classList.add('click');c.onclick=()=>showInfoCard(cat==='fruit'?'fruit':cat==='mush'?'mush':'herb',key,true)}
+      if(known){c.classList.add('click');c.onclick=()=>showInfoCard(cat==='fruit'?'fruit':cat==='mush'?'mush':cat==='honey'?'honey':'herb',key,true)}
       grid.appendChild(c)}
   }
 }
@@ -2952,9 +3043,9 @@ function showRadioLine(name,msg){const l={name,msg,at:Date.now()};radioLogLines.
  clearTimeout(radioToastTimer);radioToastTimer=setTimeout(()=>{pop.style.opacity='0';setTimeout(()=>pop.classList.add('hide'),420)},6000);
 }
 $('radioBtn').onclick=()=>{$('radioPanel').classList.toggle('hide')};$('radioClose').onclick=()=>$('radioPanel').classList.add('hide');
-function sendAccidentRadio(isRock){
+function sendAccidentRadio(isRock,isBees=false){
  const name=cleanNick(save.nick)||'산객';
- const msg=isRock?'치지직… 바위에서 떨어졌다! 난 괜찮다. 잠시 쉬고 가겠다… 치지직':'치지직… 멧돼지에게 당했다! 난 괜찮다. 잠시 회복하겠다… 치지직';
+ const msg=isBees?'치지직… 벌집을 잘못 건드려 벌에 쏘였다! 난 괜찮다. 잠시 쉬고 가겠다… 치지직':isRock?'치지직… 바위에서 떨어졌다! 난 괜찮다. 잠시 쉬고 가겠다… 치지직':'치지직… 멧돼지에게 당했다! 난 괜찮다. 잠시 회복하겠다… 치지직';
  showRadioLine(name,msg);
  if(netJoined)netPublish('radio',{name,msg});
 }
@@ -3455,6 +3546,14 @@ const CARE={sansam:1.2,cheonma:1.0,ma:1.0,deodeok:.85,doraji:.8,jandae:.8,keunjo
 for(const k in CARE)if(HERBS[k])HERBS[k].care=CARE[k];
 function careFail(tg){
   const it=tg.item;if(!it||takenUntil(it.id))return;
+  if(tg.kind==='honey'){
+    queued=null;pending=null;curAct=null;it.hits=0;
+    markTaken(it.id,Date.now()+RESPAWN_MS,true,it.type);
+    burst(tg.pos.clone().add(new THREE.Vector3(0,.48,0)),12,true);
+    tone(180,.48,'sawtooth',.08,1.6);tone(280,.48,'sawtooth',.055,.8,.04);
+    toast('벌집을 너무 빠르게 건드렸다! 벌 떼에게 쏘였다…');
+    faintAnimal({name:'벌 떼',bees:true,durationMs:60000});return;
+  }
   queued=null;pending=null;curAct=null;it.hits=0;
   markTaken(it.id,Date.now()+RESPAWN_MS,true,it.type);
   floatMsg(tg.pos,'캐기 실패… 약초가 사라졌다 ㅠㅠ');toast('뿌리가 끊어져 채집에 실패했다…');
@@ -3706,21 +3805,24 @@ function refreshAnimals(){clearExpiredBoarZones();const near=new Set();const cx=
 const FAINT_MS=3*60*1000;
 let faintUntil=0,faintReason='';
 try{faintUntil=Math.min(+(localStorage.getItem('baek_faint_until')||0),Date.now()+FAINT_MS)}catch(e){faintUntil=0}
-function faintAnimal(spec){if(Date.now()<faintUntil)return;climbing=null;onRock=null;$('climbPanel').classList.add('hide');faintUntil=Date.now()+FAINT_MS;faintReason=spec.name;
+function faintAnimal(spec){if(Date.now()<faintUntil)return;climbing=null;onRock=null;$('climbPanel').classList.add('hide');const faintDuration=spec.durationMs||FAINT_MS;faintUntil=Date.now()+faintDuration;faintReason=spec.name;
  try{localStorage.setItem('baek_faint_until',String(faintUntil))}catch(e){}persist();
  target=null;pending=null;joy.x=0;joy.y=0;me.mode='faint';me.t=0;$('faintOverlay').classList.remove('hide');
- faintSoundVolume(FAINT_MS);
- sendPresence(true);sendAccidentRadio(!!spec.fall);
- $('faintMessage').textContent=spec.fall?'바위에서 미끄러져 추락했습니다. 잠시 회복해야 합니다.':`${spec.name}의 공격을 받고 쓰러졌습니다. 잠시 회복해야 합니다.`;
+ faintSoundVolume(faintDuration);
+ sendPresence(true);sendAccidentRadio(!!spec.fall,!!spec.bees);
+ $('faintOverlay').querySelector('small').textContent=spec.bees?'현실 시간 1분 동안 움직일 수 없습니다.':'현실 시간 3분 동안 움직일 수 없습니다.';
+ $('faintMessage').textContent=spec.bees?'벌집을 건드려 벌에 쏘였습니다. 잠시 쉬어야 합니다.':spec.fall?'바위에서 미끄러져 추락했습니다. 잠시 회복해야 합니다.':`${spec.name}의 공격을 받고 쓰러졌습니다. 잠시 회복해야 합니다.`;
 }
 function updFaint(){const left=faintUntil-Date.now();const overlay=$('faintOverlay');
  faintSoundVolume(left);
  if(left<=0){overlay.classList.add('hide');if(faintUntil){
     faintUntil=0;
     try{localStorage.removeItem('baek_faint_until')}catch(e){}
-    disperseBoars(P.x,P.z,Date.now()+BOAR_WAKE_CLEAR_MS,true);
+    const bees=faintReason==='벌 떼';
+    if(!bees)disperseBoars(P.x,P.z,Date.now()+BOAR_WAKE_CLEAR_MS,true);
     persist();me.mode='idle';sendPresence(true);
-    toast('정신을 차렸다. 주변의 멧돼지는 숲속으로 달아났다.');
+    toast(bees?'벌에 쏘인 뒤 정신을 차렸다.':'정신을 차렸다. 주변의 멧돼지는 숲속으로 달아났다.');
+    faintReason='';
   }return false}
  overlay.classList.remove('hide');const secs=Math.ceil(left/1000);$('faintCountdown').textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;return true}
 function nearestHiker(x,z){
@@ -4089,7 +4191,7 @@ function validProfileDoc(doc,cred){return !!doc&&doc.app===PROFILE_APP&&doc.form
   doc.profile.verifier===cred.verifier&&doc.progress&&typeof doc.progress==='object'}
 function readProfileDoc(cred){try{const doc=JSON.parse(localStorage.getItem(cred.key)||'null');return validProfileDoc(doc,cred)?doc:null}catch(e){return null}}
 function normalizeRecord(raw){
-  const inv={};const allow=new Set([...Object.keys(HERBS),...Object.keys(MUSH),...Object.keys(FRUITS)]);
+  const inv={};const allow=new Set([...Object.keys(HERBS),...Object.keys(MUSH),...Object.keys(FRUITS),...HONEY_KEYS]);
   if(raw&&raw.inv&&typeof raw.inv==='object'&&!Array.isArray(raw.inv))for(const [k,v] of Object.entries(raw.inv)){
     if(allow.has(k)&&Number.isFinite(v)&&v>=0)inv[k]=Math.min(100000,Math.floor(v));
   }
