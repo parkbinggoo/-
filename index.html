@@ -34,7 +34,11 @@ canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
 #faintOverlay small{opacity:.55}
 #boarWarning{position:fixed;left:50%;bottom:calc(135px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:min(380px,90vw);width:max-content;padding:11px 15px;border-radius:10px;border:1px solid #8f5e3d;background:rgba(58,43,32,.91);color:#fff0d7;box-shadow:0 6px 22px #0005;text-align:center;font-size:14px;line-height:1.5;pointer-events:none;z-index:13}
 #boarWarning strong{display:block;font-size:15px;font-weight:700;margin-bottom:2px}
+#rareSense{position:fixed;left:50%;bottom:calc(135px + env(safe-area-inset-bottom));transform:translateX(-50%);width:max-content;max-width:min(380px,90vw);padding:11px 15px;border-radius:10px;border:1px solid rgba(107,123,74,.75);background:rgba(35,55,38,.91);color:#f2f2d4;box-shadow:0 6px 22px #0004;text-align:center;font-size:13px;line-height:1.55;pointer-events:none;z-index:12}
+#rareSense strong{display:block;font-size:15px;margin-bottom:2px;color:#e4ebad}
+
 @media (max-width:760px){#boarWarning{bottom:calc(168px + env(safe-area-inset-bottom));font-size:12px}}
+@media (max-width:760px){#rareSense{bottom:calc(168px + env(safe-area-inset-bottom));font-size:12px}#rareSense strong{font-size:14px}}
 .faintSymbol{font-size:45px;opacity:.4}
 #intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14vh;pointer-events:none;z-index:5}
 #title{font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:clamp(44px,9vw,96px);letter-spacing:.18em;color:#1d2a27;opacity:0;transition:opacity 2.2s ease, transform 2.2s ease;transform:translateY(10px);text-shadow:0 2px 24px rgba(255,255,255,.6)}
@@ -357,6 +361,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 </div>
 
 <div id="boarWarning" class="hide" role="status" aria-live="polite"><strong>⚠ 야생동물 주의</strong>어디선가 고약한 냄새가 난다…<br>멧돼지가 가까이 있을지도 모른다!</div>
+<div id="rareSense" class="hide" role="status" aria-live="polite"><strong>🌿 약초꾼의 눈썰미</strong>산을 읽는 눈이 속삭인다…<br>이 근처에 예사롭지 않은 산의 보물이 숨어 있다.</div>
 <div id="toast"></div>
 <div id="radioToast" class="hide"></div><div id="radioPanel" class="hide"><div class="radioHead">📻 산객 무전기 <button id="radioClose" class="btn">닫기</button></div><div id="radioChoices"></div><div id="radioLog"></div></div>
 <div id="faintOverlay" class="hide"><div class="faintSymbol">✦</div><h2>잠시 정신을 잃었습니다</h2><p id="faintMessage">산짐승을 피해 쉬고 있습니다.</p><div id="faintCountdown"></div><small>현실 시간 3분 동안 움직일 수 없습니다.</small></div>
@@ -3853,6 +3858,51 @@ function updateBoarWarning(){
   if(close&&!boarAlertActive){toast('어디선가 고약한 냄새가 난다… 멧돼지를 조심하자!')}
   boarAlertActive=close;
 }
+// Lv.6~11 can sense five-star collectibles, but never their direction or exact position.
+// Scan loaded, genuine collectibles (not scenery/decoys) at a low rate on phones.
+// Show a rare-plant hint only once when entering a 20m zone.
+// Leave the zone entirely to re-arm the hint; do not keep it on-screen.
+let rareSenseTime=0,rareSenseInside=false,rareSensePending=false,rareSenseUntil=0;
+function updateRareSense(dt){
+  const el=$('rareSense');
+  if(mode!=='game'||inTent||playerRank<6||Date.now()<faintUntil){
+    el.classList.add('hide');rareSenseTime=0;rareSenseUntil=0;
+    // Clear the pending hint outside gameplay without changing the game data.
+    rareSenseInside=false;rareSensePending=false;return;
+  }
+  const now=performance.now();
+  // Hide immediately when the short appearance has expired, even between scans.
+  if(rareSenseUntil&&now>=rareSenseUntil){rareSenseUntil=0;el.classList.add('hide')}
+  rareSenseTime-=dt;
+  if(rareSenseTime>0){
+    // Dangerous boars always take visual priority over this hint.
+    if(!$('boarWarning').classList.contains('hide'))el.classList.add('hide');
+    return;
+  }
+  rareSenseTime=.25;
+  let near=false;
+  for(const c of chunks.values()){
+    if(near)break;
+    for(const it of c.items){
+      if(!it.mesh||!it.mesh.parent||!it.mesh.visible||itemInfo(it.type)?.rar!==5||takenUntil(it.id))continue;
+      const pos=it.mesh.position;
+      if(Math.abs(pos.y-P.y)>6)continue;
+      if(Math.hypot(pos.x-P.x,pos.z-P.z)<=20){near=true;break}
+    }
+  }
+  if(!near){
+    // Moving beyond the 20m boundary is the only way to arm a new notification.
+    rareSenseInside=false;rareSensePending=false;rareSenseUntil=0;el.classList.add('hide');return;
+  }
+  if(!rareSenseInside){rareSenseInside=true;rareSensePending=true}
+  const boarNearby=!$('boarWarning').classList.contains('hide');
+  // Once interrupted by a danger warning, do not replay this rare hint.
+  if(boarNearby&&rareSenseUntil){rareSenseUntil=0;el.classList.add('hide')}
+  if(rareSensePending&&!boarNearby){
+    rareSensePending=false;rareSenseUntil=now+3000;
+  }
+  el.classList.toggle('hide',boarNearby||rareSenseUntil<=now);
+}
 function updateAnimals(dt){
  animalBuildT+=dt;if(animalBuildT>5){animalBuildT=0;refreshAnimals()}
  const t=Date.now()/1000,step=Math.min(dt,.08);
@@ -4127,6 +4177,7 @@ function updateGame(dt){
   camera.position.lerp(v3.set(cxp,cyp,czp),1-Math.exp(-dt*10));camera.lookAt(tx+Math.sin(cy)*3,ty+1.1,tz+Math.cos(cy)*3);
   updateChunks(P.x,P.z,false,dt);
   for(let i=pulls.length-1;i>=0;i--){const p=pulls[i];p.t+=dt;const k=clamp(p.t/.7,0,1);p.m.position.y=p.y0+ease(k)*p.d;p.m.rotation.z=Math.sin(p.t*9)*.15*(1-k);if(p.t>1.1)p.m.scale.setScalar(Math.max(.001,1-(p.t-1.1)/.4));if(p.t>1.5){p.m.parent&&p.m.parent.remove(p.m);pulls.splice(i,1)}}
+  updateRareSense(dt);
   updateAnimalLookLabel(); updateTents();updateRockClimbing(dt);
   updParticles(dt);updLabels(dt);updOthers(dt);updateMyRankTag();updSky();updateNightSky(dt);updateFireflies();updAmbience(dt);
   hudT+=dt;if(hudT>.25){hudT=0;updHud()}
