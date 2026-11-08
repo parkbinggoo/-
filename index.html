@@ -171,10 +171,11 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #saveConfirm .saveConfirmSheet{width:min(350px,92vw);padding:24px 20px;background:var(--paper);border:1.5px solid var(--ink);border-radius:12px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28);font-family:"Gowun Dodum",sans-serif}
 #saveConfirm h3{font-family:"Nanum Myeongjo",serif;font-size:21px;margin:0 0 12px;color:var(--ink)}
 #saveConfirm p{font-size:14px;line-height:1.7;color:var(--ink);margin:0 0 20px}
-#saveConfirm .saveConfirmActions{display:flex;gap:10px;justify-content:center}
-#saveConfirm .saveConfirmActions button{flex:1;max-width:140px;min-height:44px;border:1px solid #53654e;border-radius:8px;background:#ece4d0;color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
-#saveConfirm #saveConfirmYes{background:#3b623b;color:#fff;border-color:#3b623b}
+#saveConfirm .saveConfirmActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+#saveConfirm .saveConfirmActions button{min-height:44px;padding:9px 7px;border:1px solid #53654e;border-radius:8px;background:#ece4d0;color:var(--ink);font:inherit;font-size:13px;cursor:pointer;touch-action:manipulation}
+#saveConfirm #saveConfirmYes{grid-column:1/-1;background:#3b623b;color:#fff;border-color:#3b623b;font-size:15px}
 #saveConfirm .saveConfirmActions button:focus-visible{outline:3px solid #c9a24a;outline-offset:2px}
+#saveConfirm .saveLocationTip{font-size:11px;color:#5d6856;line-height:1.7;margin:13px 0 0;word-break:keep-all}
 .bagMeta{margin:8px 0 14px;font-size:13px;opacity:.78;line-height:1.7}
 #tentView{position:fixed;inset:0;z-index:45;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:16px}
 #tentView .tentExitBtn{position:absolute;top:16px;right:16px;z-index:3}
@@ -197,6 +198,8 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #sellQtyControls button,#sellDoBtn,#sellCloseBtn{min-height:40px}
 #sellQty{width:78px;text-align:center;border:1px solid rgba(31,43,40,.25);border-radius:8px;padding:9px;background:#fff}
 #sellSummary{grid-column:1 / -1;font-size:13px;opacity:.82}
+#photoBtn{border-color:rgba(42,86,69,.5);white-space:nowrap}
+@media(max-width:760px){#photoBtn{font-size:12px;padding:9px 10px}}
 @media (max-width:760px),(pointer:coarse){#tentChest{bottom:20%}
 #sellPanel{padding:14px}
 #sellDetail{grid-template-columns:1fr}
@@ -239,7 +242,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #tentView .tentExitBtn{top:calc(12px + env(safe-area-inset-top));right:12px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script async src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -273,7 +276,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
   </div>
   <div class="btns">
     <button class="btn" id="ecoBtn">절전</button>
-    <button class="btn" id="mapBtn">지도</button><button class="btn" id="radioBtn">📻 무전기</button>
+    <button class="btn" id="mapBtn">지도</button><button class="btn" id="photoBtn" type="button" title="UI 없이 기념사진 저장">📷 사진</button><button class="btn" id="radioBtn">📻 무전기</button>
     <button class="btn" id="bagBtn">가방 · 도감</button>
     <button class="btn" id="hudSaveBtn" title="지금 기록을 파일로 저장">기록 저장</button>
   </div>
@@ -284,11 +287,13 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 <div id="saveConfirm" class="hide" role="dialog" aria-modal="true" aria-labelledby="saveConfirmTitle" aria-describedby="saveConfirmDesc">
   <div class="saveConfirmSheet">
     <h3 id="saveConfirmTitle">기록을 저장할까요?</h3>
-    <p id="saveConfirmDesc">현재 산행 기록을 이 기기에<br>JSON 파일로 저장합니다.</p>
+    <p id="saveConfirmDesc">현재 산행 기록을 JSON 파일로 보관합니다.<br>저장 위치를 선택하거나 다운로드할 수 있습니다.</p>
     <div class="saveConfirmActions">
-      <button type="button" id="saveConfirmYes">예</button>
+      <button type="button" id="saveConfirmYes">예 · 저장 위치 선택</button>
+      <button type="button" id="saveConfirmDownload">다운로드 폴더에 저장</button>
       <button type="button" id="saveConfirmNo">아니요</button>
     </div>
+    <p class="saveLocationTip" id="saveLocationTip">아이폰은 공유 메뉴에서 '파일에 저장'을 선택하세요.<br>카카오톡 안에서는 Safari 또는 Chrome으로 열어 주세요.</p>
   </div>
 </div>
 
@@ -363,11 +368,30 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
   </div>
 </div></div>
 <div id="fade"></div>
-<script>
+<script id="baekCore">
 (()=>{
 'use strict';const IOS_CLOUD_SAFE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
-if(IOS_CLOUD_SAFE) document.getElementById('iosClouds').style.display='block';
-if(!window.THREE){document.body.innerHTML='<p style="padding:40px;font-family:sans-serif">3D 엔진을 불러오지 못했습니다. 새로고침해 주세요.</p>';return}
+const MOBILE_SAFE=IOS_CLOUD_SAFE||/Android|Mobile/i.test(navigator.userAgent);
+if(MOBILE_SAFE) document.getElementById('iosClouds').style.display='block';
+if(!window.THREE){
+  // Some in-app browsers block a single CDN. Retry independently without erasing saved-profile UI.
+  const fail=()=>{const e=document.getElementById('profileStatus');
+    if(e){e.textContent='3D 엔진 연결이 차단되었습니다. Safari 또는 Chrome에서 게임 주소를 다시 열어 주세요.';e.style.color='#a1261d'}
+    const p=document.getElementById('startPanel');if(p){p.classList.add('on');}
+    document.getElementById('title')?.classList.add('on');
+  };
+  const alt=document.createElement('script');
+  alt.src='https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
+  alt.onload=()=>{
+    if(!window.THREE){fail();return}
+    const original=document.getElementById('baekCore');
+    if(!original)return fail();
+    const run=document.createElement('script');run.textContent=original.textContent;
+    document.body.appendChild(run);run.remove();
+  };
+  alt.onerror=fail;document.head.appendChild(alt);
+  return;
+}
 /* ================= DATA ================= */
 const HERBS = {
   sansam:  {name:'산삼',  w:1.6, need:6, rar:5, root:true,  desc:'깊은 그늘에서 수십 년을 버틴 뿌리. 붉은 열매가 신호다. 심봤다!'},
@@ -408,6 +432,8 @@ const MARKET_PRICE={
 Object.assign(MARKET_PRICE,{
  kkulpul:1200,oipul:1800,eonggeong:1400,miyeokchwi:2400,baechohyang:2200,sanbakha:1300,kkothyangyu:1900,soetteugi:1200,
  seokchangpo:4800,doldanpung:5400,bawichwi:4600,gorancho:7800,bawichaesong:5100,aegigirin:5300,
+ gyeousari:4800,gyeousolip:800,gobawiikke:1300,jat:1200,
+ gureumgukhwa:3800,dolyangji:2400,bawitteokpul:2600,siromi:4300,
  songi:36000,neungi:24000,norugung:16000,kkotsongi:23000,seogi:28000,ipsae:14000
 });
 const won=v=>Math.round(v).toLocaleString('ko-KR')+'원';
@@ -499,6 +525,7 @@ function refreshRespawns(){const now=Date.now();let needs=false;
 }
 const JACKETS=[0x2f56b0,0xc0392b,0x2e7d4f,0xe08a1e,0x6a4a9a,0x4a4e55];
 const ALT_K=2.5;                      // world unit → displayed metres
+const SUMMIT_ALT=2500, SUMMIT_Z=-4560; // summit on the northbound trail
 const CLOUD_Y=240;                    // sea of clouds height (world units)
 /* ---------- noise / terrain ---------- */
 function h2(ix,iz){let h=(Math.imul(ix,374761393)+Math.imul(iz,668265263))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967295}
@@ -507,20 +534,22 @@ function vn(x,z){const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz,ux=fx*f
 function fbm(x,z){let s=0,a=.5,f=1;for(let i=0;i<4;i++){s+=vn(x*f,z*f)*a;f*=2.03;a*=.5}return s}
 function pathX(z){return Math.sin(z*.011)*34+Math.sin(z*.027+1.3)*13+Math.sin(z*.063)*3.5}
 function H(x,z){
-  const f=-z;
+  // The mountain ends at a reachable 2500m summit rather than rising forever.
+  const zz=Math.max(z,SUMMIT_Z),f=-zz;
   const base=f>0? f*.22+Math.sin(f*.009)*6*Math.min(1,f/80) : f*.05;
-  const d=x-pathX(z), ad=Math.abs(d);
-  const cross=.26*Math.sin(z*.0065+.7)+.12;
-  let side=d*cross+Math.pow(Math.max(0,ad-48),2)*.07;
-  const groove=0;
-  const k=1;
-  const n=fbm(x*.025,z*.025)*9+fbm(x*.11,z*.11)*1.3+fbm(x*.4,z*.4)*.18+Math.max(0,fbm(x*.05+40,z*.05)-.25)*7;
-  return base+side+groove+n-streamCarve(x,z);
+  const d=x-pathX(zz), ad=Math.abs(d);
+  const cross=.26*Math.sin(zz*.0065+.7)+.12;
+  const side=d*cross+Math.pow(Math.max(0,ad-48),2)*.07;
+  const n=fbm(x*.025,zz*.025)*9+fbm(x*.11,zz*.11)*1.3+fbm(x*.4,zz*.4)*.18+Math.max(0,fbm(x*.05+40,zz*.05)-.25)*7;
+  const natural=base+side+n-streamCarve(x,zz);
+  const plateau=clamp((SUMMIT_Z+58-z)/43,0,1)*clamp((22-Math.abs(x-pathX(SUMMIT_Z)))/13,0,1);
+  return Math.min(SUMMIT_ALT/ALT_K,lerp(natural,SUMMIT_ALT/ALT_K,plateau));
 }
+
 /* ---------- renderer ---------- */
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:!IOS_CLOUD_SAFE,alpha:true,powerPreference:IOS_CLOUD_SAFE?'default':'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,IOS_CLOUD_SAFE?1.5:2));
+const renderer=new THREE.WebGLRenderer({canvas,antialias:!MOBILE_SAFE,alpha:true,powerPreference:MOBILE_SAFE?'low-power':'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,MOBILE_SAFE?1:2));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.setClearColor(0x000000,0);
 const camera=new THREE.PerspectiveCamera(55,1,.1,4000);
@@ -604,7 +633,7 @@ function zForAltitude(targetAlt){
 function ensureTents(){
   if(tents.length)return;
   const r=rngOf(7041); let targetAlt=520+r()*80; let idx=0;
-  while(targetAlt<7200 && idx<16){
+  while(targetAlt<Math.min(7200,SUMMIT_ALT-115) && idx<16){
     const z=zForAltitude(targetAlt); if(z==null) break;
     const side=r()<.5?-1:1;
     let site={x:pathX(z)+side*6.5,z,y:H(pathX(z)+side*6.5,z),score:Infinity};
@@ -888,13 +917,13 @@ const iSun=new THREE.DirectionalLight(0xfff1dc,.55);iSun.position.set(300,500,40
 }
 const iClouds=[];
 {const r=rngOf(21);for(let i=0;i<70;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.95,fog:false}));
-  const x=(r()-.5)*900,y=(r()-.1)*520,z=380+r()*220;sp.position.set(x,y,z);const s=180+r()*260;sp.scale.set(s*1.6,s,1);sp.userData={x0:x,side:x<0?-1:1,sp:.6+r()*.8};iScene.add(sp);sp.visible=!IOS_CLOUD_SAFE;iClouds.push(sp)}}
+  const x=(r()-.5)*900,y=(r()-.1)*520,z=380+r()*220;sp.position.set(x,y,z);const s=180+r()*260;sp.scale.set(s*1.6,s,1);sp.userData={x0:x,side:x<0?-1:1,sp:.6+r()*.8};iScene.add(sp);sp.visible=!MOBILE_SAFE;iClouds.push(sp)}}
 let introT=0, zoomT=-1, mode='intro';
 function drawIntro(dt){
   introT+=dt;const t=introT;
   const part=ease(clamp((t-.8)/3.6,0,1));
   for(const c of iClouds){c.position.x=c.userData.x0+c.userData.side*part*(700+300*c.userData.sp)+Math.sin(t*.3+c.userData.sp*9)*8;c.material.opacity=.95*(1-part*.5)}
-  if(IOS_CLOUD_SAFE){const fog=$('iosClouds');fog.children[0].style.transform=`translateX(${-part*125}%)`;fog.children[1].style.transform=`scaleX(-1) translateX(${-part*125}%)`;fog.style.opacity=String(1-part*.75);}
+  if(MOBILE_SAFE){const fog=$('iosClouds');fog.children[0].style.transform=`translateX(${-part*125}%)`;fog.children[1].style.transform=`scaleX(-1) translateX(${-part*125}%)`;fog.style.opacity=String(1-part*.75);}
   const z=zoomT>=0?ease(clamp(zoomT/1.8,0,1)):0;
   iCam.position.set(0,lerp(170,60,z)+Math.sin(t*.25)*3,lerp(1150,60,z)-Math.min(t,8)*6*(1-z));
   iCam.lookAt(0,lerp(260,120,z),-520);
@@ -902,7 +931,7 @@ function drawIntro(dt){
   if(t>2.7)$('title').classList.add('on');
   if(t>3.2)$('subtitle').classList.add('on');
   if(t>4)$('startPanel').classList.add('on');
-  if(zoomT>=0){zoomT+=dt;if(zoomT>1.2)$('fade').classList.add('on');if(zoomT>2.2)beginGame()}
+  if(zoomT>=0){zoomT+=dt;if(zoomT>1.2)$('fade').classList.add('on');if(zoomT>2.2){try{beginGame()}catch(err){showStartError(err)}}}
 }
 /* ================= GAME SCENE ================= */
 const scene=new THREE.Scene();
@@ -916,10 +945,10 @@ const farMts=[];
 {const r=rngOf(55);for(let i=0;i<26;i++){const a=i/26*Math.PI*2+(r()-.5)*.15,dist=900+r()*500,h=160+r()*300;
   const m=makeMountain(h*1.3,h,100+i,[0x8fa6a2,0x7d958f,0x9db2ae][i%3],0xeef0ea,{fog:false,snowLine:.8});m.userData={a,dist,y0:-60-r()*40};farGroup.add(m);farMts.push(m)}}
 const summit=makeMountain(900,1700,999,0x3a544e,0xf8f8f4,{seg:20,hs:14,fog:false,snowLine:.7});scene.add(summit);
-const cloudSea=[0,1].map(i=>{const tex=IOS_CLOUD_SAFE?null:(i?cloudSeaTex.clone():cloudSeaTex);const m=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshBasicMaterial({map:tex,color:0xffffff,transparent:true,opacity:IOS_CLOUD_SAFE?(i?.13:.30):(i?.7:.95),depthWrite:false,fog:false}));
+const cloudSea=[0,1].map(i=>{const tex=MOBILE_SAFE?null:(i?cloudSeaTex.clone():cloudSeaTex);const m=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshBasicMaterial({map:tex,color:0xffffff,transparent:true,opacity:MOBILE_SAFE?(i?.13:.30):(i?.7:.95),depthWrite:false,fog:false}));
   if(i&&m.material.map){m.material.map.wrapS=m.material.map.wrapT=THREE.RepeatWrapping;m.material.map.repeat.set(3,3);m.material.map.needsUpdate=true}
   m.rotation.x=-Math.PI/2;m.position.y=CLOUD_Y+i*10;m.renderOrder=2;scene.add(m);return m});
-const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);sp.visible=!IOS_CLOUD_SAFE;skyPuffs.push(sp)}}
+const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);sp.visible=!MOBILE_SAFE;skyPuffs.push(sp)}}
 const stars=(()=>{const n=600,p=new Float32Array(n*3),r=rngOf(4);for(let i=0;i<n;i++){const u=r()*2-1,a=r()*Math.PI*2,s=Math.sqrt(1-u*u);p[i*3]=Math.cos(a)*s*1500;p[i*3+1]=Math.abs(u)*1500+100;p[i*3+2]=Math.sin(a)*s*1500}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xfffff0,size:2.2,sizeAttenuation:false,transparent:true,opacity:0,fog:false,depthWrite:false}));scene.add(m);return m})();
 /* ---------- shared geometries ---------- */
@@ -1241,6 +1270,22 @@ const SPECIES=[
 {id:'gorancho',n:'고란초',cat:'herb',part:'잎',hab:'계곡 그늘진 절벽·바위틈',alt:[100,1500],L:'shade',W:'moist',rock:1,ab:.35,need:5,m:{k:'fern',n:5,h:.28,curl:0,st:0x507950,col:0x4a7b57},d:'그늘지고 습한 바위에 붙는 짙은 녹색 양치식물.'},
 {id:'bawichaesong',n:'바위채송화',cat:'herb',part:'지상부',hab:'바람 드는 마른 암벽 틈',alt:[200,1550],L:'sun',W:'dry',rock:1,ab:1.1,need:3,m:{k:'scales',n:12,len:.09,col:0x84945b},d:'건조한 바위 틈에 작은 잎이 다닥다닥 모여 자란다.'},
 {id:'aegigirin',n:'애기기린초',cat:'herb',part:'지상부',hab:'햇볕 드는 바위와 자갈 사면',alt:[250,1500],L:'sun',W:'dry',rock:1,ab:.85,need:3,m:{k:'up',h:.20,stems:4,st:0x768c4f,lv:{n:6,len:.036,wid:.02,col:0x788f54},fl:{t:'umbel',col:0xe6cc3c,s:.018}},d:'바위 틈에 잎을 촘촘히 모으고 작은 노란 꽃을 피운다.'},
+// Alpine flowers and rock plants: real ecological associations, game-level altitude windows.
+{id:'gureumgukhwa',n:'구름국화',cat:'herb',part:'꽃과 잎',hab:'해발 1,650~2,400m 바람 부는 고산 능선 초지',alt:[1650,2400],L:'sun',W:'dry',ab:.52,need:4,
+ m:{k:'up',h:.34,stems:3,st:0x667a55,lv:{n:6,len:.055,wid:.028,col:0x68845e},fl:{t:'daisy',col:0xe5dbe4,s:.028,n:3}},d:'바람이 센 고산 초지에 낮게 피는 국화. 실제 자연에서는 채취보다 관찰이 우선이다.'},
+{id:'dolyangji',n:'돌양지꽃',cat:'herb',part:'꽃과 잎',hab:'해발 1,450~2,350m 볕 잘 드는 암반 틈',alt:[1450,2350],L:'sun',W:'dry',rock:1,ab:.92,need:3,
+ m:{k:'ros',n:7,len:.074,wid:.023,col:0x65814e,pitch:.16,stalk:{h:.21,fl:{t:'star',col:0xe7cd53,s:.020,n:5}}},d:'작은 노란 꽃이 바위틈에서 바람을 견딘다. 게임 속 암벽 채집 대상.'},
+{id:'bawitteokpul',n:'바위떡풀',cat:'herb',part:'잎과 꽃대',hab:'해발 1,350~2,200m 습기가 남는 그늘진 암벽',alt:[1350,2200],L:'half',W:'moist',rock:1,ab:.55,need:4,
+ m:{k:'big',n:5,h:.13,shape:'round',size:.085,col:0x68865b,stalk:{h:.31,fl:{t:'star',col:0xece5dd,s:.012,n:7}}},d:'그늘진 바위 틈에 둥근 잎을 붙이고 작은 흰 꽃을 올린다.'},
+{id:'siromi',n:'시로미',cat:'herb',part:'열매',hab:'해발 1,600~2,300m 바람 부는 고산 관목지',alt:[1600,2300],L:'sun',W:'dry',ab:.47,need:4,
+ m:{k:'up',h:.22,stems:4,st:0x57634a,lv:{n:6,len:.033,wid:.015,col:0x586b53},fl:{t:'berries',col:0x3d405b,s:.018}},d:'고산 관목지에 바닥을 기듯 자라는 시로미. 열매는 계절에 따라 드물게 남는다.'},
+// Winter/late-autumn forage: game-only collectibles (not real harvesting advice).
+{id:'gyeousari',n:'겨우살이',cat:'herb',part:'겨울 가지·잎',hab:'해발 850~1,650m 낙엽 활엽수 가지에 기생',alt:[850,1650],L:'half',W:'mid',oak:1,onTree:'oak',ab:.48,need:4,
+ m:{k:'shrub',h:.36,stems:4,bark:0x807f4e,tw:.012,tip:'palm',col:0x788d58},d:'낙엽 진 나뭇가지에서 겨울에도 초록빛을 잃지 않는다. 실제 채취에는 허가가 필요하다.'},
+{id:'gyeousolip',n:'겨울 솔잎',cat:'herb',part:'잎',hab:'해발 1,200~2,050m 침엽수 숲',alt:[1200,2050],L:'sun',W:'dry',pine:1,onTree:'pine',ab:1.45,need:3,
+ m:{k:'grass',n:12,h:.34,strap:.010,col:0x406a52},d:'눈이 와도 푸른 바늘잎. 고산 숲에 남아 있는 겨울의 녹색.'},
+{id:'gobawiikke',n:'고산 바위지의류',cat:'herb',part:'지의체',hab:'해발 1,650~2,450m 바람 부는 큰 바위',alt:[1650,2450],L:'sun',W:'dry',rock:1,ab:.54,need:4,
+ m:{k:'scales',n:11,len:.085,col:0x7d8b78},d:'눈이 걷힌 암석에 납작하게 붙은 지의류. 먹는 재료가 아닌 게임 속 채집물.'},
 ];
 for(const k of Object.keys(HERBS))delete HERBS[k];HERB_KEYS.length=0;
 const starOf=ab=>ab>=6?1:ab>=2.5?2:ab>=1?3:ab>=.3?4:5;
@@ -1252,7 +1297,7 @@ function sX2(z){return pathX(z)+30+Math.sin(z*.013+2)*11}
 function streamD(x,z){return Math.min(Math.abs(x-sX1(z)),Math.abs(x-sX2(z)))}
 function streamCarve(x,z){let c=0;for(const sx of [sX1(z),sX2(z)]){const d=x-sx;c+=1.7*Math.exp(-d*d/12)+1.6*Math.exp(-d*d/110)}return c}
 /* ---------- 서식 환경 ---------- */
-function canopyAt(x,z){const alt=H(x,z)*ALT_K;const patch=vn(x*.035+3,z*.035-5);return clamp(.75+patch*.9,.08,1)*clamp(1-(alt-1200)/1600,.3,1)}
+function canopyAt(x,z){const alt=H(x,z)*ALT_K;const patch=vn(x*.035+3,z*.035-5);return clamp(.75+patch*.9,.08,1)*clamp(1-(alt-1200)/1450,.035,1)}
 function envAt(x,z,c){
   const alt=H(x,z)*ALT_K,ds=streamD(x,z);
   const moist=clamp(Math.exp(-ds*ds/260)*1.05+vn(x*.02+50,z*.02-20)*.35+.22,0,1);
@@ -1260,6 +1305,7 @@ function envAt(x,z,c){
   return{alt,light:1-canopyAt(x,z),moist,ds,rock,inRock,pine:clamp(.55+alt/2500,.55,.95)};
 }
 function fitOf(sp,e){
+  if(sp.onTree)return 0;
   const[a0,a1]=sp.alt;let f=clamp((e.alt-a0+120)/240,0,1)*clamp((a1-e.alt+120)/240,0,1);if(!f)return 0;
   const L=e.light;f*=sp.L==='sun'?Math.pow(L,1.6):sp.L==='shade'?Math.pow(1-L,1.6):clamp(1-Math.abs(L-.45)*1.7,.05,1);
   const m=e.moist;
@@ -1445,10 +1491,11 @@ const FRUITS={
  chestnut:{name:'밤',rar:2,desc:'밤나무 아래 떨어진 단단한 갈색 밤.',hab:'밤나무 아래 산기슭',color:0x793e26},
  pinecone:{name:'솔방울',rar:1,desc:'소나무에서 바람을 타고 떨어진 솔방울.',hab:'소나무 주변',color:0x967144},
  wildberry:{name:'산딸기',rar:2,desc:'햇살 드는 숲 가장자리의 붉은 열매.',hab:'숲 가장자리',color:0xb73d48},
- ginkgo:{name:'은행 열매',rar:2,desc:'가을에 볼 수 있는 노란 은행 열매.',hab:'입구 부근 은행나무 아래',color:0xd4bd43}
+ ginkgo:{name:'은행 열매',rar:2,desc:'가을에 볼 수 있는 노란 은행 열매.',hab:'입구 부근 은행나무 아래',color:0xd4bd43},
+ jat:{name:'잣',rar:3,desc:'가을에 여문 잣이 겨울에도 땅에 남아 있는 경우가 있다.',hab:'해발 1,250~2,000m 침엽수 주변',color:0xc9aa7b}
 };
-const FRUIT_SCALE={acorn:.15,chestnut:.20,pinecone:.34,wildberry:.14,ginkgo:.16};
-const FRUIT_HEIGHT={acorn:.045,chestnut:.047,pinecone:.065,wildberry:.043,ginkgo:.043};
+const FRUIT_SCALE={acorn:.15,chestnut:.20,pinecone:.34,wildberry:.14,ginkgo:.16,jat:.13};
+const FRUIT_HEIGHT={acorn:.045,chestnut:.047,pinecone:.065,wildberry:.043,ginkgo:.043,jat:.042};
 function fruit3D(type){
  const g=new THREE.Group(),d=FRUITS[type];
  const stemMat=M(0x705438),leafMat=M(0x587342),leafLite=M(0x7c9252);
@@ -1492,6 +1539,9 @@ function fruit3D(type){
    }
    add(new THREE.CylinderGeometry(.012,.015,.13,5),stemMat,0,.19,0);
    for(let i=0;i<4;i++)leaf(Math.sin(i*Math.PI/2)*.09,.15,Math.cos(i*Math.PI/2)*.09,i*Math.PI/2,.064);
+ }else if(type==='jat'){
+   for(let i=0;i<3;i++){const a=i*Math.PI*2/3;const nut=ball(M(i===0?0xcdb48b:0xb99c72),Math.sin(a)*.12,-.02,Math.cos(a)*.12,.09,.19,.09,0);nut.rotation.z=Math.sin(a)*.15;}
+   add(new THREE.CylinderGeometry(.016,.02,.15,5),stemMat,0,.18,0);
  }else if(type==='ginkgo'){
    ball(M(0xbdb04e),0,0,0,.17,.16,.15,1);
    ball(M(0xd7c95e),-.045,.035,.05,.115,.10,.10,0);
@@ -1692,7 +1742,7 @@ function placeDecoyFlora(c,r,ox,oz,grp,nearStart,inRock,dens){
     grp.add(mesh);c.items.push(it);
   }
 }
-const ROCK_PLANT_TYPES=['doldanpung','bawichwi','gorancho','bawichaesong','aegigirin','buchoson'];
+const ROCK_PLANT_TYPES=['doldanpung','bawichwi','gorancho','bawichaesong','aegigirin','buchoson','dolyangji','bawitteokpul','gobawiikke'];
 function placeRockPlants(c,r,grp){
  for(let i=0;i<c.rocks.length;i++){
    const rock=c.rocks[i];if(!rock.climbable||!rock.mesh)continue;
@@ -1737,11 +1787,35 @@ function placeExtraMushrooms(c,r,grp,nearStart){
  }
 }
 /* ---------- world chunks ---------- */
-const CH=48,RES=32;let VIEW=3;
+const CH=48,RES=MOBILE_SAFE?18:32;let VIEW=3;
 const chunks=new Map();
 const terrainMat=new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:0,specular:0x000000});
 const barkPine=M(0x8a5236),barkOak=M(0x6e5a48),foliage=new THREE.MeshPhongMaterial({color:0xffffff,flatShading:true,shininess:0,specular:0x000000});
 const cGrass=new THREE.Color(0x4a6b34),cGrass2=new THREE.Color(0x5d7f3c),cPath=new THREE.Color(0xa8906a),cLitter=new THREE.Color(0x6e5a38),cRock=new THREE.Color(0x8b8778),cSnow=new THREE.Color(0xf2f3ee),cMoss=new THREE.Color(0x35532c),tmp=new THREE.Color();
+// Rocky, wind-exposed dwarf conifers and groundcover. All meshes are batched.
+const ALPINE_CONE=keep(new THREE.ConeGeometry(1,1.8,6,1));
+const ALPINE_CUSHION=keep(new THREE.IcosahedronGeometry(1,0));
+function addAlpineVegetation(c,r,ox,oz,group,nearStart,inRock){
+  const alt=H(ox,oz)*ALT_K;if(alt<1450||alt>2490)return;
+  const factor=clamp((alt-1450)/350,0,1)*clamp((2400-alt)/420,0,1);
+  const nTree=Math.round(8*factor),nShrub=Math.round(19*clamp((alt-1430)/430,0,1)*clamp((2490-alt)/280,0,1));
+  const batches=[{n:nTree,geo:ALPINE_CONE,cols:[0x4b6457,0x516d5f,0x6a7969],height:1.6},{n:nShrub,geo:ALPINE_CUSHION,cols:[0x52684c,0x727d59,0x77856e],height:.35}];
+  const o=new THREE.Object3D();
+  for(const spec of batches){if(!spec.n)continue;const im=new THREE.InstancedMesh(spec.geo,foliage,spec.n),temp=new THREE.Color();let k=0;
+    for(let i=0;i<spec.n;i++){
+      const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;
+      if(nearStart(x,z,5)||inRock(x,z,1.1)||streamD(x,z)<3.5||Math.abs(x-pathX(z))<3)continue;
+      const size=.35+r()*.65,above=H(x,z)*ALT_K;
+      if(above<1470||above>2470)continue;
+      o.position.set(x,H(x,z)+spec.height*.5*size,z);o.rotation.set(0,r()*6.28,0);
+      if(spec.geo===ALPINE_CONE)o.scale.set(.45*size,1.1*size,.45*size);
+      else o.scale.set(.6*size,.25*size,.8*size);
+      o.updateMatrix();im.setMatrixAt(k,o.matrix);
+      temp.setHex(spec.cols[Math.floor(r()*spec.cols.length)]).lerp(cSnow,clamp((above-1890)/850,0,.57));im.setColorAt(k,temp);k++;
+    }
+    if(k){im.count=k;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.receiveShadow=true;group.add(im)}
+  }
+}
 function buildChunk(cx,cz){
   const r=rngOf((Math.imul(cx,73856093)^Math.imul(cz,19349663))>>>0);
   const ox=cx*CH+CH/2,oz=cz*CH+CH/2;
@@ -1754,13 +1828,16 @@ function buildChunk(cx,cz){
     const alt=y*ALT_K; if(alt>900) tmp.lerp(cRock,clamp((alt-900)/900,0,.7));
     if(sl>2.2) tmp.lerp(cRock,clamp((sl-2.2)/2,0,1));
     if(alt>1500&&vn(x*.05,z*.05)>.1-((alt-1500)/2000)) tmp.lerp(cSnow,.85);
-    tmp.lerp(cLitter,clamp(vn(x*.06+7,z*.06)*1.4+.1,0,1)*.7);tmp.lerp(cMoss,clamp(vn(x*.09-3,z*.09+11)*1.6-.3,0,1)*.5);tmp.multiplyScalar(.92+vn(x*.7,z*.7)*.08);
+    tmp.lerp(cLitter,clamp(vn(x*.06+7,z*.06)*1.4+.1,0,1)*.7);tmp.lerp(cMoss,clamp(vn(x*.09-3,z*.09+11)*1.6-.3,0,1)*.5);
+    const deepSnow=clamp((alt-1530)/900,0,1),snowPatch=clamp(.63+vn(x*.044+4,z*.044-3)*.36,0,1);
+    tmp.lerp(cSnow,deepSnow*clamp((snowPatch-.22)*1.8,0,1)*.94);
+    tmp.multiplyScalar(.92+vn(x*.7,z*.7)*.08);
     cols[i*3]=tmp.r;cols[i*3+1]=tmp.g;cols[i*3+2]=tmp.b}
   geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.computeVertexNormals();
   const ground=new THREE.Mesh(geo,terrainMat);ground.receiveShadow=true;ground.userData.terrain=true;
   const grp=new THREE.Group();grp.add(ground);
   const c={key:cx+','+cz,cx,cz,grp,ground,trees:[],items:[],treeMeshes:[]};
-  const altHere=H(ox,oz)*ALT_K, dens=clamp(1-(altHere-1200)/1600,.3,1);
+  const altHere=H(ox,oz)*ALT_K, dens=clamp(1-(altHere-1200)/1380,.015,1);
   const startX=pathX(24);
   const nearStart=(x,z,r)=>Math.hypot(x-startX,z-24)<r;
   c.rocks=[];
@@ -1780,8 +1857,8 @@ function buildChunk(cx,cz){
   for(let i=0;i<n;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;
     const patch=vn(x*.035+3,z*.035-5);if(r()>clamp(.75+patch*.9,.08,1))continue;   // clearings come and go
     if(nearStart(x,z,3.5)||inRock(x,z,.8)||streamD(x,z)<2.6)continue;
-    const pineP=clamp(.55+altHere/2500,.55,.95),treeRoll=r();
-    const cls=r(),sz=cls<.55?.8+r()*.45:cls<.82?.42+r()*.3:.14+r()*.22;
+    const pineP=altHere>1600?.96:clamp(.55+altHere/2500,.55,.95),treeRoll=r();
+    const cls=r(),sz=(cls<.55?.8+r()*.45:cls<.82?.42+r()*.3:.14+r()*.22)*clamp(1-(altHere-1550)/1100,.15,1);
     const gateDist=Math.hypot(x-pathX(24),z-24);
     const broadType=(gateDist<60&&altHere<420&&r()<.24)?'ginkgo':(altHere<950&&r()<.30)?'chestnut':'oak';
     const t={x,z,y:H(x,z)-.2,s:sz,rot:r()*6.28,lean:(r()-.5)*(sz>.6?.05:.12),kind:treeRoll<pineP?'pine':broadType,id:`${c.key}:t${i}`,hits:0,searched:false};
@@ -1789,7 +1866,7 @@ function buildChunk(cx,cz){
     if(t.s>.5&&r()<.24){const mt=pickW(MUSH,COMMON_MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
       const it={kind:'mush',type:mt,id:`${c.key}:m${i}`,hits:0,need:MUSH[mt].need,tree:t};
       if(!takenUntil(it.id)){const m=mush3D(mt);m.position.set(x+Math.cos(a)*rr,t.y+.55+r()*.75,z+Math.sin(a)*rr);m.rotation.y=Math.atan2(Math.cos(a),Math.sin(a));m.scale.setScalar(1.6);it.mesh=m;t.mush=m;m.userData.item=it;grp.add(m);c.items.push(it)}}}
-  const snowy=altHere>1500;
+  const snowy=altHere>1550;
   const inst=(geo,mat,list,colFn)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,mat,list.length);const o=new THREE.Object3D();
     list.forEach((t,i)=>{o.position.set(t.x,t.y,t.z);o.rotation.set(t.lean,t.rot,0);o.scale.setScalar(t.s);o.updateMatrix();im.setMatrixAt(i,o.matrix);(t.inst||(t.inst=[])).push({im,i,m:o.matrix.clone()});if(colFn)im.setColorAt(i,colFn(t,i))});
     im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.castShadow=true;im.receiveShadow=true;im.userData.trees=list;grp.add(im);c.treeMeshes.push(im)};
@@ -1800,11 +1877,24 @@ function buildChunk(cx,cz){
     else if(t.kind==='chestnut')oc.setHSL(.29+h2(i,k+3)*.028,.42,.24+k*.035);
     else oc.setHSL(.26+h2(i,k+3)*.06,.36,.28+k*.04+h2(i,9)*.05);
     return oc}));
+  // Small winter clusters attach to host trees; same seed on every multiplayer client.
+  for(let i=0;i<c.trees.length;i++){
+    const t=c.trees[i];if(t.s<.42||r()>.16)continue;
+    const a=H(t.x,t.z)*ALT_K;
+    const type=t.kind==='pine'&&a>=1200&&a<=2050?'gyeousolip':t.kind==='oak'&&a>=850&&a<=1650?'gyeousari':null;
+    if(!type)continue;
+    const sp=SPI[type],id=`${c.key}:winter${i}`;if(takenUntil(id))continue;
+    const ang=r()*6.28,mesh=makePlantMesh(sp,Math.floor(r()*3));
+    const off=.27*t.s;mesh.position.set(t.x+Math.sin(ang)*off,t.y+Math.min(2.1*t.s,2.5),t.z+Math.cos(ang)*off);
+    mesh.rotation.y=ang;
+    const it={kind:'herb',type,id,hits:0,need:sp.need,mesh,tree:t};mesh.userData.item=it;grp.add(mesh);c.items.push(it);
+  }
+  addAlpineVegetation(c,r,ox,oz,grp,nearStart,inRock);
   placeTentTrailRibbons(c,grp);
   placeExtraMushrooms(c,r,grp,nearStart);
   {const nb=Math.round(46*dens);const im=new THREE.InstancedMesh(BUSH,foliage,nb);const o=new THREE.Object3D(),bc=new THREE.Color();let k=0;
-   for(let i=0;i<nb;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;if(inRock(x,z,.2)||nearStart(x,z,2))continue;const sc=.22+r()*.38;
-     o.position.set(x,H(x,z)+sc*.25,z);o.rotation.set(0,r()*6.28,0);o.scale.set(sc*1.3,sc*.8,sc*1.2);o.updateMatrix();im.setMatrixAt(k,o.matrix);bc.setHSL(.27+r()*.08,.35,.2+r()*.1);im.setColorAt(k,bc);k++}
+   for(let i=0;i<nb;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;if(inRock(x,z,.2)||nearStart(x,z,2))continue;const sc=(.22+r()*.38)*clamp(1-(altHere-1550)/1200,.28,1);
+     o.position.set(x,H(x,z)+sc*.25,z);o.rotation.set(0,r()*6.28,0);o.scale.set(sc*1.3,sc*.8,sc*1.2);o.updateMatrix();im.setMatrixAt(k,o.matrix);bc.setHSL(.27+r()*.08,altHere>1650?.24:.35,.2+r()*.1);if(altHere>1920)bc.lerp(cSnow,clamp((altHere-1920)/900,0,.36));im.setColorAt(k,bc);k++}
    im.count=k;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.castShadow=true;grp.add(im)}
   placeFlora(c,r,ox,oz,grp);placeRockPlants(c,r,grp);placeStreams(c,r,ox,oz,grp);
   placeDecoyFlora(c,r,ox,oz,grp,nearStart,inRock,dens);
@@ -1830,7 +1920,8 @@ function buildChunk(cx,cz){
   };
   for(let i=0;i<c.trees.length;i++){
     const tree=c.trees[i];if(tree.s<.5||r()>.24)continue;
-    const type={pine:'pinecone',oak:'acorn',chestnut:'chestnut',ginkgo:'ginkgo'}[tree.kind];
+    let type={pine:'pinecone',oak:'acorn',chestnut:'chestnut',ginkgo:'ginkgo'}[tree.kind];
+    if(tree.kind==='pine'&&altHere>=1250&&altHere<=2000&&r()<.19)type='jat';
     if(!type)continue;
     const a=r()*Math.PI*2,d=.65+r()*1.65;
     putFruit(type,c.key+':fruit'+i,tree.x+Math.cos(a)*d,tree.z+Math.sin(a)*d);
@@ -1854,6 +1945,56 @@ function updateChunks(px,pz,force,dt){
   chunkQueue=[...want].filter(k=>!chunks.has(k)).sort((a,b)=>{const[ax,az]=a.split(',').map(Number),[bx,bz]=b.split(',').map(Number);return((ax-ccx)**2+(az-ccz)**2)-((bx-ccx)**2+(bz-ccz)**2)});
   const n=force?chunkQueue.length:0;for(let i=0;i<n&&chunkQueue.length;i++){const[x,z]=chunkQueue.shift().split(',').map(Number);buildChunk(x,z)}
 }
+/* ---------- 백약산 해발 2,500m 정상 ---------- */
+const SUMMIT_X=pathX(SUMMIT_Z);
+function taegeukgiTexture(){
+  return canvasTex(480,320,(g,w,h)=>{
+    g.fillStyle='#fff';g.fillRect(0,0,w,h);
+    const cx=w/2,cy=h/2,R=74;
+    g.fillStyle='#cd2e3a';g.beginPath();g.arc(cx,cy,R,Math.PI,2*Math.PI);g.lineTo(cx+R,cy);g.closePath();g.fill();
+    g.fillStyle='#0047a0';g.beginPath();g.arc(cx,cy,R,0,Math.PI);g.lineTo(cx-R,cy);g.closePath();g.fill();
+    g.fillStyle='#cd2e3a';g.beginPath();g.arc(cx-R/2,cy,R/2,0,2*Math.PI);g.fill();
+    g.fillStyle='#0047a0';g.beginPath();g.arc(cx+R/2,cy,R/2,0,2*Math.PI);g.fill();
+    const trigram=(x,y,angle,solid)=>{
+      g.save();g.translate(x,y);g.rotate(angle);g.fillStyle='#121316';
+      for(let i=0;i<3;i++){
+        const yy=(i-1)*18;
+        if(solid[i])g.fillRect(-46,yy-5,92,10);
+        else{g.fillRect(-46,yy-5,40,10);g.fillRect(6,yy-5,40,10)}
+      }g.restore();
+    };
+    trigram(100,76,-.60,[1,1,1]); // 건
+    trigram(382,248,-.60,[0,0,0]); // 곤
+    trigram(383,76,.60,[0,1,0]); // 감
+    trigram(100,247,.60,[1,0,1]); // 리
+  });
+}
+const summitGroup=new THREE.Group();
+function createSummit(){
+  const grey=M(0x99998e),dark=M(0x74766f),post=M(0x60655a);
+  const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(1,0),grey);rock.scale.set(1.05,1.62,.57);rock.position.set(-1.75,1.65,-.5);rock.rotation.y=.08;rock.castShadow=true;summitGroup.add(rock);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(2.7,.25,1.25),dark);base.position.set(-1.75,.13,-.5);base.receiveShadow=true;summitGroup.add(base);
+  const txt=canvasTex(512,220,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#313a33';g.font='bold 135px "Nanum Myeongjo",serif';g.textAlign='center';g.textBaseline='middle';g.fillText('백약산',w/2,h/2+2);});
+  const namePlate=new THREE.Mesh(new THREE.PlaneGeometry(1.8,.8),new THREE.MeshBasicMaterial({map:txt,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+  namePlate.position.set(-1.75,1.8,.035);summitGroup.add(namePlate);
+  const heightPlate=new THREE.Mesh(new THREE.PlaneGeometry(1.25,.29),new THREE.MeshBasicMaterial({map:canvasTex(256,65,(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='#323c35';g.font='bold 42px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('2,500m',w/2,h/2+3)}),transparent:true,side:THREE.DoubleSide}));
+  heightPlate.position.set(-1.75,1.12,.057);summitGroup.add(heightPlate);
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(.055,.065,4.55,8),post);pole.position.set(1.65,2.27,-.55);pole.castShadow=true;summitGroup.add(pole);
+  const finial=new THREE.Mesh(new THREE.IcosahedronGeometry(.12,0),M(0xbd9d5e));finial.position.set(1.65,4.58,-.55);summitGroup.add(finial);
+  const cloth=new THREE.Mesh(new THREE.PlaneGeometry(1.48,1.04,6,3),new THREE.MeshPhongMaterial({map:taegeukgiTexture(),side:THREE.DoubleSide,flatShading:true,shininess:0}));
+  cloth.position.set(2.44,3.7,-.55);summitGroup.add(cloth);
+  const verts=cloth.geometry.attributes.position;
+  for(let i=0;i<verts.count;i++){
+    const px=verts.getX(i),py=verts.getY(i);
+    verts.setZ(i,Math.sin(px*5+py*3)*.075*(px+.74)/1.48);
+  }cloth.geometry.computeVertexNormals();
+  const p=new THREE.Vector3(SUMMIT_X,H(SUMMIT_X,SUMMIT_Z+12),SUMMIT_Z+12);
+  summitGroup.position.copy(p);scene.add(summitGroup);
+}
+// Summit scenery is created after entering; never prevent the login UI from initialising.
+let summitCreated=false;
+function ensureSummit(){if(summitCreated)return;createSummit();summitCreated=true;}
+
 /* start gate (일주문) */
 function buildGate(){
   const g=new THREE.Group(),z=18,x0=pathX(z),y0=H(x0,z);g.position.set(x0,y0,z);
@@ -2001,7 +2142,7 @@ function clickAt(sx,sy){if(Date.now()<faintUntil||inTent)return;
     if(o.userData.trees){const t=o.userData.trees[h.instanceId];if(!t)continue;
       for(const c of chunks.values())for(const it of c.items)if(it.tree===t&&it.mesh){act({kind:'mush',item:it,pos:it.mesh.position.clone()});return}
       act({kind:'tree',tree:t,pos:new THREE.Vector3(t.x,t.y+1.2,t.z)});hideHint();return}
-    if(o.userData.terrain){const p=h.point;if(nearTo(p,1.9))act({kind:'ground',pos:p.clone()});else{target={x:p.x,z:p.z,stop:.35};pending=null}hideHint();return}
+    if(o.userData.terrain){const p=h.point;if(nearTo(p,1.9))act({kind:'ground',pos:p.clone()});else{target={x:p.x,z:Math.max(SUMMIT_Z+2,p.z),stop:.35};pending=null}hideHint();return}
   }
 }
 const joy={x:0,y:0,id:null};
@@ -2017,7 +2158,7 @@ const MILES=['솔바람이 등을 민다','능선 너머로 다른 산들이 내
 let lastMile=-1,toastT=0;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');toastT=3}
 let hudKey='';
-function updHud(){const alt=Math.max(0,Math.round(P.y*ALT_K)),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount()+'|'+discoveredCount();if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`산속 시간 · ${ph} · ${ck}`;$('count').textContent=`가방 ${totalCount()}/${BAG_LIMIT} · 도감 ${discoveredCount()}/${HERB_KEYS.length+MUSH_KEYS.length+Object.keys(FRUITS).length}종`}
+function updHud(){const alt=Math.max(0,Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K))),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount()+'|'+discoveredCount();if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`산속 시간 · ${ph} · ${ck}`;$('count').textContent=`가방 ${totalCount()}/${BAG_LIMIT} · 도감 ${discoveredCount()}/${HERB_KEYS.length+MUSH_KEYS.length+Object.keys(FRUITS).length}종`}
   const m=Math.floor(alt/300);if(lastMile<0)lastMile=m;if(m>lastMile){lastMile=m;toast(`해발 ${m*300}m — ${MILES[Math.min(MILES.length-1,m-1)]}`);tone(392,.4,'sine',.06);tone(587,.6,'sine',.05,1,.15)}}
 $('bagBtn').onclick=()=>{buildBag();$('bag').classList.remove('hide')};
 $('bagClose').onclick=()=>$('bag').classList.add('hide');
@@ -2048,7 +2189,7 @@ function buildBag(){
 /* ================= 지도 · 나침반 ================= */
 const GEO={lat0:37.7312,lon0:128.5946};
 function toLatLon(x,z){const lat=GEO.lat0+(-z)/111320;return[lat,GEO.lon0+x/(111320*Math.cos(lat*Math.PI/180))]}
-function myGeo(){const [lat,lon]=toLatLon(P.x,P.z);return {lat,lon,alt:Math.round(P.y*ALT_K)}}
+function myGeo(){const [lat,lon]=toLatLon(P.x,P.z);return {lat,lon,alt:Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K))}}
 function dms(v,pos,neg,decimals=1){
  const sign=v>=0?pos:neg,unit=Math.pow(10,decimals);
  const ticks=Math.round(Math.abs(v)*3600*unit);
@@ -2171,7 +2312,7 @@ function netPublish(type,extra){if(!mqttOnline||!mqttClient)return;
   try{mqttClient.publish(MQTT_TOPIC+type+'/'+myId,JSON.stringify(packet),{qos:0,retain:false})}catch(e){}
 }
 function netState(){const act=Date.now()<faintUntil?'f':me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':'i';
-  return {x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:act,c:save.color|0,n:cleanNick(save.nick),alt:Math.round(P.y*ALT_K),g:Math.min(6,totalCount()),tent:inTent&&activeTent?activeTent.id:''};}
+  return {x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:act,c:save.color|0,n:cleanNick(save.nick),alt:Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K)),g:Math.min(6,totalCount()),tent:inTent&&activeTent?activeTent.id:''};}
 function updatePeople(){
   const count=netJoined?1+[...peerSeen.values()].filter(v=>Date.now()-v.seen<11000).length:0;
   peopleCount=count;
@@ -2202,7 +2343,7 @@ function tryNetJoin(){if(!mqttOnline||netJoined||netChecking)return;netChecking=
 }
 function connectRoom(){
   if(mqttClient)return;
-  if(!window.mqtt||typeof window.mqtt.connect!=='function'){toast('멀티플레이 모듈을 불러오지 못했습니다');return}
+  if(!window.mqtt||typeof window.mqtt.connect!=='function')return;
   try{mqttClient=window.mqtt.connect(MQTT_BROKER,{clientId:'baek_'+myId,clean:true,keepalive:25,reconnectPeriod:3000,connectTimeout:12000,
     will:{topic:MQTT_TOPIC+'bye/'+myId,payload:JSON.stringify({id:myId,type:'bye'}),qos:0,retain:false}});
     mqttClient.on('connect',()=>{mqttOnline=true;netJoined=false;netChecking=false;
@@ -2304,11 +2445,12 @@ function occlusion(tx,ty,tz,cx,cy,cz,collect){
 /* ================= 성능 · 절전 ================= */
 const IS_TOUCH=matchMedia('(pointer:coarse)').matches;
 const PERF={eco:false,fps:60,view:3,fogK:1,occEvery:.08,chunkEvery:.06};
-try{PERF.eco=localStorage.getItem('baekyaksan-eco')==='1'}catch(e){}
+// Keep the player's chosen setting; on a first visit choose lighter rendering for iPhones.
+try{const pref=localStorage.getItem('baekyaksan-eco');PERF.eco=MOBILE_SAFE||pref==='1'}catch(e){PERF.eco=MOBILE_SAFE}
 function applyPerf(){
   const dpr=devicePixelRatio||1;
-  PERF.fps=PERF.eco?30:60;PERF.view=PERF.eco?2:3;PERF.fogK=PERF.eco?.72:1;PERF.occEvery=PERF.eco?.16:.08;PERF.chunkEvery=PERF.eco?.12:.06;
-  renderer.setPixelRatio(PERF.eco?Math.min(dpr,1)*.75:Math.min(dpr,IS_TOUCH?1.5:1.75));
+  PERF.fps=PERF.eco?30:60;PERF.view=MOBILE_SAFE?1:(PERF.eco?2:3);PERF.fogK=PERF.eco?.72:1;PERF.occEvery=PERF.eco?.18:.08;PERF.chunkEvery=MOBILE_SAFE?.34:(PERF.eco?.20:.06);
+  renderer.setPixelRatio(PERF.eco?Math.min(dpr,MOBILE_SAFE?1:1.2)*.8:Math.min(dpr,IS_TOUCH?1.5:1.75));
   sun.castShadow=!PERF.eco;
   if(sun.shadow.map&&sun.shadow.mapSize.x!==(IS_TOUCH?1024:2048)){sun.shadow.map.dispose();sun.shadow.map=null}
   sun.shadow.mapSize.set(IS_TOUCH?1024:2048,IS_TOUCH?1024:2048);
@@ -2392,11 +2534,33 @@ for(let i=0;i<rainCount;i++){rainXYZ[3*i]=(rainRand()-.5)*26;rainXYZ[3*i+1]=rain
 const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainXYZ,3));
 const rainPoints=new THREE.Points(rainGeo,new THREE.PointsMaterial({color:0xbdd8eb,size:.09,transparent:true,opacity:.55,depthWrite:false}));
 scene.add(rainPoints);rainPoints.visible=false;
-function updateRain(dt){rainPoints.visible=weatherRain>.015;if(!rainPoints.visible)return;
-  rainPoints.material.opacity=.12+.53*weatherRain;
-  rainGeo.setDrawRange(0,Math.round(rainCount*weatherRain));
+function updateRain(dt,elevation){
+  // Precipitation progressively changes from rain to snow with altitude.
+  const rainIntensity=weatherRain*(1-clamp((elevation-1550)/650,0,1));
+  rainPoints.visible=rainIntensity>.015;if(!rainPoints.visible)return;
+  rainPoints.material.opacity=.12+.53*rainIntensity;
+  rainGeo.setDrawRange(0,Math.round(rainCount*rainIntensity));
   for(let i=0;i<rainCount;i++){const j=i*3;rainXYZ[j+1]-=dt*(10+7*weatherRain);if(rainXYZ[j+1]<0){rainXYZ[j+1]+=16;rainXYZ[j]=(rainRand()-.5)*26;rainXYZ[j+2]=(rainRand()-.5)*26;}}
   rainGeo.attributes.position.needsUpdate=true;rainPoints.position.set(P.x,P.y+1,P.z);
+}
+// Local alpine snow: the higher the hiker climbs, the denser the snow becomes.
+// This is deterministic altitude-based scenery, not a new per-player random weather.
+const snowCount=MOBILE_SAFE?115:220,snowRnd=rngOf(2500),snowXYZ=new Float32Array(snowCount*3);
+for(let i=0;i<snowCount;i++){snowXYZ[3*i]=(snowRnd()-.5)*34;snowXYZ[3*i+1]=snowRnd()*18;snowXYZ[3*i+2]=(snowRnd()-.5)*34;}
+const snowGeo=new THREE.BufferGeometry();snowGeo.setAttribute('position',new THREE.BufferAttribute(snowXYZ,3));
+const snowFall=new THREE.Points(snowGeo,new THREE.PointsMaterial({color:0xfcffff,size:MOBILE_SAFE?.12:.14,transparent:true,opacity:.8,depthWrite:false}));scene.add(snowFall);snowFall.visible=false;
+function updateAlpineSnow(dt,elevation){
+  const base=clamp((elevation-1590)/860,0,1);
+  const amount=base*clamp(.48+weatherRain*.7,0,1);
+  snowFall.visible=amount>.01&&!inTent;if(!snowFall.visible)return;
+  snowGeo.setDrawRange(0,Math.round(snowCount*amount));snowFall.material.opacity=.27+.6*amount;
+  for(let i=0;i<snowCount;i++){
+    const k=i*3;snowXYZ[k+1]-=(1.25+amount*2.6)*dt;
+    snowXYZ[k]+=dt*(.12+.12*Math.sin(clock*.35+i));
+    if(snowXYZ[k+1]<-2){snowXYZ[k+1]+=19;snowXYZ[k]=(snowRnd()-.5)*34;snowXYZ[k+2]=(snowRnd()-.5)*34;}
+    if(snowXYZ[k]>17)snowXYZ[k]-=34;
+  }
+  snowGeo.attributes.position.needsUpdate=true;snowFall.position.set(P.x,P.y+2,P.z);
 }
 const lamp=new THREE.SpotLight(0xfff0d0,0,26,.62,.6,1.4);scene.add(lamp);scene.add(lamp.target);
 const _white=new THREE.Color(),_fogTmp=new THREE.Color();let skyKey2='';
@@ -2421,7 +2585,7 @@ function updSky(){
   summit.position.set(P.x,P.y-1250,P.z-1500);
   const shade=lerp(1,.22,night);
   for(const cs of cloudSea){cs.position.x=P.x;cs.position.z=P.z;if(cs.material.map)cs.material.map.offset.set(P.x/600+clock*.002,-P.z/600);cs.material.color.setScalar(shade)}
-  cloudSea[0].material.opacity=IOS_CLOUD_SAFE?(P.y<CLOUD_Y?.16:.30):(P.y<CLOUD_Y?.55:.95);
+  cloudSea[0].material.opacity=MOBILE_SAFE?(P.y<CLOUD_Y?.16:.30):(P.y<CLOUD_Y?.55:.95);
   for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
 }
 /* ================= 숲 소리 (전부 WebAudio로 합성) ================= */
@@ -2733,7 +2897,8 @@ function refreshAnimals(){clearExpiredBoarZones();const near=new Set();const cx=
  for(const [id,a] of animals)if(!near.has(id))removeWildAnimal(id,a);
 }
 const FAINT_MS=3*60*1000;
-let faintUntil=Math.min(+(localStorage.getItem('baek_faint_until')||0),Date.now()+FAINT_MS),faintReason='';
+let faintUntil=0,faintReason='';
+try{faintUntil=Math.min(+(localStorage.getItem('baek_faint_until')||0),Date.now()+FAINT_MS)}catch(e){faintUntil=0}
 function faintAnimal(spec){if(Date.now()<faintUntil)return;climbing=null;onRock=null;$('climbPanel').classList.add('hide');faintUntil=Date.now()+FAINT_MS;faintReason=spec.name;
  try{localStorage.setItem('baek_faint_until',String(faintUntil))}catch(e){}persist();
  target=null;pending=null;joy.x=0;joy.y=0;me.mode='faint';me.t=0;$('faintOverlay').classList.remove('hide');
@@ -2971,9 +3136,9 @@ function updateRockClimbing(dt){
  $('climbPanel').classList.add('hide');
 }
 /* ================= GAME LOOP ================= */
-let clock=0,lastRespawnCheck=-10;
+let clock=0,lastRespawnCheck=-10,summitNotified=false;
 function updateGame(dt){
-  syncKST();syncWeather();updateRain(dt);
+  syncKST();syncWeather();const currentAlt=H(P.x,P.z)*ALT_K;updateRain(dt,currentAlt);updateAlpineSnow(dt,currentAlt);
   const fainted=updFaint();if(!fainted&&!inTent)updateAnimals(dt);else if(boarAlertActive){$('boarWarning').classList.add('hide');boarAlertActive=false;}
   for(const c of chunks.values())for(const it of c.items)if(it.kind==='fruit'&&it.mesh&&it.fall!==false){
     const age=Math.max(0,(Date.now()-it.born)/1000),u=Math.min(1,age/2.8);
@@ -2996,9 +3161,10 @@ function updateGame(dt){
   if(inTent){moveAmt=0; mvx=mvz=0;}
   if(moveAmt){const slope=H(P.x+mvx*.6,P.z+mvz*.6)-P.y,spd=4.0*clamp(1-slope*.35,.6,1.15);
     let nx=P.x+mvx*moveAmt*spd*dt,nz=P.z+mvz*moveAmt*spd*dt;
-    const d=nx-pathX(nz);if(Math.abs(d)>58)nx=pathX(nz)+Math.sign(d)*58;if(nz>34)nz=34;
+    const d=nx-pathX(nz);if(Math.abs(d)>58)nx=pathX(nz)+Math.sign(d)*58;if(nz>34)nz=34;if(nz<SUMMIT_Z+2)nz=SUMMIT_Z+2;
     if(H(nx,nz)-P.y<.9||P.air){const q=collide(nx,nz);P.x=q.x;P.z=q.z}}
   P.speed=Math.abs(moveAmt);
+  if(!summitNotified&&Math.hypot(P.x-SUMMIT_X,P.z-(SUMMIT_Z+12))<9){summitNotified=true;toast('🏔 백약산 정상 · 해발 2,500m에 도착했습니다! 기념사진을 남겨보세요.');tone(392,.50,'sine',.055);tone(587,.7,'sine',.045,1,.18);}
   const gy=(climbing||onRock)?P.y:H(P.x,P.z);
   if(P.air){P.vy-=14*dt;P.y+=P.vy*dt;if(P.y<=gy){P.y=gy;P.air=false;P.vy=0}}else P.y=lerp(P.y,gy,1-Math.exp(-dt*25));
   if(fainted){me.mode='faint'}
@@ -3036,15 +3202,56 @@ const pulls=[];let mapT=0,saveT=0,hudT=1,occT=1,occPitch=.26,effPitch=.26;
 /* ================= PORTABLE PLAYER RECORDS ================= */
 function profileNotice(message,error=false){const el=$('profileStatus');el.textContent=message;el.style.color=error?'#a1261d':'#1f2b28'}
 function numericPin(){const el=$('profilePin');el.value=el.value.replace(/\D/g,'').slice(0,4);return el.value}
+// Same SHA-256 based verifier as before; WebCrypto first, ES5-compatible fallback.
+function sha256Backup(str){
+  const bytes=typeof TextEncoder!=='undefined'?Array.from(new TextEncoder().encode(str)):
+    Array.from(unescape(encodeURIComponent(str)),c=>c.charCodeAt(0));
+  const n=bytes.length,lo=(n*8)>>>0,hi=Math.floor(n/0x20000000)>>>0;
+  bytes.push(128);while(bytes.length%64!==56)bytes.push(0);
+  for(const x of [hi,lo])for(let i=3;i>=0;i--)bytes.push((x>>>(i*8))&255);
+  const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const K=[
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+  ];
+  const rot=(x,n)=>(x>>>n)|(x<<(32-n));const w=new Int32Array(64);
+  for(let o=0;o<bytes.length;o+=64){
+    for(let i=0;i<16;i++)w[i]=(bytes[o+i*4]<<24)|(bytes[o+i*4+1]<<16)|(bytes[o+i*4+2]<<8)|bytes[o+i*4+3];
+    for(let i=16;i<64;i++){const x=w[i-15],y=w[i-2];w[i]=(w[i-16]+(rot(x,7)^rot(x,18)^(x>>>3))+w[i-7]+(rot(y,17)^rot(y,19)^(y>>>10)))|0;}
+    let[a,b,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){
+      const t1=(h+(rot(e,6)^rot(e,11)^rot(e,25))+((e&f)^(~e&g))+K[i]+w[i])|0;
+      const t2=((rot(a,2)^rot(a,13)^rot(a,22))+((a&b)^(a&c)^(b&c)))|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+    }
+    const next=[a,b,c,d,e,f,g,h];for(let i=0;i<8;i++)H[i]=(H[i]+next[i])|0;
+  }
+  return H.map(v=>(v>>>0).toString(16).padStart(8,'0')).join('');
+}
+// This entry credential flow is restored from the confirmed working mobile build.
+// Its original WebCrypto result and profile storage key remain unchanged.
 async function getCredential(){
   const nick=cleanNick($('nick').value),pin=numericPin();
   if(!nick){profileNotice('별호(닉네임)를 먼저 입력해 주세요.',true);$('nick').focus();return null}
   if(!/^\d{4}$/.test(pin)){profileNotice('숫자로 된 4자리 코드를 입력해 주세요.',true);$('profilePin').focus();return null}
-  if(!crypto||!crypto.subtle){profileNotice('이 브라우저에서 기록 확인 기능을 사용할 수 없습니다. HTTPS로 접속해 주세요.',true);return null}
+  // A secure GitHub Pages HTTPS origin supports native WebCrypto on iOS.
+  // Only use the same SHA-256 algorithm locally when WebCrypto is unavailable.
+  const canNative=!!(window.crypto&&window.crypto.subtle&&typeof TextEncoder!=='undefined');
   const normalized=nick.toLocaleLowerCase('ko-KR');
-  const payload=new TextEncoder().encode('baekyaksan-v2|'+normalized+'|'+pin);
-  const digest=await crypto.subtle.digest('SHA-256',payload);
-  const verifier=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
+  const payload='baekyaksan-v2|'+normalized+'|'+pin;
+  let verifier;
+  if(canNative){
+    try{const digest=await Promise.race([window.crypto.subtle.digest('SHA-256',new TextEncoder().encode(payload)),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('crypto timeout')),1600))]);
+      verifier=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
+    }catch(e){verifier=sha256Backup(payload)}
+  }else verifier=sha256Backup(payload);
   return {nick,verifier,key:PROFILE_STORE_PREFIX+verifier};
 }
 function validProfileDoc(doc,cred){return !!doc&&doc.app===PROFILE_APP&&doc.format===PROFILE_FORMAT&&
@@ -3064,7 +3271,14 @@ function normalizeRecord(raw){
   const color=Number.isInteger(raw?.color)?clamp(raw.color,0,JACKETS.length-1):0;
   let pos=null;const p=raw?.pos;
   if(p&&Number.isFinite(p.x)&&Number.isFinite(p.z)&&Math.abs(p.x)<20000&&p.z<=34&&p.z>-20000){
-    pos={x:clamp(p.x,pathX(p.z)-55,pathX(p.z)+55),z:p.z};
+    // Carry old progress across mountain revisions, without carrying impossible spawn positions.
+    const z=clamp(p.z,SUMMIT_Z+19,24);
+    const trail=pathX(z),outOfRange=p.z<SUMMIT_Z+19||p.z>24;
+    let x=outOfRange||Math.abs(p.x-trail)>15?trail:p.x;
+    const ground=H(x,z),step=Math.max(Math.abs(H(x+1,z)-ground),Math.abs(H(x-1,z)-ground),
+      Math.abs(H(x,z+1)-ground),Math.abs(H(x,z-1)-ground));
+    if(!Number.isFinite(ground)||step>2.3)x=trail;
+    pos={x,z};
   }
   const until=Number.isFinite(raw?.faintUntil)?clamp(raw.faintUntil,0,Date.now()+3*60*1000):0;
   return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0};
@@ -3084,11 +3298,20 @@ function applyRecord(cred,progress){
 }
 function resolveProfile(cred){
   const existing=readProfileDoc(cred);if(existing)return {progress:existing.progress,origin:'기기 저장 기록'};
-  const adopted=localStorage.getItem('baekyaksan-legacy-migrated');
+  let adopted=null;try{adopted=localStorage.getItem('baekyaksan-legacy-migrated')}catch(e){}
   if(!adopted&&legacySave.nick&&legacySave.nick.toLocaleLowerCase('ko-KR')===cred.nick.toLocaleLowerCase('ko-KR')){
-    return {progress:{...legacySave,faintUntil:+(localStorage.getItem('baek_faint_until')||0)},origin:'이전 버전 기록'};
+    let until=0;try{until=+(localStorage.getItem('baek_faint_until')||0)}catch(e){}
+    return {progress:{...legacySave,faintUntil:until},origin:'이전 버전 기록'};
   }
   return {progress:{inv:{},known:{},won:0,color:save.color,pos:null,faintUntil:0},origin:'새 산객'};
+}
+function showStartError(e){
+  console.error('백약산 시작 오류',e);
+  const fade=$('fade');fade.classList.remove('on');
+  $('intro').classList.remove('hide');$('intro').style.opacity=1;
+  zoomT=-1;mode='intro';
+  $('continueBtn').disabled=false;
+  profileNotice('게임 시작 중 오류가 발생했습니다. 다시 시도할 수 있습니다. 자세한 내용: '+String(e&&e.message||e).slice(0,100),true);
 }
 async function enterProfile(){
   if(zoomT>=0)return;
@@ -3099,33 +3322,92 @@ async function enterProfile(){
     applyRecord(cred,resolved.progress);
     if(resolved.origin==='이전 버전 기록')try{localStorage.setItem('baekyaksan-legacy-migrated',cred.verifier)}catch(e){}
     profileNotice(resolved.origin==='새 산객'?'새 산행을 시작합니다.':'저장 기록을 이어서 시작합니다.');
-    ac();faintSoundVolume(faintUntil-Date.now());tone(392,.6,'sine',.07);tone(523,.9,'sine',.06,1,.2);
-    zoomT=0;$('intro').style.transition='opacity .9s';$('intro').style.opacity=0;
-  }catch(e){profileNotice('기록을 불러오는 중 오류가 났습니다. 다시 시도해 주세요.',true);console.error(e)}
+    try{ac();faintSoundVolume(faintUntil-Date.now());tone(392,.6,'sine',.07);tone(523,.9,'sine',.06,1,.2)}catch(e){console.warn('입장 효과음 건너뜀',e)}
+    // Enter on this tap: no dependency on an intro animation, sound, network or terrain FPS.
+    zoomT=0;
+    try{beginGame()}catch(e){showStartError(e)}
+  }catch(e){profileNotice('기록 확인 오류: '+String(e&&e.message||e).slice(0,100),true);console.error(e)}
   finally{btn.disabled=false}
 }
-function downloadProfile(doc){
+// Export uses the existing v2 profile document, so old save files and inventory are unaffected.
+function profileFileParts(doc){
   const filename='백약산_'+doc.profile.name.replace(/[^가-힣\w-]/g,'_').slice(0,12)+'_'+
     new Date().toISOString().slice(0,10)+'.json';
-  const blob=new Blob([JSON.stringify(doc,null,2)],{type:'application/json;charset=utf-8'});
+  return {filename,blob:new Blob([JSON.stringify(doc,null,2)],{type:'application/json'})};
+}
+function downloadProfile(doc){
+  const {filename,blob}=profileFileParts(doc);
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),20000);
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
-async function exportProfile(){
-  try{
-    if(mode==='game'){
-      if(!activeCredential)return;
-      persist();
-      downloadProfile(profileDocument(activeCredential,profileProgress()));
-      toast('현재 채집 기록과 위치를 파일로 저장했습니다');return;
+function saveMessage(message,error=false){
+  if(mode==='game')toast(message);
+  else profileNotice(message,error);
+}
+// Must be invoked directly from the user's tap (no credential hashing awaits beforehand).
+async function saveProfileToFiles(doc){
+  const {filename,blob}=profileFileParts(doc);
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+  const inApp=/KAKAOTALK|KakaoTalk|NAVER|Instagram|FBAN|FBAV|Line\//i.test(navigator.userAgent);
+  // Desktop Chromium: genuine OS "Save as" dialog with an arbitrary destination.
+  if(!ios&&!inApp&&typeof window.showSaveFilePicker==='function'){
+    try{
+      const handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'백약산 게임 기록',accept:{'application/json':['.json']}}]});
+      const out=await handle.createWritable();await out.write(blob);await out.close();
+      saveMessage('선택한 위치에 기록 파일을 저장했습니다.');return;
+    }catch(e){
+      if(e&&e.name==='AbortError')return; // User cancelled the system picker.
+      console.warn('저장 위치 선택 미지원, 다른 저장 방법 시도',e);
     }
-    const cred=await getCredential();if(!cred)return;
-    let doc=readProfileDoc(cred);
-    if(!doc){const res=resolveProfile(cred);if(res.origin==='새 산객'){profileNotice('저장된 기록이 없습니다. 이어서 하기로 산행을 시작해 주세요.',true);return}
-      doc=profileDocument(cred,normalizeRecord(res.progress));}
-    downloadProfile(doc);profileNotice('저장 파일을 내려받았습니다. 다른 기기에 옮겨 불러올 수 있어요.');
-  }catch(e){profileNotice('저장 파일을 만드는 데 실패했습니다.',true);console.error(e)}
+  }
+  // iOS Safari/Android Chrome: open the OS share sheet, where iOS offers "Save to Files".
+  if(!inApp&&typeof navigator.share==='function'&&typeof File==='function'){
+    const file=new File([blob],filename,{type:'application/json'});
+    let supported=false;
+    try{supported=!navigator.canShare||navigator.canShare({files:[file]})}catch(e){}
+    if(supported){
+      try{
+        await navigator.share({files:[file],title:'백약산 산행 기록'});
+        saveMessage('파일 메뉴를 닫았습니다. 파일 앱에 저장했는지 확인해 주세요.');return;
+      }catch(e){
+        if(e&&(e.name==='AbortError'||e.name==='NotAllowedError')){
+          if(e.name==='AbortError')return;
+          // Some embedded browsers deny the gesture; fall back to downloading.
+        }
+        console.warn('공유 메뉴로 기록 저장 실패, 다운로드 방식으로 전환',e);
+      }
+    }
+  }
+  downloadProfile(doc);
+  saveMessage(inApp?'다운로드를 요청했습니다. 카카오톡 안에서 파일이 안 보이면 Safari/Chrome으로 게임을 열어 다시 저장해 주세요.':'기록 파일 다운로드를 시작했습니다. 기기 파일 앱의 다운로드 폴더를 확인해 주세요.');
+}
+let pendingSaveDoc=null;
+// Prepare the profile before presenting the confirmation: native pickers need a fresh tap.
+async function prepareProfileForExport(){
+  if(mode==='game'){
+    if(!activeCredential){saveMessage('먼저 산행 기록에 입장해 주세요.',true);return null}
+    persist();return profileDocument(activeCredential,profileProgress());
+  }
+  const cred=await getCredential();if(!cred)return null;
+  let doc=readProfileDoc(cred);
+  if(!doc){
+    const res=resolveProfile(cred);
+    if(res.origin==='새 산객'){profileNotice('저장된 기록이 없습니다. 이어서 하기로 산행을 시작해 주세요.',true);return null}
+    doc=profileDocument(cred,normalizeRecord(res.progress));
+  }
+  return doc;
+}
+function getReadySaveDoc(){
+  if(mode==='game'&&activeCredential){persist();return profileDocument(activeCredential,profileProgress())}
+  return pendingSaveDoc;
+}
+async function exportProfile(asDownload=false){
+  const doc=getReadySaveDoc();if(!doc){saveMessage('저장할 산행 기록을 찾지 못했습니다.',true);return}
+  try{
+    if(asDownload){downloadProfile(doc);saveMessage('기록 파일을 다운로드했습니다. 파일 앱의 다운로드 폴더를 확인해 주세요.');}
+    else await saveProfileToFiles(doc);
+  }catch(e){saveMessage('파일 저장 중 오류가 발생했습니다. 다운로드 방식을 이용해 주세요.',true);console.error(e)}
 }
 async function importProfileFile(file){
   if(!file)return;
@@ -3143,26 +3425,40 @@ async function importProfileFile(file){
   finally{$('loadSaveInput').value=''}
 }
 /* ================= START ================= */
-$('nick').value=localStorage.getItem('baekyaksan-last-nick')||save.nick||'';
+try{$('nick').value=localStorage.getItem('baekyaksan-last-nick')||save.nick||''}catch(e){$('nick').value=save.nick||''}
 const sw=$('swatches');JACKETS.forEach((c,i)=>{const b=document.createElement('button');b.className='sw'+(i===(save.color|0)?' on':'');b.style.background='#'+c.toString(16).padStart(6,'0');b.title='옷 색';b.onclick=e=>{e.stopPropagation();save.color=i;setSwatchSelection()};sw.appendChild(b)});
 $('profilePin').addEventListener('input',numericPin);
 $('profilePin').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();enterProfile()}});
 $('continueBtn').addEventListener('click',e=>{e.stopPropagation();enterProfile()});
 let saveConfirmTrigger=null;
-function openSaveConfirm(trigger){
+async function openSaveConfirm(trigger){
   if(!$('saveConfirm').classList.contains('hide'))return;
   saveConfirmTrigger=trigger;
+  try{pendingSaveDoc=await prepareProfileForExport()}catch(e){pendingSaveDoc=null;saveMessage('저장 기록 준비에 실패했습니다.',true);console.error(e)}
+  if(!pendingSaveDoc)return;
+  const inKakao=/KAKAOTALK|KakaoTalk/i.test(navigator.userAgent);
+  $('saveLocationTip').textContent=inKakao?
+    '카카오톡 내부 브라우저는 파일 저장이 차단될 수 있습니다. Safari 또는 Chrome에서 게임 주소를 직접 열어 저장하세요.':
+    'PC: 저장 폴더 선택 · 아이폰: 공유 메뉴에서 「파일에 저장」 · 갤럭시: 내 파일/다운로드에서 확인';
   $('saveConfirm').classList.remove('hide');
   $('saveConfirmYes').focus();
 }
 function closeSaveConfirm(){
   $('saveConfirm').classList.add('hide');
+  pendingSaveDoc=null;
   const trigger=saveConfirmTrigger;saveConfirmTrigger=null;
   if(trigger&&trigger.isConnected)trigger.focus();
 }
 $('saveConfirmYes').addEventListener('click',()=>{
+  // Start the OS picker/share sheet within this real user click; never await before it.
+  const task=exportProfile(false);
   closeSaveConfirm();
-  exportProfile();
+  void task;
+});
+$('saveConfirmDownload').addEventListener('click',()=>{
+  const task=exportProfile(true);
+  closeSaveConfirm();
+  void task;
 });
 $('saveConfirmNo').addEventListener('click',closeSaveConfirm);
 $('saveConfirm').addEventListener('click',e=>{if(e.target===$('saveConfirm'))closeSaveConfirm()});
@@ -3175,6 +3471,27 @@ $('saveFileBtn').addEventListener('click',e=>{e.stopPropagation();openSaveConfir
 $('loadFileBtn').addEventListener('click',e=>{e.stopPropagation();if(!cleanNick($('nick').value)||!/^[0-9]{4}$/.test(numericPin())){profileNotice('닉네임과 4자리 코드를 먼저 입력해 주세요.',true);return}$('loadSaveInput').click()});
 $('loadSaveInput').addEventListener('change',e=>importProfileFile(e.target.files[0]));
 $('hudSaveBtn').addEventListener('click',e=>{e.stopPropagation();openSaveConfirm(e.currentTarget)});
+function takeMemorialPhoto(){
+  if(mode!=='game')return;
+  try{
+    // WebGL has no DOM HUD; render directly and composite the CSS sky background.
+    const cameraNow=inTent?tentCam:camera,sceneNow=inTent?tentScene:scene;
+    renderer.render(sceneNow,cameraNow);
+    const source=renderer.domElement,photo=document.createElement('canvas');
+    photo.width=source.width;photo.height=source.height;
+    const ctx=photo.getContext('2d');if(!ctx)throw new Error('캔버스 만들기 실패');
+    const sky=skyAtHour(gameMin/60),gradient=ctx.createLinearGradient(0,0,0,photo.height);
+    gradient.addColorStop(0,sky.top);gradient.addColorStop(1,sky.bot);
+    ctx.fillStyle=inTent?'#050505':gradient;ctx.fillRect(0,0,photo.width,photo.height);
+    ctx.drawImage(source,0,0,photo.width,photo.height);
+    const image=photo.toDataURL('image/png'),a=document.createElement('a');
+    const now=new Date(),day=now.toISOString().slice(0,10);
+    a.download=`백약산_기념사진_${day}_${Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K))}m.png`;
+    a.href=image;document.body.appendChild(a);a.click();a.remove();
+    toast('📷 게임 화면만 촬영했습니다. 사진 저장을 확인해 주세요.');
+  }catch(e){console.warn('기념사진 저장 실패',e);toast('이 브라우저에서는 사진을 저장하지 못했습니다.');}
+}
+$('photoBtn').addEventListener('click',e=>{e.stopPropagation();takeMemorialPhoto()});
 $('tentExitBtn').addEventListener('click',closeTent);
 $('tentChest').addEventListener('click',openSellPanel);
 $('sellCloseBtn').addEventListener('click',closeSellPanel);
@@ -3187,28 +3504,67 @@ $('tentView').addEventListener('click',e=>{if(e.target===$('tentView')){if(!$('s
 addEventListener('keydown',e=>{if(e.code==='Escape'&&inTent){if(!$('sellPanel').classList.contains('hide'))closeSellPanel();else closeTent()}});
 addEventListener('pagehide',()=>{if(mode==='game')persist()});
 function beginGame(){
-  if(mode==='game')return;mode='game';ambInit();
-  scene.remove(me.root);const nm=makeHiker(JACKETS[save.color%JACKETS.length]);Object.assign(me,nm);scene.add(me.root);setGreens(me,totalCount());
-  $('intro').classList.add('hide');$('iosClouds').style.display='none';$('hud').classList.remove('hide');
-  if(IS_TOUCH){$('joy').classList.remove('hide');$('jumpBtn').classList.remove('hide')}
-  ensureTents(); updateChunks(P.x,P.z,true); updateTents();
+  if(mode==='game')return;
+  // Switch the UI first; optional geometry, network and audio cannot block entry.
+  mode='game';
+  $('intro').classList.add('hide');$('intro').style.opacity='';$('iosClouds').style.display='none';
+  $('hud').classList.remove('hide');$('fade').classList.remove('on');
+  const jacket=JACKETS[((save.color|0)%JACKETS.length+JACKETS.length)%JACKETS.length];
+  try{scene.remove(me.root);const nm=makeHiker(jacket);Object.assign(me,nm);scene.add(me.root);setGreens(me,totalCount());}
+  catch(err){console.warn('새 캐릭터 모델 생성을 건너뛰었습니다',err);if(!me.root.parent)scene.add(me.root)}
+  me.root.position.set(P.x,P.y,P.z);
   camera.position.set(P.x-Math.sin(camYaw)*7.7,P.y+3.2,P.z-Math.cos(camYaw)*7.7);
-  setTimeout(()=>$('fade').classList.remove('on'),120);
+  if(IS_TOUCH){$('joy').classList.remove('hide');$('jumpBtn').classList.remove('hide')}
   if(save.pos)toast(`지난번 오르던 해발 ${Math.round(P.y*ALT_K)}m에서 다시 걷는다`);
-  connectRoom();
+  // The update loop streams the nearby terrain incrementally. Heavy scenery
+  // stays outside of the login tap; an optional failure cannot undo entry.
+  setTimeout(()=>{
+    if(mode!=='game')return;
+    try{ensureTents()}catch(e){console.warn('텐트 생성 오류',e)}
+    try{ensureSummit()}catch(e){console.warn('정상 조형물 생성 오류',e)}
+    try{updateTents()}catch(e){console.warn('텐트 표시 오류',e)}
+  },MOBILE_SAFE?1400:450);
+  setTimeout(()=>{if(mode==='game')try{ambInit()}catch(e){console.warn('산속 효과음 건너뜀',e)}},100);
+  // MQTT loads async, so retry when its code arrives without blocking solo play.
+  for(const delay of [1500,4500,11000])setTimeout(()=>{
+    if(mode==='game'&&!mqttClient&&window.mqtt)try{connectRoom()}catch(e){console.warn('멀티플레이 연결 오류',e)}
+  },delay);
 }
 let last=performance.now();
 let lastDraw=0;
-function frame(now){requestAnimationFrame(frame);
+let mobileErrorCount=0,lastMobileError=0;
+function frame(now){
+  // If WebGL or a terrain module fails, the RAF loop survives and shows the reason.
+  requestAnimationFrame(frame);
   const covered=mapOpen||!$('bag').classList.contains('hide'),cap=covered?8:PERF.fps;
   if(now-lastDraw<1000/cap-2)return;lastDraw=now;
   const raw=(now-last)/1000,dt=Math.min(.05,raw);last=now;clock+=dt;
-  if(mode==='intro')drawIntro(Math.min(.25,raw));else{updateGame(dt);if(inTent){syncTentChestButton();updateTentSeats(dt)}renderer.render(inTent?tentScene:scene,inTent?tentCam:camera)}}
+  try{
+    if(mode==='intro')drawIntro(Math.min(.25,raw));
+    else{updateGame(dt);if(inTent){syncTentChestButton();updateTentSeats(dt)}renderer.render(inTent?tentScene:scene,inTent?tentCam:camera)}
+    mobileErrorCount=0;
+  }catch(e){
+    mobileErrorCount++;
+    if(now-lastMobileError>5000){lastMobileError=now;console.error('백약산 화면 오류',e);
+      if(mode==='intro'){
+        $('title').classList.add('on');$('subtitle').classList.add('on');$('startPanel').classList.add('on');
+        profileNotice('3D 화면 오류 · 입장 버튼은 사용할 수 있습니다. '+String(e.message||e).slice(0,70),true);
+      }else toast('화면 복구 중: '+String(e.message||e).slice(0,65));
+    }
+    if(mobileErrorCount===2){PERF.eco=true;try{applyPerf()}catch(err){console.warn(err)}}
+    // Try a lightweight render even if the optional game update was interrupted.
+    if(mode==='game')try{renderer.render(inTent?tentScene:scene,inTent?tentCam:camera)}catch(err){}
+  }
+}
 addEventListener('resize',onResize);addEventListener('resize',()=>{if(inTent)syncTentChestButton()});applyPerf();requestAnimationFrame(frame);
 $('ecoBtn').onclick=()=>{PERF.eco=!PERF.eco;applyPerf();chunkKey='';toast(PERF.eco?'절전 모드: 화질과 시야를 줄여 가볍게 돌립니다':'절전 모드 해제')};
 function jump(){if(mode==='game'&&!climbing&&!onRock&&!inTent&&Date.now()>=faintUntil&&!P.air&&me.mode!=='dig'){P.vy=5.2;P.air=true}}
 $('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();climbAct()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();console.warn('백약산 WebGL context lost');
+  if(mode==='game')toast('휴대폰 그래픽 메모리를 정리하고 있습니다. 복구되지 않으면 새로고침해 주세요.');
+},false);
+canvas.addEventListener('webglcontextrestored',()=>{try{applyPerf();chunkKey='';toast('그래픽 화면을 복구했습니다.')}catch(e){console.warn(e)}},false);
 document.addEventListener('visibilitychange',()=>{if(!AMB)return;if(document.hidden)AMB.a.suspend();else AMB.a.resume()});
 })();
 </script>
