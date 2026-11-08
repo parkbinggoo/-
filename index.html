@@ -421,9 +421,10 @@ Object.assign(MUSH,{
  ipsae:{name:'잎새버섯',w:.35,need:5,rar:4,hab:'참나무 고목의 뿌리 주변',desc:'나무 밑에서 여러 겹의 갈색 부채가 피어난다.'}
 });
 MUSH_KEYS.push('songi','neungi','norugung','kkotsongi','seogi','ipsae');
-const BAG_LEVELS=[10,20,30,40,50,60,70];
-// Six purchasable upgrades; each price is approximately 1.7x the preceding tier.
-const BAG_UPGRADE_COST={20:50000,30:85000,40:145000,50:246000,60:418000,70:711000};
+const BAG_LEVELS=[10,20,30,40,50,60,70,80,90,100,110];
+// Ten sequential upgrades, beginning at 50,000 won; each tier costs about 1.7x the previous one.
+const BAG_UPGRADE_COST={20:50000,30:85000,40:145000,50:246000,60:418000,70:711000,80:1209000,90:2055000,100:3494000,110:5940000};
+const BAG_MAX=BAG_LEVELS[BAG_LEVELS.length-1],BAG_STAGE_COUNT=BAG_LEVELS.length-1;
 function bagLimit(){return BAG_LEVELS.includes(save.bagCap)?save.bagCap:10}
 const MARKET_PRICE={
   sansam:95000,deodeok:2200,doraji:1400,dunggule:1200,gomchwi:1100,chamchwi:850,gosari:850,dallae:650,naengi:550,ssuk:400,
@@ -450,12 +451,25 @@ const RANKS=[
  {name:'심마니',discover:50,harvest:250,sansam:1},
  {name:'백초장인',discover:65,harvest:350,rar4:10},
  {name:'산신지기',discover:75,harvest:500,rar5:5},
- {name:'백약선인',discover:88,harvest:700,sansam:3}
+ {name:'백약산주',discover:88,harvest:700,sansam:3},
+ {name:'백약선인',allHeld:true,rareFiveHeld:true}
 ];
 function rankStats(){return save.stats||{totalCollected:0,careSuccess:0,sansamCollected:0,harvestedTypes:{}}}
 function uniqueRareAtLeast(stars){
  const entries=(rankStats().harvestedTypes||{});
  return Object.keys(entries).filter(k=>entries[k]&&itemInfo(k)&&itemInfo(k).rar>=stars).length;
+}
+// The final rank is based on actual simultaneous inventory, not discoveries or past sales.
+// Fruits are excluded: the requirement is all herbs, mountain greens, wild plants and mushrooms.
+function masterInventoryProgress(){
+ const keys=[...HERB_KEYS,...MUSH_KEYS];
+ const rare5=keys.filter(k=>itemInfo(k).rar===5);
+ const held=keys.filter(k=>(save.inv[k]||0)>=1);
+ const heldRare=rare5.filter(k=>(save.inv[k]||0)>=3);
+ return {keys,rare5,held,heldRare,
+   missing:keys.filter(k=>(save.inv[k]||0)<1),
+   missingRare:rare5.filter(k=>(save.inv[k]||0)<3),
+   minimumSlots:keys.length+rare5.length*2};
 }
 function rankGoals(level){
  const r=RANKS[level-1],st=rankStats(),goals=[];
@@ -466,6 +480,11 @@ function rankGoals(level){
  if(r.rar5)goals.push({label:'5성 희귀 품목 채집',now:uniqueRareAtLeast(5),required:r.rar5,unit:'종'});
  if(r.care)goals.push({label:'조심스러운 채집 성공',now:st.careSuccess||0,required:r.care,unit:'회'});
  if(r.sansam)goals.push({label:'산삼 채집',now:st.sansamCollected||0,required:r.sansam,unit:'회'});
+ if(r.allHeld||r.rareFiveHeld){
+  const inv=masterInventoryProgress();
+  if(r.allHeld)goals.push({label:'약초·나물·식물·버섯 종류별 1개 이상 보유',now:inv.held.length,required:inv.keys.length,unit:'종'});
+  if(r.rareFiveHeld)goals.push({label:'5성 재료 종류별 3개 이상 보유',now:inv.heldRare.length,required:inv.rare5.length,unit:'종'});
+ }
  return goals;
 }
 function earnedRank(){let rank=1;for(let l=2;l<=RANKS.length;l++){
@@ -479,15 +498,25 @@ function recordHerbHarvest(type,info,wasCarefulDig){
  if(!st.harvestedTypes)st.harvestedTypes={};st.harvestedTypes[type]=1;
  if(wasCarefulDig&&info&&info.care)st.careSuccess=(st.careSuccess||0)+1;
  if(type==='sansam')st.sansamCollected=(st.sansamCollected||0)+1;
- const next=earnedRank();if(next>playerRank){playerRank=next;toast('🌿 승급! '+rankLabel());tone(659,.3,'sine',.065);sendPresence(true)}
+ const next=earnedRank();if(next>playerRank){playerRank=next;save.highestRank=playerRank;toast('🌿 승급! '+rankLabel());tone(659,.3,'sine',.065);sendPresence(true)}
 }
 function renderRankGuide(){
  const progress=$('rankProgress'),guide=$('rankGuide');progress.replaceChildren();guide.replaceChildren();
  const current=document.createElement('strong');current.textContent=rankLabel();progress.appendChild(current);
  const desc=document.createElement('div');desc.textContent='도감 '+discoveredCount()+'종 · 누적 채집 '+(rankStats().totalCollected||0)+'개';progress.appendChild(desc);
- if(playerRank>=10){const done=document.createElement('div');done.textContent='백약산 최고 등급에 도달했습니다!';progress.appendChild(done)}
+ if(playerRank>=RANKS.length){const done=document.createElement('div');done.textContent='백약산 최고 등급에 도달했습니다!';progress.appendChild(done)}
  else{const next=document.createElement('div');next.style.marginTop='5px';next.textContent='다음 목표: Lv.'+(playerRank+1)+' '+RANKS[playerRank].name;progress.appendChild(next);
-  for(const g of rankGoals(playerRank+1)){const line=document.createElement('div');line.className='rankGoal '+(g.now>=g.required?'done':'pending');line.textContent=(g.now>=g.required?'✓ ':'○ ')+g.label+' '+g.now+'/'+g.required+g.unit;progress.appendChild(line)}}
+  for(const g of rankGoals(playerRank+1)){const line=document.createElement('div');line.className='rankGoal '+(g.now>=g.required?'done':'pending');line.textContent=(g.now>=g.required?'✓ ':'○ ')+g.label+' '+g.now+'/'+g.required+g.unit;progress.appendChild(line)}
+  if(playerRank+1===11){
+    const inv=masterInventoryProgress();
+    const details=document.createElement('div');details.className='rankGoal pending';
+    const needs=inv.missing.slice(0,6).map(k=>itemInfo(k).name);
+    const rareNeeds=inv.missingRare.map(k=>`${itemInfo(k).name} ${3-(save.inv[k]||0)}개`);
+    details.textContent=`최소 필요 가방 공간 ${inv.minimumSlots}칸 · 남은 미보유 품목 ${inv.missing.length}종`+
+     (needs.length?' · '+needs.join(', ')+(inv.missing.length>6?' 외':''):'')+
+     (rareNeeds.length?' · 5성 부족: '+rareNeeds.join(', '):'');
+    progress.appendChild(details);
+  }}
  for(let l=1;l<=RANKS.length;l++){
   const section=document.createElement('div');section.className='rankTier'+(l===playerRank?' current':'');
   const label=document.createElement('strong');label.textContent='Lv.'+l+' · '+RANKS[l-1].name;section.appendChild(label);
@@ -560,7 +589,7 @@ const legacySave=JSON.parse(JSON.stringify(save));
 let activeProfileKey='',activeCredential=null;
 function profileProgress(){
   const pos=(typeof P!=='undefined'&&mode==='game')?{x:+P.x.toFixed(2),z:+P.z.toFixed(2)}:save.pos;
-  return {inv:save.inv,known:save.known||{},won:+save.won||0,color:save.color|0,pos,faintUntil:Math.max(0,faintUntil||0),bagCap:bagLimit(),stats:save.stats||{}};
+  return {inv:save.inv,known:save.known||{},won:+save.won||0,color:save.color|0,pos,faintUntil:Math.max(0,faintUntil||0),bagCap:bagLimit(),stats:save.stats||{},highestRank:playerRank};
 }
 function profileDocument(cred,progress){return {app:PROFILE_APP,format:PROFILE_FORMAT,profile:{name:cred.nick,verifier:cred.verifier},progress,updatedAt:Date.now()}}
 function persist(){
@@ -826,8 +855,8 @@ function openTent(t){changeTent(true,t)}
 function closeTent(){changeTent(false,null)}
 function updateTentMoney(){$('tentCash').textContent='정산금 '+won(+save.won||0)}
 function refreshBagUpgrade(){
- const cap=bagLimit(),next=cap>=70?null:cap+10,cost=next?BAG_UPGRADE_COST[next]:0;
- const label=next?`가방 확장 ${Math.round((next-10)/10)}/6단계 · 현재 ${cap}칸 → ${next}칸\n구매 비용 ${won(cost)} · 보유 금액 ${won(+save.won||0)}`:`가방 확장 6/6단계 완료 · 현재 ${cap}칸 · 최대 용량입니다!`;
+ const cap=bagLimit(),next=cap>=BAG_MAX?null:cap+10,cost=next?BAG_UPGRADE_COST[next]:0;
+ const label=next?`가방 확장 ${Math.round((next-10)/10)}/${BAG_STAGE_COUNT}단계 · 현재 ${cap}칸 → ${next}칸\n구매 비용 ${won(cost)} · 보유 금액 ${won(+save.won||0)}`:`가방 확장 ${BAG_STAGE_COUNT}/${BAG_STAGE_COUNT}단계 완료 · 현재 ${cap}칸 · 최대 용량입니다!`;
  $('bagUpgradeInfo').textContent=label;$('bagUpgradeInfo').style.whiteSpace='pre-line';
  $('bagUpgradeBuy').classList.toggle('hide',!next);$('bagUpgradeBuy').disabled=!!next&&(+save.won||0)<cost;
  $('bagUpgradeBuy').textContent=next?`${next}개 확장 · ${won(cost)}`:'확장 완료';
@@ -836,7 +865,7 @@ function refreshBagUpgrade(){
 function openBagUpgrade(){if(!inTent)return;closeSellPanel();refreshBagUpgrade();$('bagUpgradePanel').classList.remove('hide')}
 function buyBagUpgrade(){
  if(!inTent)return;const cap=bagLimit(),next=cap+10;
- if(next>70){toast('가방은 이미 최대 70칸입니다');return}
+ if(next>BAG_MAX){toast(`가방은 이미 최대 ${BAG_MAX}칸입니다`);return}
  const price=BAG_UPGRADE_COST[next];if((+save.won||0)<price){toast('정산금이 부족합니다 · '+won(price)+' 필요');refreshBagUpgrade();return}
  save.won-=price;save.bagCap=next;persist();hudKey='';updateTentMoney();refreshBagUpgrade();
  toast(`🎒 가방 ${next}칸으로 확장! ${won(price)} 사용`);
@@ -2392,7 +2421,7 @@ $('bag').addEventListener('pointerdown',e=>{if(e.target.id==='bag')$('bag').clas
 function buildBag(){
   const host=$('bagBody');host.innerHTML='';
   const meta=document.createElement('div');meta.className='bagMeta';
-  meta.textContent=`가방 최대 ${bagLimit()}개 · 현재 ${totalCount()}/${bagLimit()}개 · 정산금 ${won(+save.won||0)} · 텐트에서 최대 70칸까지 6단계로 확장할 수 있습니다.`;
+  meta.textContent=`가방 최대 ${bagLimit()}개 · 현재 ${totalCount()}/${bagLimit()}개 · 정산금 ${won(+save.won||0)} · 텐트에서 최대 110칸까지 10단계로 확장할 수 있습니다.`;
   host.appendChild(meta);
   const groups=[['root','뿌리·덩이 약초 (땅속)'],['leaf','산나물'],['herb','약초'],['mush','산속 버섯'],['fruit','숲에서 떨어지는 열매']];
   for(const [cat,title] of groups){
@@ -2601,7 +2630,7 @@ function connectRoom(){
       if(!['hello','state'].includes(d.type))return;
       if(!Number.isFinite(d.joined)||Math.abs(Date.now()-d.joined)>86400000)return;
       const prev=peerSeen.get(d.id);
-      peerSeen.set(d.id,{seen:Date.now(),joined:d.joined,tent:d.type==='state'&&typeof d.tent==='string'&&/^tent-\d{1,2}$/.test(d.tent)?d.tent:(prev?.tent||''),name:cleanNick(d.n||prev?.name),rank:Number.isInteger(d.lv)?clamp(d.lv,1,10):(prev?.rank||1),color:Number.isInteger(d.c)?d.c:(prev?.color||0)});
+      peerSeen.set(d.id,{seen:Date.now(),joined:d.joined,tent:d.type==='state'&&typeof d.tent==='string'&&/^tent-\d{1,2}$/.test(d.tent)?d.tent:(prev?.tent||''),name:cleanNick(d.n||prev?.name),rank:Number.isInteger(d.lv)?clamp(d.lv,1,RANKS.length):(prev?.rank||1),color:Number.isInteger(d.c)?d.c:(prev?.color||0)});
       if(d.type==='hello'){if(netJoined){sendPresence(true);shareHarvestSnapshot()}return}
       if(!Number.isFinite(d.x)||!Number.isFinite(d.z)||!Number.isFinite(d.y)||Math.abs(d.x)>20000||Math.abs(d.z)>20000)return;
       if(!prev&&peerSeen.size>12)netCleanup();
@@ -2621,7 +2650,7 @@ function upOther(p){
     lampLens.position.set(0,1.77,.13);av.root.add(lampLens);
     o={av,el,headLamp,lampLens,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',nick:''};others.set(p.peer,o)}
   o.tx=+s.x;o.tz=+s.z;o.ty=Number.isFinite(+s.y)?+s.y:H(o.tx,o.tz);o.th=+s.h||0;
-  o.rank=Number.isInteger(s.lv)?clamp(s.lv,1,10):1;o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);o.tent=typeof s.tent==='string'&&/^tent-\d{1,2}$/.test(s.tent)?s.tent:'';o.color=Number.isInteger(s.c)?s.c:0;setGreens(o.av,+s.g|0);
+  o.rank=Number.isInteger(s.lv)?clamp(s.lv,1,RANKS.length):1;o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);o.tent=typeof s.tent==='string'&&/^tent-\d{1,2}$/.test(s.tent)?s.tent:'';o.color=Number.isInteger(s.c)?s.c:0;setGreens(o.av,+s.g|0);
   const md=s.a==='f'?'faint':s.a==='w'?'walk':s.a==='d'?'dig':s.a==='j'?'joy':'idle';if(md!==o.mode){o.mode=md;o.av.mode=md;o.av.t=0}
   o.el.textContent=rankLabel(o.rank)+'\n'+(o.mode==='faint'?'💤 ':'')+(o.nick||'산객');
 }
@@ -3579,13 +3608,14 @@ function normalizeRecord(raw){
     sansamCollected:statNumber(old?.sansamCollected,inv.sansam||0),
     harvestedTypes
   };
-  return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0,bagCap:safeCap,stats};
+  const highestRank=Number.isInteger(raw?.highestRank)?clamp(raw.highestRank,1,RANKS.length):1;
+  return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0,bagCap:safeCap,stats,highestRank};
 }
 function setSwatchSelection(){[...$('swatches').children].forEach((b,i)=>b.classList.toggle('on',i===(save.color|0)))}
 function applyRecord(cred,progress){
   const v=normalizeRecord(progress);
   save={inv:v.inv,known:v.known||{},won:+v.won||0,taken:{},nick:cred.nick,color:v.color,pos:v.pos,bagCap:v.bagCap,stats:v.stats};
-  playerRank=earnedRank();
+  playerRank=Math.max(earnedRank(),v.highestRank);save.highestRank=playerRank;
   P.x=v.pos?v.pos.x:pathX(24);P.z=v.pos?v.pos.z:24;P.y=H(P.x,P.z);
   P.h=Math.PI;P.speed=0;P.vy=0;P.air=false;camYaw=P.h;
   faintUntil=v.faintUntil;
