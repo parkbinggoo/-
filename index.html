@@ -379,7 +379,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 <div id="faintOverlay" class="hide"><div class="faintSymbol">✦</div><h2>잠시 정신을 잃었습니다</h2><p id="faintMessage">산짐승을 피해 쉬고 있습니다.</p><div id="faintCountdown"></div><small>현실 시간 3분 동안 움직일 수 없습니다.</small></div>
 <div id="joy" class="hide"><div id="knob"></div></div>
 <button id="jumpBtn" class="hide">점프</button>
-<div id="climbPanel" class="hide" role="status" aria-live="off"><strong id="climbTitle">큰 바위 오르기</strong><small id="climbInfo">초록색 구간에 맞춰 오르기를 누르세요. 실패하면 3분간 기절합니다.</small><div id="climbBeat"><div id="climbBeatSafe"></div><div id="climbNeedle"></div></div></div>
+<div id="climbPanel" class="hide" role="status" aria-live="off"><strong id="climbTitle">큰 바위 오르기</strong><small id="climbInfo">초록색 구간에 맞춰 오르기를 누르세요. 실패하면 2분간 기절합니다.</small><div id="climbBeat"><div id="climbBeatSafe"></div><div id="climbNeedle"></div></div></div>
 
 <div id="found">
   <div class="tag" id="fTag">채집 성공</div>
@@ -825,6 +825,11 @@ function tent3D(styleIdx=0){
 
 /* ---------------- Every tent has an independent, interactive campfire ---------------- */
 const CAMP_FIRE_MS=3*60*1000,CAMP_FUEL_N=10,CAMP_SAVE_KEY='baekyaksan-campfires-v1';
+// A deliberately unhurried cooking sequence; allow a few extra seconds of fire.
+const COOK_TIMES={take:3.4,place:5.8,ingredients:13.6,salt:17.6,wok:24.2,finish:26.2,fork:28.0,end:34.0};
+const COOK_FIRE_MIN_MS=39000;
+function cookStageAt(elapsed){return elapsed<COOK_TIMES.take?0:elapsed<COOK_TIMES.place?1:elapsed<COOK_TIMES.ingredients?2:elapsed<COOK_TIMES.salt?3:elapsed<COOK_TIMES.wok?4:elapsed<COOK_TIMES.finish?5:elapsed<COOK_TIMES.fork?6:7}
+
 const campStates=new Map();
 try{const rows=JSON.parse(localStorage.getItem(CAMP_SAVE_KEY)||'[]');if(Array.isArray(rows))for(const row of rows){
   if(!Array.isArray(row)||!/^tent-\d{1,2}$/.test(row[0]||''))continue;
@@ -854,13 +859,31 @@ function makeTentCampfire(t){
  const glow=new THREE.PointLight(0xff9d4c,0,10,2);glow.position.set(0,.62,0);g.add(glow);
  // The hit area is larger than the stone ring for reliable mobile tapping.
  const hit=add(new THREE.CylinderGeometry(1.1,1.1,1.22,12),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,colorWrite:false}),0,.55,0);
- const pan=new THREE.Group();g.add(pan);pan.position.y=.68;pan.visible=false;
- const bowl=new THREE.Mesh(new THREE.CylinderGeometry(.52,.44,.11,12),iron);pan.add(bowl);
- const food=new THREE.Group();food.position.y=.09;pan.add(food);
- const handle=new THREE.Mesh(new THREE.CylinderGeometry(.052,.052,.85,6),iron);handle.position.set(.84,.03,0);handle.rotation.z=Math.PI/2;pan.add(handle);
- const stand=add(new THREE.CylinderGeometry(.59,.59,.045,12),iron,0,.53,0);stand.visible=false;
+ // Real hollow, round-bottomed cast-iron frying pan, not a solid disk.
+ // The old circular slab beneath the pan is intentionally removed.
+ const pan=new THREE.Group();g.add(pan);pan.position.y=.86;pan.visible=false;
+ const panIron=M(0x343b3d,{side:THREE.DoubleSide}),rimIron=M(0x60686a),woodGrip=M(0x805337),steel=M(0xb7b6aa);
+ const profile=[[0,0],[.30,0],[.38,.035],[.49,.155],[.52,.182],[.49,.204],[.455,.166],[.36,.096],[.27,.079],[0,.079]];
+ const bowl=new THREE.Mesh(new THREE.LatheGeometry(profile.map(v=>new THREE.Vector2(v[0],v[1])),18),panIron);pan.add(bowl);
+ const rim=new THREE.Mesh(new THREE.TorusGeometry(.505,.018,5,22),rimIron);rim.rotation.x=Math.PI/2;rim.position.y=.185;pan.add(rim);
+ // Handle points along local +Z toward the cook; two little rivets hold it to the bowl.
+ const handle=new THREE.Mesh(new THREE.CylinderGeometry(.049,.055,.80,8),iron);handle.position.set(0,.155,.82);handle.rotation.x=Math.PI/2;pan.add(handle);
+ const grip=new THREE.Mesh(new THREE.CylinderGeometry(.066,.062,.43,8),woodGrip);grip.position.set(0,.155,1.065);grip.rotation.x=Math.PI/2;pan.add(grip);
+ for(const sx of [-1,1]){const rivet=new THREE.Mesh(new THREE.SphereGeometry(.024,6,5),steel);rivet.position.set(sx*.095,.19,.49);pan.add(rivet)}
+ const food=new THREE.Group();food.position.y=.087;pan.add(food);
+ // Separate handheld props: a tiny salt shaker and a four-pronged eating fork.
+ const salt=new THREE.Group();g.add(salt);salt.visible=false;
+ const saltBody=new THREE.Mesh(new THREE.CylinderGeometry(.087,.092,.22,8),M(0xdcc8aa));saltBody.position.y=.13;salt.add(saltBody);
+ const saltLid=new THREE.Mesh(new THREE.CylinderGeometry(.093,.093,.065,8),steel);saltLid.position.y=.275;salt.add(saltLid);
+ for(let i=0;i<5;i++){const a=i*2*Math.PI/5;const hole=new THREE.Mesh(new THREE.SphereGeometry(.008,4,3),M(0x45484a));hole.position.set(Math.cos(a)*.044,.311,Math.sin(a)*.044);salt.add(hole)}
+ const saltDust=new THREE.Group();g.add(saltDust);saltDust.visible=false;
+ for(let i=0;i<7;i++){const grain=new THREE.Mesh(new THREE.IcosahedronGeometry(.010+i%2*.004,0),M(0xf1efdc));saltDust.add(grain)}
+ const fork=new THREE.Group();g.add(fork);fork.visible=false;
+ const forkShaft=new THREE.Mesh(new THREE.CylinderGeometry(.014,.019,.39,6),steel);forkShaft.position.y=.195;fork.add(forkShaft);
+ const forkNeck=new THREE.Mesh(new THREE.BoxGeometry(.10,.055,.025),steel);forkNeck.position.y=.405;fork.add(forkNeck);
+ for(let i=0;i<4;i++){const tine=new THREE.Mesh(new THREE.CylinderGeometry(.006,.008,.12,5),steel);tine.position.set((i-1.5)*.026,.49,0);fork.add(tine)}
  scene.add(g);g.visible=false;
- const camp={tent:t,group:g,hit,flames,glow,pan,food,handle,stand,x,z,y:g.position.y};g.userData.campfire=t;hit.userData.campfire=t;
+ const camp={tent:t,group:g,hit,flames,glow,pan,food,handle,salt,saltDust,fork,x,z,y:g.position.y};g.userData.campfire=t;hit.userData.campfire=t;
  return camp;
 }
 let selectedCamp=null,cooking=null;
@@ -875,7 +898,7 @@ function refreshCampPanel(){if(!selectedCamp)return;const c=campState(selectedCa
  `🪵 불 피울 준비 ${c.fuel}/${CAMP_FUEL_N}개 · 가방의 나뭇가지 ${avail}개\n빈 나무를 두드려 나뭇가지를 모아 보세요.`;
  $('campFuelBtn').classList.toggle('hide',lit);$('campFuelBtn').disabled=lit||!avail;
  $('campFuelBtn').textContent=`나뭇가지 넣기 (${c.fuel}/10)`;
- $('campCookBtn').classList.toggle('hide',!lit);$('campCookBtn').disabled=!lit||materials.length<3||c.fireUntil-Date.now()<14000||!!cooking;
+ $('campCookBtn').classList.toggle('hide',!lit);$('campCookBtn').disabled=!lit||materials.length<3||c.fireUntil-Date.now()<COOK_FIRE_MIN_MS||!!cooking;
  if(lit&&materials.length<3)$('campDetail').textContent+='\n※ 종류가 다른 4~5성 재료 3종 이상 필요';
 }
 function addCampFuel(){if(!selectedCamp||cooking)return;const t=selectedCamp,c=campState(t),now=Date.now();if(c.fireUntil>now)return;
@@ -889,51 +912,99 @@ function addCampFuel(){if(!selectedCamp||cooking)return;const t=selectedCamp,c=c
 }
 function cookPosition(c){const dx=c.x-c.tent.x,dz=c.z-c.tent.z,d=Math.hypot(dx,dz)||1;return {x:c.x+dx/d*1.55,z:c.z+dz/d*1.55}}
 function requestCampCook(){if(!selectedCamp||cooking)return;const t=selectedCamp,c=campState(t);
- if(c.fireUntil-Date.now()<14000){toast('불이 곧 꺼집니다. 다시 불을 피워주세요');refreshCampPanel();return}
+ if(c.fireUntil-Date.now()<COOK_FIRE_MIN_MS){toast('요리를 완성하기 전에 불이 꺼집니다. 다시 불을 피워주세요');refreshCampPanel();return}
  if(cookIngredientKeys().length<3){toast('요리에는 서로 다른 4~5성 채집물 3종 이상이 필요합니다');return}
  closeCampPanel();const spot=cookPosition(t.camp);
  if(Math.hypot(P.x-spot.x,P.z-spot.z)<.55)beginCampCook(t);
  else{target={...spot,stop:.5};pending={kind:'cook',tent:t};toast('🍳 모닥불 앞으로 이동해 요리를 시작합니다')}
 }
 function beginCampCook(t){if(cooking||inTent||Date.now()<faintUntil)return;
- const state=campState(t);if(state.fireUntil-Date.now()<12000){toast('모닥불이 꺼져 요리할 수 없습니다');return}
+ const state=campState(t);if(state.fireUntil-Date.now()<COOK_FIRE_MIN_MS){toast('요리할 시간이 부족합니다. 다시 불을 피워주세요');return}
  const available=cookIngredientKeys();if(available.length<3){toast('4~5성 재료가 3종 이상 필요합니다');return}
  // Fisher–Yates shuffle; consume one unit of 3 or 4 DISTINCT resources.
  for(let i=available.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]]}
  const chosen=available.slice(0,available.length>=4&&Math.random()<.5?4:3);
  for(const key of chosen){save.inv[key]--;if(save.inv[key]===0)delete save.inv[key]}
- cooking={tent:t,started:clock,ingredients:chosen,visibleFood:0};
+ cooking={tent:t,started:clock,ingredients:chosen,visibleFood:0,lastStage:-1};
  target=null;pending=null;joy.x=joy.y=0;me.mode='cook';me.t=0;me.cookTime=0;
  P.h=Math.atan2(t.camp.x-P.x,t.camp.z-P.z);
  persist();hudKey='';setGreens(me,totalCount());
  toast(`🍳 요리 시작 · ${chosen.map(k=>itemInfo(k).name).join(' + ')}`);
  sendPresence(true);
 }
+function clearCampCookingProps(c){
+ c.pan.visible=false;c.pan.rotation.set(0,0,0);c.food.clear();c.food.scale.setScalar(1);
+ c.salt.visible=false;c.saltDust.visible=false;c.fork.visible=false;
+}
 function finishCampCook(){if(!cooking)return;
- const camp=cooking.tent.camp;camp.pan.visible=false;camp.food.clear();camp.stand.visible=false;
- cooking=null;me.mode='idle';me.t=0;me.cookTime=0;
+ const camp=cooking.tent.camp;clearCampCookingProps(camp);
+ cooking=null;me.mode='idle';me.t=0;me.cookTime=0;me.cookStage=0;
  save.mealBuffUntil=Date.now()+GAME_DAY_MS;persist();hudKey='';
  hearts(new THREE.Vector3(P.x,P.y+1.85,P.z));chime(4);
  toast('🍲 산속의 한 끼! 게임 시간 하루 동안 이동 +32%, 점프 +38%');
  sendPresence(true);
 }
-function tickCampCooking(dt){if(!cooking)return;const c=cooking.tent.camp,elapsed=clock-cooking.started;
- const stage=elapsed<2.1?0:elapsed<5.9?1:elapsed<8.5?2:3;
+function tickCampCooking(dt){if(!cooking)return;
+ const c=cooking.tent.camp,elapsed=clock-cooking.started,stage=cookStageAt(elapsed);
  me.cookTime=elapsed;me.cookStage=stage;me.mode='cook';
- const want=Math.atan2(c.x-P.x,c.z-P.z);P.h=want;
- c.pan.visible=elapsed>1.2&&elapsed<9.4;c.stand.visible=c.pan.visible;
- c.pan.rotation.z=stage===2?Math.sin(elapsed*9)*.11:0;
- const wanted=stage===0?0:stage===1?Math.min(cooking.ingredients.length,Math.floor((elapsed-2.1)/.7)+1):cooking.ingredients.length;
- while(cooking.visibleFood<wanted){const i=cooking.visibleFood++,cols=[0x679146,0xb0793d,0xd19d54,0x864b3a],a=i*2.4;
-  const f=new THREE.Mesh(new THREE.IcosahedronGeometry(.13,0),M(cols[i%cols.length]));f.position.set(Math.sin(a)*.22,.02+((i%2)*.06),Math.cos(a)*.22);c.food.add(f)}
- if(elapsed>=11.1)finishCampCook();
+ P.h=Math.atan2(c.x-P.x,c.z-P.z);
+ const dx=P.x-c.x,dz=P.z-c.z,dist=Math.hypot(dx,dz)||1;
+ const ux=dx/dist,uz=dz/dist,rx=uz,rz=-ux,py=P.y-c.group.position.y;
+ const smooth=u=>{u=clamp(u,0,1);return u*u*(3-2*u)};
+ if(cooking.lastStage!==stage){
+   cooking.lastStage=stage;
+   const text=['후라이팬을 꺼낸다…','🔥 후라이팬을 불 위에 얹는다.','🥬 산에서 캔 재료를 하나씩 넣는다.','🧂 소금을 톡톡 뿌린다.','🍳 후라이팬을 흔들며 볶는다!','따끈한 산속 요리 완성!','🍴 포크를 꺼낸다.','😋 맛있게 한 입씩 먹는다.'];
+   if(stage>0)toast(text[stage]);
+ }
+ // Start with the pan in the hands, place it over the open flame,
+ // then lift and toss it while retaining the distinctive upward bowl shape.
+ c.pan.visible=elapsed>=.55;
+ const taking=smooth((elapsed-.55)/(COOK_TIMES.take-.55));
+ const placing=smooth((elapsed-COOK_TIMES.take)/(COOK_TIMES.place-COOK_TIMES.take));
+ const radius=stage===0?1.10-.29*taking:stage===1?.81*(1-placing):0;
+ const panY=stage===0?py+1.12-.12*taking:stage===1?(py+1.0)*(1-placing)+.86*placing:.86;
+ const toss=stage===4?Math.abs(Math.sin((elapsed-COOK_TIMES.salt)*5.4)):0;
+ c.pan.position.set(ux*radius,panY+toss*.13,uz*radius);
+ c.pan.rotation.set(stage===4?Math.sin((elapsed-COOK_TIMES.salt)*5.4)*.15:0,Math.atan2(ux,uz),stage===4?Math.sin((elapsed-COOK_TIMES.salt)*5.4)*.10:0);
+ const wanted=elapsed<COOK_TIMES.place?0:
+    Math.min(cooking.ingredients.length,Math.max(0,Math.floor((elapsed-COOK_TIMES.place)/((COOK_TIMES.ingredients-COOK_TIMES.place-.85)/cooking.ingredients.length))+1));
+ while(cooking.visibleFood<wanted){
+  const i=cooking.visibleFood++,cols=[0x679146,0xb0793d,0xd19d54,0x864b3a],a=i*2.4;
+  const chunk=new THREE.Mesh(new THREE.IcosahedronGeometry(.105+i%2*.024,0),M(cols[i%cols.length]));
+  chunk.position.set(Math.sin(a)*.21,.015+(i%2)*.027,Math.cos(a)*.21);c.food.add(chunk);
+  const leaf=new THREE.Mesh(new THREE.ConeGeometry(.063,.14,4),M(i%2?0x648943:0x88a450));
+  leaf.rotation.x=Math.PI*.46;leaf.position.set(Math.sin(a)*.21+.028,.055,Math.cos(a)*.21-.03);c.food.add(leaf);
+ }
+ c.food.position.y=.087+(stage===4?toss*.10:0);
+ // Real handheld salt pot and a small visible sprinkle of grains.
+ c.salt.visible=stage===3;
+ c.saltDust.visible=stage===3;
+ if(stage===3){
+   const shake=elapsed-COOK_TIMES.ingredients;
+   c.salt.position.set(ux*.57+rx*.18,py+.99+Math.sin(shake*16)*.085,uz*.57+rz*.18);
+   c.salt.rotation.set(-.65+.12*Math.sin(shake*16),Math.atan2(ux,uz),-.18);
+   c.saltDust.children.forEach((grain,i)=>{
+     const phase=(shake*2.5+i*.43)%1;
+     grain.position.set(ux*(.53-.39*phase)+rx*(.13+(i-3)*.025),py+.94-.12*phase,uz*(.53-.39*phase)+rz*(.13+(i-3)*.025));
+   });
+ }
+ // Fork is drawn from the pocket, then repeatedly raised to the mouth.
+ c.fork.visible=stage>=6;
+ if(stage>=6){
+   const mouth=stage===7?(.5-.5*Math.cos((elapsed-COOK_TIMES.fork)*Math.PI*1.75)):0;
+   const lift=stage===6?smooth((elapsed-COOK_TIMES.finish)/(COOK_TIMES.fork-COOK_TIMES.finish))*.30:mouth*.45;
+   c.fork.position.set(ux*(1.07+lift*.37)+rx*.19,py+.78+lift,uz*(1.07+lift*.37)+rz*.19);
+   c.fork.rotation.set(-.25-lift*.38,Math.atan2(ux,uz),.18);
+   if(stage===7)c.food.scale.setScalar(Math.max(.55,1-(elapsed-COOK_TIMES.fork)*.055));
+ }
+ if(elapsed>=COOK_TIMES.end)finishCampCook();
 }
 function updateCampfires(dt){const now=Date.now();for(const t of tents){if(!t.camp)continue;const c=t.camp,s=campState(t),d=Math.hypot(P.x-c.x,P.z-c.z);
   c.group.visible=mode==='game'&&!inTent&&d<155;
   const burning=now<s.fireUntil;c.flames.visible=burning;
   c.glow.intensity=burning&&d<50?.45+.14*Math.sin(clock*11)**2:0;
   if(burning){c.flames.scale.setScalar(.9+.12*Math.sin(clock*8));c.flames.rotation.y+=dt*.35}
-  if(!cooking||cooking.tent!==t){c.pan.visible=false;c.stand.visible=false}
+  if(!cooking||cooking.tent!==t){c.pan.visible=false;c.salt.visible=false;c.saltDust.visible=false;c.fork.visible=false}
  }
  if(selectedCamp){const t=selectedCamp;
   if(inTent||Math.hypot(P.x-t.camp.x,P.z-t.camp.z)>6||Date.now()<faintUntil)closeCampPanel();
@@ -1567,24 +1638,39 @@ function makeHiker(jacket){
   const handle=mk(new THREE.CylinderGeometry(.022,.026,.3,8),wood,hoe,0,0,.1);handle.rotation.x=Math.PI/2;
   mk(new THREE.CylinderGeometry(.01,.01,.09,5),T(0x5a5a5a),hoe,0,-.02,.27).rotation.x=.5;
   const blade=mk(new THREE.ConeGeometry(.075,.15,3),T(0x9aa0a6),hoe,0,-.08,.3);blade.rotation.x=Math.PI;blade.scale.z=.3;
-  return {root,body,legL,legR,torso,head,armL,armR,greens,mouth,phase:0,mode:'idle',t:0,nGreens:-1};
+  return {root,body,legL,legR,torso,head,armL,armR,stick,hoe,greens,mouth,phase:0,mode:'idle',t:0,nGreens:-1};
 }
 function setGreens(h,n){n=Math.min(6,n);if(h.nGreens===n)return;h.nGreens=n;while(h.greens.children.length)h.greens.remove(h.greens.children[0]);
   for(let i=0;i<n;i++){leafM(h.greens,0,0,(i-2.5)*.025,.2,.05,i*.5,1.3,M(i%2?0x5a8a3a:0x6fa046))}}
 const DIG_T=.55;
 function poseHiker(h,dt,speed){
   h.t+=dt;let lL=0,lR=0,aL=.08,aR=.08,aLz=.12,aRz=-.12,by=0,lean=0,hd=0;
+  // The walking stick and hoe do not overlap the temporary cooking utensils.
+  if(h.stick)h.stick.visible=h.mode!=='cook';if(h.hoe)h.hoe.visible=h.mode!=='cook';
   if(h.mode==='walk'){h.phase+=dt*(2.6+speed*1.6);const s=Math.sin(h.phase);lL=s*.6;lR=-s*.6;aL=-s*.45;aR=s*.45;by=Math.abs(Math.cos(h.phase))*.035;lean=.1;h.torso.rotation.z=Math.sin(h.phase)*.03}
   else if(h.mode==='dig'){const k=h.t/DIG_T;aR=k<.5?lerp(.1,-2.7,ease(k/.5)):k<.7?lerp(-2.7,-.55,(k-.5)/.2):-.55;aL=k<.5?lerp(0,-1.2,k*2):-.4;lean=k>.5?.45:.1;lL=.3;lR=-.2;hd=.2}
   else if(h.mode==='joy'){const k=h.t;by=Math.abs(Math.sin(k*7))*.42*Math.max(0,1-k/2.2);aL=-2.85+Math.sin(k*16)*.15;aR=-2.85-Math.sin(k*16)*.15;aLz=-.45;aRz=.45;lL=-.5*Math.abs(Math.sin(k*7));lR=lL;lean=-.12;hd=-.25}
   else if(h.mode==='climb'){const st=(climbing?.steps||0),w=Math.sin(clock*5+st*1.6);lL=-.55+w*.4;lR=-.55-w*.4;aL=-2.35-w*.4;aR=-2.35+w*.4;lean=.38;by=.06;}
   else if(h.mode==='cook'){
-    const k=h.cookTime||h.t||0,stage=h.cookStage??(k<2.1?0:k<5.9?1:k<8.5?2:3);
-    lL=.06;lR=-.06;lean=stage===3?.16:.25;
-    if(stage===0){aL=-1.2-Math.sin(k*4)*.2;aR=-1.7-Math.sin(k*4)*.25}
-    else if(stage===1){aL=-.7;aR=-1.5-Math.abs(Math.sin(k*6))*.55;aRz=-.3}
-    else if(stage===2){aL=-.7;aR=-1.8+Math.sin(k*10)*.28;aRz=-.3}
-    else{aL=-.5;aR=-2.15+Math.sin(k*9)*.3;hd=-.18;lean=.08}
+    const k=h.cookTime||h.t||0,stage=h.cookStage??cookStageAt(k);
+    lL=.08;lR=-.08;lean=.13;
+    if(stage===0){ // reach into the pack and take out the pan
+      aL=-.68-Math.sin(k*1.2)*.45;aR=-1.1-Math.sin(k*1.4)*.25;aLz=.38;hd=-.12;
+    }else if(stage===1){ // two hands set the pan onto the fire
+      aL=-1.85;aR=-1.8;aLz=.1;aRz=-.1;lean=.35;hd=.20;
+    }else if(stage===2){ // steady the handle; add ingredients by hand
+      aL=-1.5;aR=-1.35-Math.abs(Math.sin(k*2.5))*.88;aRz=-.23;lean=.30;hd=.16;
+    }else if(stage===3){ // salt shaker rhythmic taps
+      aL=-1.45;aR=-1.9+Math.sin(k*16)*.24;aRz=-.38;lean=.2;hd=.12;
+    }else if(stage===4){ // recognizable repeated wok tossing
+      aL=-1.7+Math.sin(k*5.4)*.35;aR=-1.45+Math.sin(k*5.4+.5)*.28;
+      aLz=.15;aRz=-.2;lean=.17+Math.sin(k*5.4)*.10;hd=.15;
+    }else if(stage===5){aL=-1.1;aR=-1.0;lean=.10;hd=.15}
+    else if(stage===6){aL=-.32;aR=-.8-Math.sin(k*2)*.35;hd=-.10}
+    else{ // lift fork to mouth for repeated bites
+      const bite=.5-.5*Math.cos((k-COOK_TIMES.fork)*Math.PI*1.75);
+      aL=-.30;aR=-1.18-bite*.95;aRz=-.24;hd=-.10-bite*.08;lean=.05;
+    }
   }
   else if(h.mode==='sit'){lL=-1.28;lR=-1.28;aL=-.36;aR=-.36;aLz=.10;aRz=-.10;by=-.36;lean=.08;hd=-.06}
   else if(h.mode==='faint'){lL=.13;lR=-.18;aL=-.25;aR=-.35;aLz=.9;aRz=-.9;lean=0;hd=-.12;by=0}
@@ -3997,12 +4083,12 @@ function refreshAnimals(){clearExpiredBoarZones();const near=new Set();const cx=
 const FAINT_MS=3*60*1000;
 let faintUntil=0,faintReason='';
 try{faintUntil=Math.min(+(localStorage.getItem('baek_faint_until')||0),Date.now()+FAINT_MS)}catch(e){faintUntil=0}
-function faintAnimal(spec){if(Date.now()<faintUntil)return;if(cooking){const c=cooking.tent.camp;c.pan.visible=false;c.stand.visible=false;c.food.clear();cooking=null;}closeCampPanel();climbing=null;onRock=null;$('climbPanel').classList.add('hide');const faintDuration=spec.durationMs||FAINT_MS;faintUntil=Date.now()+faintDuration;faintReason=spec.name;
+function faintAnimal(spec){if(Date.now()<faintUntil)return;if(cooking){clearCampCookingProps(cooking.tent.camp);cooking=null;}closeCampPanel();climbing=null;onRock=null;$('climbPanel').classList.add('hide');const faintDuration=spec.durationMs||FAINT_MS;faintUntil=Date.now()+faintDuration;faintReason=spec.name;
  try{localStorage.setItem('baek_faint_until',String(faintUntil))}catch(e){}persist();
  target=null;pending=null;joy.x=0;joy.y=0;me.mode='faint';me.t=0;$('faintOverlay').classList.remove('hide');
  faintSoundVolume(faintDuration);
  sendPresence(true);sendAccidentRadio(!!spec.fall,!!spec.bees);
- $('faintOverlay').querySelector('small').textContent=spec.bees?'현실 시간 1분 동안 움직일 수 없습니다.':'현실 시간 3분 동안 움직일 수 없습니다.';
+ $('faintOverlay').querySelector('small').textContent=spec.bees?'현실 시간 1분 동안 움직일 수 없습니다.':spec.fall?'현실 시간 2분 동안 움직일 수 없습니다.':'현실 시간 3분 동안 움직일 수 없습니다.';
  $('faintMessage').textContent=spec.bees?'벌집을 건드려 벌에 쏘였습니다. 잠시 쉬어야 합니다.':spec.fall?'바위에서 미끄러져 추락했습니다. 잠시 회복해야 합니다.':`${spec.name}의 공격을 받고 쓰러졌습니다. 잠시 회복해야 합니다.`;
 }
 function updFaint(){const left=faintUntil-Date.now();const overlay=$('faintOverlay');
@@ -4010,10 +4096,10 @@ function updFaint(){const left=faintUntil-Date.now();const overlay=$('faintOverl
  if(left<=0){overlay.classList.add('hide');if(faintUntil){
     faintUntil=0;
     try{localStorage.removeItem('baek_faint_until')}catch(e){}
-    const bees=faintReason==='벌 떼';
-    if(!bees)disperseBoars(P.x,P.z,Date.now()+BOAR_WAKE_CLEAR_MS,true);
+    const bees=faintReason==='벌 떼',rockFall=faintReason==='바위 추락';
+    if(!bees&&!rockFall)disperseBoars(P.x,P.z,Date.now()+BOAR_WAKE_CLEAR_MS,true);
     persist();me.mode='idle';sendPresence(true);
-    toast(bees?'벌에 쏘인 뒤 정신을 차렸다.':'정신을 차렸다. 주변의 멧돼지는 숲속으로 달아났다.');
+    toast(bees?'벌에 쏘인 뒤 정신을 차렸다.':rockFall?'바위에서 추락한 뒤 정신을 차렸다.':'정신을 차렸다. 주변의 멧돼지는 숲속으로 달아났다.');
     faintReason='';
   }return false}
  overlay.classList.remove('hide');const secs=Math.ceil(left/1000);$('faintCountdown').textContent=`${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;return true}
@@ -4248,7 +4334,7 @@ function climbFail(){
  P.x=rock.x+c.dirX*(rock.r+1.8);P.z=rock.z+c.dirZ*(rock.r+1.8);
  P.y=H(P.x,P.z);P.air=false;P.vy=0;P.speed=0;
  $('climbPanel').classList.add('hide');
- faintAnimal({name:'바위 추락',fall:true});
+ faintAnimal({name:'바위 추락',fall:true,durationMs:2*60*1000});
 }
 function climbAct(){
  if(Date.now()<faintUntil||inTent||cooking)return;
