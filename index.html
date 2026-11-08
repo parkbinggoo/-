@@ -631,8 +631,6 @@ const sparkTex=canvasTex(64,64,(g)=>{const r=g.createRadialGradient(32,32,0,32,3
 const zigTex=canvasTex(256,32,(g)=>{g.fillStyle='#2e3033';g.fillRect(0,0,256,32);g.strokeStyle='#8fc63a';g.lineWidth=3;g.beginPath();for(let x=0;x<=256;x+=16)g.lineTo(x,x%32?8:24);g.stroke()});
 const heartTex=canvasTex(64,64,(g)=>{g.fillStyle='#e2665a';g.font='52px serif';g.textAlign='center';g.textBaseline='middle';g.fillText('♥',32,36)});
 const weaveTex=canvasTex(64,64,(g)=>{g.fillStyle='#b48a4e';g.fillRect(0,0,64,64);g.strokeStyle='#7d5a2c';g.lineWidth=2;for(let y=0;y<64;y+=8){g.beginPath();g.moveTo(0,y);g.lineTo(64,y+3);g.stroke()}for(let x=0;x<64;x+=10){g.strokeStyle='rgba(90,60,30,.5)';g.beginPath();g.moveTo(x,0);g.lineTo(x,64);g.stroke()}});
-const cloudSeaTex=canvasTex(512,512,(g)=>{g.clearRect(0,0,512,512);const r=rngOf(9);for(let i=0;i<260;i++){const x=r()*512,y=r()*512,s=20+r()*70;for(const [ox,oy] of [[0,0],[512,0],[-512,0],[0,512],[0,-512]]){const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,s);gr.addColorStop(0,`rgba(255,255,255,${.35+r()*.3})`);gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(x+ox-s,y+oy-s,s*2,s*2)}}});
-cloudSeaTex.wrapS=cloudSeaTex.wrapT=THREE.RepeatWrapping;cloudSeaTex.repeat.set(5,5);
 function textTex(txt,w=256,h=96,bg='#d9c49a',fg='#3a2a1a',font='bold 44px "Nanum Myeongjo",serif'){return canvasTex(w,h,(g)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);g.strokeStyle='#6b4a2a';g.lineWidth=6;g.strokeRect(3,3,w-6,h-6);g.fillStyle=fg;g.font=font;g.textAlign='center';g.textBaseline='middle';g.fillText(txt,w/2,h/2+2)})}
 function tent3D(styleIdx=0){
   const g=new THREE.Group();
@@ -1030,9 +1028,9 @@ const farMts=[];
 {const r=rngOf(55);for(let i=0;i<26;i++){const a=i/26*Math.PI*2+(r()-.5)*.15,dist=900+r()*500,h=160+r()*300;
   const m=makeMountain(h*1.3,h,100+i,[0x8fa6a2,0x7d958f,0x9db2ae][i%3],0xeef0ea,{fog:false,snowLine:.8});m.userData={a,dist,y0:-60-r()*40};farGroup.add(m);farMts.push(m)}}
 const summit=makeMountain(900,1700,999,0x3a544e,0xf8f8f4,{seg:20,hs:14,fog:false,snowLine:.7});scene.add(summit);
-const cloudSea=[0,1].map(i=>{const tex=IOS_CLOUD_SAFE?null:(i?cloudSeaTex.clone():cloudSeaTex);const m=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshBasicMaterial({map:tex,color:0xffffff,transparent:true,opacity:IOS_CLOUD_SAFE?(i?.13:.30):(i?.7:.95),depthWrite:false,fog:false}));
-  if(i&&m.material.map){m.material.map.wrapS=m.material.map.wrapT=THREE.RepeatWrapping;m.material.map.repeat.set(3,3);m.material.map.needsUpdate=true}
-  m.rotation.x=-Math.PI/2;m.position.y=CLOUD_Y+i*10;m.renderOrder=2;scene.add(m);return m});
+// Atmospheric fog/sprites already provide the cloud layer. The old 3000m
+// horizontal cloudSea planes looked like solid ground at elevation 600m and
+// players could walk straight through them. No flat cloud surfaces are used.
 const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);sp.visible=!IOS_CLOUD_SAFE;skyPuffs.push(sp)}}
 const stars=(()=>{const n=600,p=new Float32Array(n*3),r=rngOf(4);for(let i=0;i<n;i++){const u=r()*2-1,a=r()*Math.PI*2,s=Math.sqrt(1-u*u);p[i*3]=Math.cos(a)*s*1500;p[i*3+1]=Math.abs(u)*1500+100;p[i*3+2]=Math.sin(a)*s*1500}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xfffff0,size:2.2,sizeAttenuation:false,transparent:true,opacity:0,fog:false,depthWrite:false}));scene.add(m);return m})();
@@ -1903,48 +1901,10 @@ const chunks=new Map();
 const terrainMat=new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:0,specular:0x000000});
 const barkPine=M(0x8a5236),barkOak=M(0x6e5a48),foliage=new THREE.MeshPhongMaterial({color:0xffffff,flatShading:true,shininess:0,specular:0x000000});
 const cGrass=new THREE.Color(0x4a6b34),cGrass2=new THREE.Color(0x5d7f3c),cPath=new THREE.Color(0xa8906a),cLitter=new THREE.Color(0x6e5a38),cRock=new THREE.Color(0x8b8778),cSnow=new THREE.Color(0xf2f3ee),cMoss=new THREE.Color(0x35532c),tmp=new THREE.Color();
-// Permanent trail foundation, independent of disposable/chunk scenery.
-// It ensures that the entire climb to 2500m ALWAYS has a real ground mesh,
-// even when the phone is busy generating its detailed trees and herbs.
-const trailFloorTiles=new Map(),TRAIL_FLOOR_SEGMENT=144,TRAIL_FLOOR_STEP=6;
-const TRAIL_FLOOR_COUNT=Math.ceil((48-SUMMIT_Z)/TRAIL_FLOOR_SEGMENT);
-const TRAIL_FLOOR_OFFSETS=[-60,-45,-30,-15,0,15,30,45,60];
-function makeTrailFloorTile(index){
-  if(index<0||index>=TRAIL_FLOOR_COUNT||trailFloorTiles.has(index))return;
-  const z0=SUMMIT_Z+index*TRAIL_FLOOR_SEGMENT,steps=TRAIL_FLOOR_SEGMENT/TRAIL_FLOOR_STEP;
-  const across=TRAIL_FLOOR_OFFSETS.length,vertices=[],colors=[],indices=[];
-  const color=new THREE.Color();
-  for(let j=0;j<=steps;j++){
-    const z=z0+j*TRAIL_FLOOR_STEP,px=pathX(z);
-    for(let i=0;i<across;i++){
-      const x=px+TRAIL_FLOOR_OFFSETS[i],y=H(x,z),alt=y*ALT_K;
-      vertices.push(x,y-.16,z); // real chunks sit above this safety terrain
-      color.copy(cGrass).lerp(cGrass2,clamp((vn(x*.06,z*.06)+1)*.5,0,1)*.56);
-      if(alt>950)color.lerp(cRock,clamp((alt-950)/1200,0,.78));
-      if(alt>1550)color.lerp(cSnow,clamp((alt-1550)/850,0,.94));
-      if(Math.abs(TRAIL_FLOOR_OFFSETS[i])<9)color.lerp(cPath,alt>1850?.12:.36);
-      colors.push(color.r,color.g,color.b);
-      if(j<steps&&i<across-1){const a=j*across+i,b=a+1,c=a+across,d=c+1;indices.push(a,c,b,b,c,d)}
-    }
-  }
-  const geo=new THREE.BufferGeometry();
-  geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
-  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-  geo.setIndex(indices);geo.computeVertexNormals();
-  const mesh=new THREE.Mesh(geo,terrainMat);mesh.receiveShadow=true;mesh.frustumCulled=false;
-  mesh.userData.terrain=true;mesh.userData.trailFoundation=true;
-  scene.add(mesh);trailFloorTiles.set(index,mesh);
-}
-function ensureTrailFloor(z){
-  const i=Math.floor((Math.max(SUMMIT_Z,Math.min(47,z))-SUMMIT_Z)/TRAIL_FLOOR_SEGMENT);
-  // A nearby section is drawn now; the remaining hike is laid down as
-  // compact, permanent sections over subsequent frames, without a load spike.
-  for(const n of [i,i-1,i+1,i-2,i+2])makeTrailFloorTile(n);
-  if(trailFloorTiles.size<TRAIL_FLOOR_COUNT){
-    for(let n=0;n<TRAIL_FLOOR_COUNT;n++)if(!trailFloorTiles.has(n)){makeTrailFloorTile(n);break}
-  }
-}
-
+// The temporary chunk tiles (pendingGround) cover every visible zone while
+// real terrain streams in. Do NOT add a separate permanent trail surface here:
+// its coarse interpolation can rise above H(x,z), creating a false walk-through
+// layer over the ground where the actual collision and herbs live.
 // Rocky, wind-exposed dwarf conifers and groundcover. All meshes are batched.
 const ALPINE_CONE=keep(new THREE.ConeGeometry(1,1.8,6,1));
 const ALPINE_CUSHION=keep(new THREE.IcosahedronGeometry(1,0));
@@ -2115,7 +2075,7 @@ function showPendingGround(cx,cz){
     const pos=geo.attributes.position,col=new Float32Array(pos.count*3),shade=new THREE.Color();
     for(let i=0;i<pos.count;i++){
       const x=pos.getX(i)+ox,z=pos.getZ(i)+oz,y=H(x,z),alt=y*ALT_K;
-      pos.setXYZ(i,x,y-.03,z);
+      pos.setXYZ(i,x,y,z);
       shade.copy(cGrass).lerp(cRock,clamp((alt-900)/1000,0,.7));
       if(alt>1500)shade.lerp(cSnow,clamp((alt-1500)/850,0,.92));
       if(Math.abs(x-pathX(z))<2.6)shade.lerp(cPath,.55);
@@ -2202,8 +2162,8 @@ function buildQueuedChunk(key){
   }
 }
 function updateChunks(px,pz,force,dt){
-  // Never let an optimization or a slow scenery queue erase the actual trail.
-  ensureTrailFloor(pz);
+  // Visible terrain is drawn only once per chunk: the temporary tile or the
+  // finished collectible chunk, never a second overlapping foundation.
   const ccx=Math.floor(px/CH),ccz=Math.floor(pz/CH);
   if(!force){chunkBuildT+=dt||0;const k=ccx+','+ccz+','+VIEW;
     if(k===chunkKey){
@@ -2904,8 +2864,6 @@ function updSky(){
   for(const m of farMts){const u=m.userData;m.position.set(P.x+Math.cos(u.a)*u.dist,u.y0,P.z+Math.sin(u.a)*u.dist)}
   summit.position.set(P.x,P.y-1250,P.z-1500);
   const shade=lerp(1,.22,night);
-  for(const cs of cloudSea){cs.position.x=P.x;cs.position.z=P.z;if(cs.material.map)cs.material.map.offset.set(P.x/600+clock*.002,-P.z/600);cs.material.color.setScalar(shade)}
-  cloudSea[0].material.opacity=IOS_CLOUD_SAFE?(P.y<CLOUD_Y?.16:.30):(P.y<CLOUD_Y?.55:.95);
   for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
 }
 /* ================= 숲 소리 (전부 WebAudio로 합성) ================= */
