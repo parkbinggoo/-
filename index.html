@@ -2289,6 +2289,121 @@ function makeRealGround(cx,cz){
   const ground=new THREE.Mesh(geo,terrainMat);ground.receiveShadow=true;ground.frustumCulled=false;ground.userData.terrain=true;
   return ground;
 }
+/* Resource placement check: the visible ground is a triangulated mesh, not
+   the continuous H() height used for walking. Match the exact triangles so
+   tiny sprouts do not disappear below the rendered terrain on mobile. */
+function resourceGroundY(c,x,z){
+  const g=c.ground&&c.ground.geometry,p=g&&g.attributes.position;
+  if(!p)return H(x,z);
+  const u=clamp((x-c.cx*CH)/CH*RES,0,RES-1e-6),v=clamp((z-c.cz*CH)/CH*RES,0,RES-1e-6);
+  const i=Math.floor(u),j=Math.floor(v),a=u-i,b=v-j;
+  const n=j*(RES+1)+i,y00=p.getY(n),y10=p.getY(n+1),y01=p.getY(n+RES+1),y11=p.getY(n+RES+2);
+  return a+b<=1?y00*(1-a-b)+y10*a+y01*b:y11*(a+b-1)+y10*(1-b)+y01*(1-a);
+}
+function resourceRockClearance(k){
+  return k.mesh?Math.max(k.r*.95+.7,Math.max(k.mesh.scale.x,k.mesh.scale.z)*1.10+.38):k.r+1;
+}
+function resourceSiteOK(c,x,z,it,requireHabitat=true){
+  if(!Number.isFinite(x)||!Number.isFinite(z)||x<c.cx*CH+1.2||x>(c.cx+1)*CH-1.2||z<c.cz*CH+1.2||z>(c.cz+1)*CH-1.2)return false;
+  if(z<SUMMIT_Z+3||z>33||Math.abs(x-pathX(z))>49)return false;
+  const sp=SPI[it.type]||null,ds=streamD(x,z);
+  // Stream-bank plants can live close to water, but never in the stream mesh.
+  if(ds<(sp&&sp.W==='water'?1.95:2.8))return false;
+  for(const k of c.rocks)if(Math.hypot(x-k.x,z-k.z)<resourceRockClearance(k))return false;
+  for(const t of c.trees)if(Math.hypot(x-t.x,z-t.z)<.43*t.s+.56)return false;
+  const sx=Math.abs(H(x+.8,z)-H(x-.8,z)),sz=Math.abs(H(x,z+.8)-H(x,z-.8));
+  if(sx>1.65||sz>1.65)return false;
+  if(requireHabitat&&sp){
+    const e=envAt(x,z,c);
+    // Some rock meshes extend beyond their nominal radius. A plant immediately
+    // outside the visible rock still belongs to the same rocky habitat.
+    if(sp.rock&&!e.rock)e.rock=c.rocks.some(k=>{const d=Math.hypot(x-k.x,z-k.z),edge=resourceRockClearance(k);return d>=edge&&d<edge+2.3});
+    if(sp.onTree||fitOf(sp,e)<.008)return false;
+  }
+  if(it.type==='songi'||it.type==='kkotsongi'||it.type==='neungi'||it.type==='ipsae'){
+    const pine=it.type==='songi'||it.type==='kkotsongi';
+    if(!c.trees.some(t=>(pine?t.kind==='pine':t.kind==='oak')&&Math.hypot(x-t.x,z-t.z)<5.2))return false;
+  }
+  return true;
+}
+function resourceNearbySpot(c,it){
+  const pos=it.mesh.position,seed=rareSlotSeed(it.id,37),rng=rngOf(seed);
+  let best=null,bestScore=-Infinity;
+  const consider=(x,z,strict)=>{
+    if(!resourceSiteOK(c,x,z,it,strict))return;
+    // Preserve the original Korean species habitat wherever possible.
+    const sp=SPI[it.type],e=sp?envAt(x,z,c):null;
+    if(sp?.rock&&e&&!e.rock)e.rock=c.rocks.some(k=>{const d=Math.hypot(x-k.x,z-k.z),edge=resourceRockClearance(k);return d>=edge&&d<edge+2.3});
+    const fit=sp?fitOf(sp,e):1;
+    const d=Math.hypot(x-pos.x,z-pos.z),score=fit*.18-d*.018-rng()*.008;
+    if(score>bestScore){best={x,z};bestScore=score;}
+  };
+  for(let i=0;i<32;i++){
+    const a=rng()*Math.PI*2,rr=.9+Math.pow(rng(),.8)*14;
+    consider(pos.x+Math.cos(a)*rr,pos.z+Math.sin(a)*rr,true);
+  }
+  if(best)return best;
+  for(let i=0;i<55;i++){
+    const z=c.cz*CH+2+rng()*(CH-4);
+    const x=pathX(z)+(rng()<.5?-1:1)*(3+rng()*40);
+    consider(x,z,true);
+  }
+  if(best)return best;
+  // Last resort: use a walkable area in the SAME chunk rather than leaving a
+  // collectible buried in a boulder. Only relax habitat fit, not safety.
+  for(let i=0;i<55;i++){
+    const z=c.cz*CH+2+rng()*(CH-4);
+    const x=pathX(z)+(rng()<.5?-1:1)*(3+rng()*40);
+    consider(x,z,false);
+  }
+  return best;
+}
+function repairChunkResources(c){
+  c.placementFixes=0;
+  for(const it of c.items){
+    const m=it.mesh;if(!m)continue;
+    if(it.rock){
+      // The top of an irregular rotated rock is not its bounding-box topY.
+      // Put rock plants onto the real collision surface, inside the walkable crest.
+      const rock=it.rock,radius=rock.r*.31;
+      let dx=m.position.x-rock.x,dz=m.position.z-rock.z,dist=Math.hypot(dx,dz);
+      if(dist>radius){dx=dx/dist*radius;dz=dz/dist*radius;m.position.x=rock.x+dx;m.position.z=rock.z+dz;c.placementFixes++}
+      m.position.y=rockSurfaceY(rock,m.position.x,m.position.z)+.035;
+      continue;
+    }
+    const sp=SPI[it.type];
+    const desiredTree=sp?.onTree==='pine'?'pine':sp?.onTree==='oak'?'oak':null;
+    const t=it.tree||(sp?.onTree||it.type==='sanghwang'||it.type==='norugung'?
+      c.trees.filter(t=>!desiredTree||t.kind===desiredTree).reduce((best,t)=>!best||Math.hypot(t.x-m.position.x,t.z-m.position.z)<Math.hypot(best.x-m.position.x,best.z-m.position.z)?t:best,null):null);
+    const onTrunk=t&&(it.tree||sp?.onTree||it.type==='sanghwang'||it.type==='norugung')&&
+      Math.hypot(t.x-m.position.x,t.z-m.position.z)<4.5;
+    if(onTrunk){
+      const dir=Math.atan2(m.position.z-t.z,m.position.x-t.x),a=Number.isFinite(dir)?dir:0;
+      const d=.50*t.s+.50;
+      const px=t.x+Math.cos(a)*d,pz=t.z+Math.sin(a)*d;
+      // Low enough to reach from the ground, outside the solid trunk.
+      m.position.set(px,Math.max(resourceGroundY(c,px,pz)+.22,Math.min(m.position.y,resourceGroundY(c,px,pz)+1.18)),pz);
+      c.placementFixes++;
+      continue;
+    }
+    const visibleY=resourceGroundY(c,m.position.x,m.position.z);
+    const buried=m.position.y<visibleY+.035;
+    const hasObstacle=!resourceSiteOK(c,m.position.x,m.position.z,it,true);
+    if(hasObstacle){
+      const next=resourceNearbySpot(c,it);
+      if(next){m.position.x=next.x;m.position.z=next.z;c.placementFixes++;}
+    }
+    const y=resourceGroundY(c,m.position.x,m.position.z);
+    if(it.kind==='fruit'){
+      // Preserve the existing fruit fall animation and its ground-relative height.
+      const base=y+FRUIT_HEIGHT[it.type];it.groundY=base;
+      m.position.y=it.fall===false?base:base+1.8;
+      if(it.bush)it.bush.position.set(m.position.x,y,m.position.z);
+    }else if(buried||hasObstacle||Math.abs(m.position.y-y)>.2){
+      m.position.y=y+.045;
+    }
+  }
+}
 function buildChunk(cx,cz){
   const r=rngOf((Math.imul(cx,73856093)^Math.imul(cz,19349663))>>>0);
   const ox=cx*CH+CH/2,oz=cz*CH+CH/2;
@@ -2375,9 +2490,9 @@ function buildChunk(cx,cz){
         stemM(bush,xx,0,zz,.22+k*.05,.012,M(0x6a7350));
         for(let j=0;j<3;j++)leafM(bush,xx,.12+j*.06,zz,.14,.055,a+j*1.8,.23,M(j%2?0x527b3f:0x6d8e4d));
       }
-      grp.add(bush);
+      grp.add(bush);mesh.userData.bush=bush;
     }
-    const item={kind:'fruit',type,id,hits:0,need:1,mesh,born:Date.now(),groundY,fall};
+    const item={kind:'fruit',type,id,hits:0,need:1,mesh,born:Date.now(),groundY,fall,bush:mesh.userData.bush||null};
     mesh.position.y=fall?groundY+1.8:groundY;mesh.userData.item=item;
     grp.add(mesh);c.items.push(item);
   };
@@ -2395,6 +2510,8 @@ function buildChunk(cx,cz){
     putFruit('wildberry',c.key+':berry'+i,x,z,false);
   }
   relocateRareInChunk(c);
+  // Check all genuine collectibles after five-star relocation and before display.
+  repairChunkResources(c);
   scene.add(grp);chunks.set(c.key,c);return c;
 }
 function disposeChunk(c){
@@ -2420,6 +2537,7 @@ function rescueTrailChunk(key,cx,cz){
     const c={key,cx,cz,grp,ground,trees:[],items:[],treeMeshes:[],rocks:[]};
     try{ensureTrailFlora(c,rngOf((Math.imul(cx,741103597)^Math.imul(cz,195871091)^0x5f2519)>>>0),
         cx*CH+CH/2,cz*CH+CH/2,grp)}catch(e){console.warn('산길 대체 약초 생성 오류:',key,e)}
+    repairChunkResources(c);
     scene.add(grp);chunks.set(key,c);chunkFailures.delete(key);
     return true;
   }catch(e){console.warn('실제 지형 복구 실패:',key,e);return false}
@@ -3000,7 +3118,7 @@ function collide(x,z){
 }
 /* keep foliage from swallowing the camera: walk the target→camera segment and stop before the first crown */
 const hiddenTrees=new Set(),ZERO=new THREE.Matrix4().makeScale(0,0,0);
-function setTreeHidden(t,h){if(!!t.hidden===h)return;t.hidden=h;if(h)hiddenTrees.add(t);else hiddenTrees.delete(t);for(const e of t.inst||[]){e.im.setMatrixAt(e.i,h?ZERO:e.m);e.im.instanceMatrix.needsUpdate=true}if(t.mush)t.mush.visible=!h;if(t.ribbon)t.ribbon.visible=!h&&!!t.ribbon.userData.zoneVisible}
+function setTreeHidden(t,h){if(!!t.hidden===h)return;t.hidden=h;if(h)hiddenTrees.add(t);else hiddenTrees.delete(t);for(const e of t.inst||[]){e.im.setMatrixAt(e.i,h?ZERO:e.m);e.im.instanceMatrix.needsUpdate=true}if(t.mush)t.mush.visible=true;/* Keep collectible mushrooms visible even when their host tree is hidden for camera visibility. */if(t.ribbon)t.ribbon.visible=!h&&!!t.ribbon.userData.zoneVisible}
 function occlusion(tx,ty,tz,cx,cy,cz,collect){
   const ccx=Math.floor(tx/CH),ccz=Math.floor(tz/CH);let best=1;
   for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const c=chunks.get((ccx+dx)+','+(ccz+dz));if(!c)continue;
