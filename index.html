@@ -7,238 +7,236 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@700;800&family=Gowun+Dodum&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --ink:#1f2b28; --paper:#f4efe3; --hanji:#ece4d0; --moss:#4c6b3c; --clay:#8a5a3c; --gold:#c9a24a;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  html,body{width:100%;height:100%;overflow:hidden;background:#cfdcdc;font-family:'Gowun Dodum',system-ui,sans-serif;color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
-  canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
-  .hide{display:none!important}
-
-  /* iOS WebGL CanvasTexture cloud fallback: CSS gradients avoid rainbow GPU artifacts. */
-  #iosClouds{position:fixed;inset:0;z-index:4;pointer-events:none;overflow:hidden;display:none}
-  #iosClouds .cloud-side{position:absolute;top:-12%;height:124%;width:82%;opacity:.9;will-change:transform,opacity;
-    background:radial-gradient(ellipse 45% 23% at 25% 22%,rgba(255,255,255,.90),transparent 94%),
+:root{--ink:#1f2b28;--paper:#f4efe3;--hanji:#ece4d0;--moss:#4c6b3c;--clay:#8a5a3c;--gold:#c9a24a;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#cfdcdc;font-family:"Gowun Dodum",system-ui,sans-serif;color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
+canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+.hide{display:none!important}
+#iosClouds{position:fixed;inset:0;z-index:4;pointer-events:none;overflow:hidden;display:none}
+#iosClouds .cloud-side{position:absolute;top:-12%;height:124%;width:82%;opacity:.9;will-change:transform,opacity;background:radial-gradient(ellipse 45% 23% at 25% 22%,rgba(255,255,255,.90),transparent 94%),
                radial-gradient(ellipse 54% 30% at 58% 45%,rgba(255,255,255,.85),transparent 96%),
                radial-gradient(ellipse 56% 24% at 35% 73%,rgba(255,255,255,.82),transparent 95%),
                radial-gradient(ellipse 55% 30% at 68% 94%,rgba(255,255,255,.75),transparent 98%)}
-  #iosClouds .left{left:-30%}#iosClouds .right{right:-30%;transform:scaleX(-1)}
-
-  #radioPanel{position:fixed;right:14px;top:75px;width:min(360px,calc(100vw - 28px));max-height:70vh;overflow:auto;background:rgba(244,239,227,.97);border:1px solid #4c6b3c;border-radius:12px;padding:13px;z-index:14;box-shadow:0 12px 32px #0003;pointer-events:auto}
-  .radioHead{font-weight:700;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-  #radioChoices{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-  #radioChoices button{background:#e9e2cf;border:1px solid #b3ad95;border-radius:8px;padding:10px 5px;color:#24342b;font-family:inherit;cursor:pointer}
-  #radioLog{margin-top:10px;max-height:125px;overflow:auto;font-size:12px;line-height:1.65}
-  .radioLine{padding:5px;border-bottom:1px solid #c9c2ab}
-  #radioToast{position:fixed;left:50%;bottom:18%;transform:translateX(-50%);min-width:min(350px,90vw);max-width:90vw;background:#263a31ed;color:#f5f1da;border:1px solid #bcb590;border-radius:12px;padding:12px 18px;text-align:center;z-index:15;font-size:14px;pointer-events:none;transition:opacity .4s}
-  #radioToast.hide{display:none!important}
-  #faintOverlay{position:fixed;inset:0;background:rgba(0,0,0,.97);color:#e5e4dc;z-index:90;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;text-align:center;padding:25px}
-  #faintOverlay h2{font-size:23px;font-family:'Nanum Myeongjo',serif}
-  #faintOverlay p{font-size:15px;opacity:.8}
-  #faintCountdown{font-size:40px;font-weight:bold;font-variant-numeric:tabular-nums}
-  #faintOverlay small{opacity:.55}
-  #boarWarning{position:fixed;left:50%;bottom:calc(135px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:min(380px,90vw);width:max-content;padding:11px 15px;border-radius:10px;border:1px solid #8f5e3d;background:rgba(58,43,32,.91);color:#fff0d7;box-shadow:0 6px 22px #0005;text-align:center;font-size:14px;line-height:1.5;pointer-events:none;z-index:13}
-  #boarWarning strong{display:block;font-size:15px;font-weight:700;margin-bottom:2px}
-  @media(max-width:760px){#boarWarning{bottom:calc(168px + env(safe-area-inset-bottom));font-size:12px}}
-  .faintSymbol{font-size:45px;opacity:.4}
-  /* Intro */
-  #intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14vh;pointer-events:none;z-index:5}
-  #title{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:clamp(44px,9vw,96px);letter-spacing:.18em;color:#1d2a27;opacity:0;transition:opacity 2.2s ease, transform 2.2s ease;transform:translateY(10px);text-shadow:0 2px 24px rgba(255,255,255,.6)}
-  #title.on{opacity:1;transform:none}
-  #subtitle{margin-top:10px;font-family:'Nanum Myeongjo',serif;font-size:clamp(14px,2.4vw,20px);letter-spacing:.3em;color:#2c3d39;opacity:0;transition:opacity 2s ease .6s}
-  #subtitle.on{opacity:.85}
-  #continueBtn{pointer-events:auto;position:fixed;left:50%;bottom:12vh;transform:translateX(-50%);font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:20px;letter-spacing:.3em;padding:16px 34px 16px 40px;background:rgba(244,239,227,.92);color:var(--ink);border:1.5px solid #1f2b28;border-radius:2px;cursor:pointer;opacity:0;transition:opacity 1.2s ease, background .2s;box-shadow:0 10px 30px rgba(20,30,28,.18)}
-  #continueBtn.on{opacity:1}
-  #continueBtn:hover{background:#fff}
-  #skip{position:fixed;right:18px;bottom:16px;font-size:13px;color:#2c3d39;opacity:.6;pointer-events:none}
-
-  #fade{position:fixed;inset:0;background:#f6f4ee;opacity:0;pointer-events:none;transition:opacity 1s ease;z-index:20}
-  #fade.on{opacity:1}
-
-  /* HUD */
-  #hud{position:fixed;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:6}
-  .plate{background:rgba(244,239,227,.88);border:1px solid rgba(31,43,40,.25);border-radius:10px;padding:8px 14px;box-shadow:0 6px 18px rgba(20,30,28,.12);backdrop-filter:blur(4px)}
-  #alt{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:22px;letter-spacing:.04em}
-  #alt small{font-family:'Gowun Dodum';font-weight:400;font-size:12px;opacity:.7;margin-right:6px;letter-spacing:.1em}
-  #count{font-size:13px;opacity:.8;margin-top:2px}
-  .btns{display:flex;gap:8px;pointer-events:auto}
-  .btn{pointer-events:auto;cursor:pointer;font-family:'Gowun Dodum';font-size:14px;padding:9px 14px;border-radius:10px;border:1px solid rgba(31,43,40,.3);background:rgba(244,239,227,.92);color:var(--ink);box-shadow:0 6px 18px rgba(20,30,28,.12)}
-  .btn:hover{background:#fff}
-
-  #toast{position:fixed;left:50%;top:76px;transform:translate(-50%,-10px);font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:16px;letter-spacing:.08em;padding:10px 20px;border-radius:6px;background:rgba(244,239,227,.95);border:1px solid rgba(31,43,40,.3);opacity:0;transition:opacity .4s, transform .4s;pointer-events:none;z-index:7}
-  #toast.on{opacity:1;transform:translate(-50%,0)}
-
-  /* found card */
-  #found{position:fixed;left:50%;top:40%;transform:translate(-50%,-46%) scale(.92);width:min(320px,86vw);background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:18px 18px 20px;text-align:center;opacity:0;pointer-events:none;transition:opacity .35s ease, transform .45s cubic-bezier(.2,1.4,.4,1);z-index:9;box-shadow:0 30px 60px rgba(20,30,28,.28)}
-  #found.on{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
-  #found .tag{font-size:12px;letter-spacing:.3em;opacity:.65}
-  #found h2{font-family:'Nanum Myeongjo',serif;font-weight:800;font-size:34px;letter-spacing:.12em;margin:4px 0 2px}
-  #found .rar{color:var(--gold);letter-spacing:.2em;font-size:14px}
-  #found p{font-size:14px;line-height:1.6;margin-top:8px;opacity:.85}
-  #found canvas{position:static;width:180px;height:150px;margin:6px auto 0;display:block;background:radial-gradient(circle at 50% 60%, #fffaf0 0%, #ece4d0 70%);border-radius:50%}
-  #found.legend{border-color:#b8892b;box-shadow:0 0 0 4px rgba(201,162,74,.35),0 30px 60px rgba(20,30,28,.28)}
-  #found.legend h2{color:#8a2a1a}
-
-  /* bag */
-  #bag{position:fixed;inset:0;background:rgba(20,28,26,.45);display:flex;align-items:center;justify-content:center;z-index:10}
-  #bag .sheet{width:min(720px,94vw);max-height:86vh;overflow:auto;background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:20px}
-  #bag h3{font-family:'Nanum Myeongjo',serif;font-size:24px;letter-spacing:.2em;display:flex;justify-content:space-between;align-items:center}
-  #bag h4{font-size:13px;letter-spacing:.3em;opacity:.6;margin:16px 0 8px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
-  .card{background:var(--hanji);border-radius:6px;padding:8px 6px 10px;text-align:center;border:1px solid rgba(31,43,40,.12)}
-  .card canvas,.card img{position:static;width:96px;height:80px;display:block;margin:0 auto;object-fit:contain}
-  .card.unk img{filter:brightness(0) opacity(.22)}
-  .card .hb{font-size:10.5px;opacity:.6;margin-top:3px;line-height:1.35}
-  .card .n{font-family:'Nanum Myeongjo',serif;font-weight:700;font-size:15px;margin-top:2px}
-  .card .c{font-size:12px;opacity:.7}
-  .card.unk .n{opacity:.4}
-
-  /* touch pad */
-  #pad{position:fixed;bottom:18px;left:14px;right:14px;display:flex;justify-content:space-between;pointer-events:none;z-index:6}
-  #pad button{pointer-events:auto;width:64px;height:64px;border-radius:50%;border:1px solid rgba(31,43,40,.35);background:rgba(244,239,227,.8);font-size:24px;color:var(--ink);box-shadow:0 6px 18px rgba(20,30,28,.15)}
-  #pad button:active{background:#fff}
-
-  body{background:linear-gradient(#b9d3df,#eef1e7)}
-  #startPanel{pointer-events:auto;position:fixed;left:50%;bottom:9vh;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:12px;opacity:0;transition:opacity 1.2s ease}
-  #startPanel.on{opacity:1}
-  #startPanel .row{display:flex;gap:10px;align-items:center;background:rgba(244,239,227,.88);padding:8px 12px;border-radius:999px;border:1px solid rgba(31,43,40,.25)}
-  #nick{font-family:'Gowun Dodum';font-size:15px;border:none;background:transparent;outline:none;width:150px;color:var(--ink)}
-  .sw{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.8);cursor:pointer;box-shadow:0 0 0 1px rgba(31,43,40,.3)}
-  .sw.on{box-shadow:0 0 0 2px #1f2b28}
-  #continueBtn{position:static;transform:none;opacity:1;font-size:17px;padding:11px 20px 11px 24px}
-  .profilePinRow{display:flex;align-items:center;gap:10px;background:rgba(244,239,227,.9);border:1px solid rgba(31,43,40,.25);padding:9px 12px;border-radius:999px}
-  .profilePinRow label{font-size:13px;white-space:nowrap}
-  #profilePin{width:110px;outline:none;border:0;background:transparent;color:var(--ink);font-family:'Gowun Dodum';font-size:16px;letter-spacing:.14em}
-  .recordActions{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap}
-  #saveFileBtn,#loadFileBtn{font-family:'Gowun Dodum';cursor:pointer;border:1px solid rgba(31,43,40,.45);background:rgba(244,239,227,.93);color:var(--ink);padding:12px 14px;border-radius:4px;font-size:15px;box-shadow:0 6px 16px rgba(20,30,28,.12)}
-  #saveFileBtn:hover,#loadFileBtn:hover{background:#fff}
-  #profileStatus{max-width:min(450px,92vw);min-height:30px;padding:4px 10px;border-radius:7px;background:rgba(244,239,227,.8);text-align:center;color:var(--ink);font-size:12px;line-height:1.6;word-break:keep-all}
-  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:4}
-  .wl{position:absolute;left:0;top:0;white-space:nowrap;font-family:'Gowun Dodum';font-size:14px;color:#1f2b28;text-shadow:0 0 4px #fff,0 0 8px #fff}
-  .wl.pip{font-size:15px;letter-spacing:2px;color:#2f4a3a}
-  .wl.msg{font-family:'Nanum Myeongjo',serif;font-weight:700;background:rgba(244,239,227,.92);padding:4px 10px;border-radius:6px;text-shadow:none;border:1px solid rgba(31,43,40,.2)}
-  .nametag{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;padding:3px 8px;border-radius:999px;background:rgba(31,43,40,.7);color:#f4efe3}
-  #people{margin-top:6px;font-size:12px;opacity:.85}
-  #joy{position:fixed;left:22px;bottom:26px;width:120px;height:120px;border-radius:50%;background:rgba(244,239,227,.35);border:1.5px solid rgba(244,239,227,.8);z-index:6;touch-action:none}
-  #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(244,239,227,.9);box-shadow:0 4px 12px rgba(0,0,0,.2)}
-  #help{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,28,26,.4);z-index:11}
-  #help .sheet{background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:20px 24px;max-width:420px;line-height:1.9;font-size:14px}
-  #help h3{font-family:'Nanum Myeongjo',serif;letter-spacing:.2em;margin-bottom:6px}
-  #help b{display:inline-block;min-width:110px}
-
-  #mapView{position:fixed;inset:0;background:rgba(20,28,26,.45);display:flex;align-items:center;justify-content:center;z-index:10}
-  .mapsheet{background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:10px;max-width:96vw;max-height:96vh}
-  .mhead{display:flex;align-items:center;gap:12px}.mhead b{font-family:'Nanum Myeongjo',serif;font-size:22px;letter-spacing:.2em}.mhead .mkey{font-size:12px;opacity:.55;flex:1}
-  .mwrap{position:relative}#mapC{position:static;display:block;width:min(680px,92vw,calc(96vh - 90px));height:auto;aspect-ratio:1;border:1px solid rgba(31,43,40,.4);border-radius:3px}
-  #found{z-index:12}
-  .card.click{cursor:pointer;transition:transform .15s,box-shadow .15s}.card.click:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(31,43,40,.15)}
-
-  #clock{font-size:12.5px;opacity:.85;margin-top:2px;letter-spacing:.02em}
-  #ecoBtn.on{background:#2f4a3a;color:#f4efe3;border-color:#2f4a3a}
-  #jumpBtn{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(36px + env(safe-area-inset-bottom));width:78px;height:78px;border-radius:50%;border:1.5px solid rgba(244,239,227,.85);background:rgba(244,239,227,.42);color:#1f2b28;font-family:'Gowun Dodum';font-size:15px;font-weight:700;z-index:6;touch-action:none;box-shadow:0 6px 16px rgba(0,0,0,.18)}
-  #jumpBtn:active{background:rgba(244,239,227,.85)}
-  #hud{top:calc(14px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));right:calc(14px + env(safe-area-inset-right))}
-  #joy{left:calc(22px + env(safe-area-inset-left));bottom:calc(26px + env(safe-area-inset-bottom))}
-  @media (max-width:760px),(pointer:coarse){
-    #hud{top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:calc(8px + env(safe-area-inset-right));gap:6px}
-    .plate{padding:6px 10px;border-radius:9px}#alt{font-size:18px}#clock,#count{font-size:11px}
-    .btns{gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:58vw}.btn{font-size:12.5px;padding:9px 11px;min-height:40px;border-radius:9px}
-    #joy{width:132px;height:132px}#knob{width:58px;height:58px;margin:-29px 0 0 -29px}
-    #toast{top:calc(64px + env(safe-area-inset-top));font-size:13px;max-width:88vw;white-space:normal;text-align:center}
-    #found{width:min(320px,88vw);padding:14px 14px 16px}#found canvas{width:160px;height:133px}#found h2{font-size:28px}#found p{font-size:13px}
-    #bag .sheet{width:100vw;max-height:none;height:100%;border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom))}
-    #bag{align-items:stretch}.grid{grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
-    .mapsheet{width:100vw;max-width:none;max-height:none;height:100%;border:none;border-radius:0;padding:calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));align-items:center}
-    .mhead{width:100%}#mapC{width:min(96vw,calc(100vh - 120px))}
-    .wl{font-size:13px}#startPanel{width:92vw}#startPanel .row{flex-wrap:wrap;justify-content:center;border-radius:14px}#nick{width:130px}
-  }
-  @media (pointer:coarse){.mkey{display:none}#mapView .mapsheet{justify-content:flex-start}.mwrap{margin-top:auto;margin-bottom:auto}.card .c{font-size:11px}}
-
-  /* 기록 저장: 파일 다운로드 전 명시적 확인 */
-  #saveConfirm{position:fixed;inset:0;z-index:80;background:rgba(20,28,26,.62);display:flex;align-items:center;justify-content:center;padding:20px;pointer-events:auto}
-  #saveConfirm .saveConfirmSheet{width:min(350px,92vw);padding:24px 20px;background:var(--paper);border:1.5px solid var(--ink);border-radius:12px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28);font-family:'Gowun Dodum',sans-serif}
-  #saveConfirm h3{font-family:'Nanum Myeongjo',serif;font-size:21px;margin:0 0 12px;color:var(--ink)}
-  #saveConfirm p{font-size:14px;line-height:1.7;color:var(--ink);margin:0 0 20px}
-  #saveConfirm .saveConfirmActions{display:flex;gap:10px;justify-content:center}
-  #saveConfirm .saveConfirmActions button{flex:1;max-width:140px;min-height:44px;border:1px solid #53654e;border-radius:8px;background:#ece4d0;color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
-  #saveConfirm #saveConfirmYes{background:#3b623b;color:#fff;border-color:#3b623b}
-  #saveConfirm .saveConfirmActions button:focus-visible{outline:3px solid #c9a24a;outline-offset:2px}
-
-  .card.empty img{visibility:hidden}
-  .card.empty .n{opacity:.92}.card.empty .c{opacity:.8}
-  .bagMeta{margin:8px 0 14px;font-size:13px;opacity:.78;line-height:1.7}
-
-  /* Tent interior + selling chest */
-  #tentView{position:fixed;inset:0;z-index:45;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:16px}
-  #tentView .tentExitBtn{position:absolute;top:16px;right:16px;z-index:3}
-  #tentStatus{position:absolute;top:18px;left:18px;z-index:3;color:#efe7d4;background:rgba(0,0,0,.28);padding:7px 11px;border:1px solid rgba(255,255,255,.15);border-radius:999px;font-size:12px;letter-spacing:.04em}
-  #tentRoom{position:relative;width:min(560px,92vw);aspect-ratio:10/8;display:flex;align-items:flex-end;justify-content:center}
-  #tentInner{position:absolute;inset:0;clip-path:polygon(14% 4%,86% 4%,98% 34%,98% 96%,2% 96%,2% 34%);background:linear-gradient(180deg,#e0a95a 0%,#b67333 58%,#54423a 59%,#4a4037 100%);border:2px solid #6b4828;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 18px 60px rgba(0,0,0,.35)}
-  #tentInner:before{content:'';position:absolute;left:50%;transform:translateX(-50%);top:6%;width:2px;height:48%;background:rgba(91,53,25,.34)}
-  #tentInner:after{content:'';position:absolute;left:8%;right:8%;bottom:14%;height:34%;background:linear-gradient(180deg,rgba(40,31,26,.04),rgba(22,18,16,.18));border-radius:6px}
-  .tentGlow{position:absolute;left:18%;top:30%;width:88px;height:88px;border-radius:50%;background:radial-gradient(circle,rgba(255,239,176,.55),rgba(255,184,76,.22) 55%,rgba(255,184,76,0) 78%);filter:blur(4px)}
-  #tentLantern{position:absolute;left:17%;top:27%;width:42px;height:54px;border-radius:12px 12px 10px 10px;background:linear-gradient(180deg,#314a59,#19222d 48%,#112 49%,#20303f 100%);border:2px solid #111d24;box-shadow:0 0 0 1px rgba(255,255,255,.06) inset}
-  #tentLantern:before{content:'';position:absolute;left:8px;right:8px;top:16px;height:18px;border-radius:9px;background:linear-gradient(180deg,#ffe6a2,#ffb650);box-shadow:0 0 10px rgba(255,190,90,.45)}
-  #tentLantern:after{content:'';position:absolute;left:13px;right:13px;top:-10px;height:12px;border:2px solid #16202b;border-bottom:none;border-radius:14px 14px 0 0}
-  #tentCot{position:absolute;right:14%;bottom:15%;width:128px;height:62px;border-radius:10px;background:linear-gradient(180deg,#5d89bf,#4c74a8);border:2px solid #304559;box-shadow:0 8px 18px rgba(0,0,0,.16)}
-  #tentCot:before,#tentCot:after{content:'';position:absolute;width:8px;height:28px;bottom:-18px;background:#66707a;border-radius:3px}
-  #tentCot:before{left:8px;transform:rotate(18deg)}#tentCot:after{right:8px;transform:rotate(-18deg)}
-  #tentSleeper{position:absolute;right:22%;bottom:22%;width:70px;height:110px;transform:rotate(8deg)}
-  #tentSleeper .head{position:absolute;top:6px;left:20px;width:28px;height:28px;border-radius:50%;background:#725147}
-  #tentSleeper .body{position:absolute;top:28px;left:9px;width:52px;height:56px;border-radius:18px;background:#f2dfc7}
-  #tentSleeper .leg1,#tentSleeper .leg2{position:absolute;top:74px;width:14px;height:30px;border-radius:8px;background:#6a5b8c}
-  #tentSleeper .leg1{left:16px;transform:rotate(16deg)}#tentSleeper .leg2{left:37px;transform:rotate(-12deg)}
-  #tentChest{position:absolute;left:50%;transform:translateX(-50%);bottom:18%;width:72px;height:52px;border-radius:8px;background:linear-gradient(180deg,#a66453,#7d4135);border:2px solid #4e2a20;box-shadow:0 8px 18px rgba(0,0,0,.18);cursor:pointer}
-  #tentChest:before{content:'';position:absolute;left:0;right:0;top:8px;height:12px;background:rgba(255,255,255,.12);border-bottom:2px solid rgba(78,42,32,.8)}
-  #tentChest:after{content:'상자';position:absolute;left:0;right:0;bottom:-24px;text-align:center;color:#f0e5cf;font-size:12px;letter-spacing:.16em}
-  #tentCash{position:absolute;left:50%;transform:translateX(-50%);bottom:6%;font-size:14px;color:#f2e7d5;background:rgba(0,0,0,.22);padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.12)}
-  #sellPanel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,94vw);background:rgba(244,239,227,.98);border:1.5px solid #1f2b28;border-radius:12px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.3);z-index:4;color:#1f2b28}
-  #sellPanel h3{font-family:'Nanum Myeongjo',serif;letter-spacing:.18em;margin-bottom:6px}
-  #sellHelp{font-size:12px;opacity:.74;line-height:1.6;margin-bottom:10px}
-  #sellGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;max-height:34vh;overflow:auto}
-  .sellItem{background:#ece4d0;border:1px solid rgba(31,43,40,.16);border-radius:8px;padding:8px;cursor:pointer;text-align:center}
-  .sellItem.on{outline:2px solid #4c6b3c;background:#f4efe3}
-  .sellItem .name{font-size:13px;font-family:'Nanum Myeongjo',serif;font-weight:700}.sellItem .meta{font-size:11px;opacity:.76;line-height:1.45;margin-top:2px}
-  #sellDetail{margin-top:12px;padding-top:12px;border-top:1px solid rgba(31,43,40,.14);display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
-  #sellInfo{font-size:13px;line-height:1.7}
-  #sellQtyControls{display:flex;align-items:center;gap:6px}
-  #sellQtyControls button,#sellDoBtn,#sellCloseBtn{min-height:40px}
-  #sellQty{width:78px;text-align:center;border:1px solid rgba(31,43,40,.25);border-radius:8px;padding:9px;background:#fff}
-  #sellSummary{grid-column:1 / -1;font-size:13px;opacity:.82}
-  @media (max-width:760px),(pointer:coarse){
-    #tentRoom{width:96vw}.tentGlow{left:14%}#tentLantern{left:13%}#tentCot{right:10%;width:106px;height:54px}#tentSleeper{right:17%;bottom:20%;transform:rotate(8deg) scale(.88)}#tentChest{bottom:20%}
-    #sellPanel{padding:14px}#sellDetail{grid-template-columns:1fr}#sellQtyControls{justify-content:flex-start;flex-wrap:wrap}
-  }
-
-
-  .tentNameTag{position:absolute;z-index:1;pointer-events:none;transform:translate(-50%,-100%);background:rgba(31,43,40,.82);color:#f4efe3;border-radius:999px;font:12px 'Gowun Dodum',sans-serif;padding:4px 9px;white-space:nowrap;text-shadow:none;box-shadow:0 4px 10px #0003}
-  #tentView{height:100vh;height:100dvh;min-height:0;overflow:hidden}
-  #tentExitBtn{min-height:44px}
-  #tentStatus{top:calc(14px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:auto}
-  #tentExitBtn{top:calc(14px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right))}
-  #tentCash{bottom:calc(16px + env(safe-area-inset-bottom))}
-  #sellPanel{width:min(560px,94vw);max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overscroll-behavior:contain}
-  @media (max-width:760px){#tentStatus{font-size:11px;max-width:58vw;line-height:1.5}#tentExitBtn{font-size:12px;padding:8px 10px}#tentChest{min-height:44px;min-width:104px}#sellPanel{max-height:calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}}
-  /* 3D canvas renders the tent room; these are controls above the scene. */
-  #tentView{background:transparent;pointer-events:none;z-index:45;padding:0;display:block}
-  #tentView .tentExitBtn,#tentStatus,#tentChest,#tentCash,#sellPanel{pointer-events:auto}
-  #tentStatus{max-width:65vw;font-weight:700;background:rgba(27,31,25,.8)}
-  #tentChest{position:absolute;z-index:2;bottom:auto;left:50%;top:60%;transform:translate(-50%,-50%);width:auto;min-width:104px;height:auto;min-height:43px;padding:9px 12px;border:1px solid #e5ce94;border-radius:20px;white-space:nowrap;background:rgba(31,43,40,.9);color:#fff3d6;font:700 13px 'Gowun Dodum',sans-serif;box-shadow:0 6px 20px #0006}
-  #tentChest:before,#tentChest:after{display:none}
-  #tentCash{bottom:calc(20px + env(safe-area-inset-bottom));background:rgba(21,26,21,.88);white-space:nowrap}
-  #sellPanel{max-height:90vh;overflow:auto;border:1.5px solid #5d6b4c;background:#f4efe3}
-  .sellTools{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0}
-  #sellTabs{display:flex;gap:5px;flex-wrap:wrap}
-  #sellTabs button{font:inherit;font-size:12px;min-height:36px;padding:7px 9px;border:1px solid #c6bea7;border-radius:7px;background:#e5ddca;color:#29372b;cursor:pointer}
-  #sellTabs button.on{background:#3b6243;color:#fff;border-color:#3b6243}
-  #sellSort{min-height:36px;max-width:136px;background:#fffaf0;border:1px solid #c6bea7;padding:7px;border-radius:7px;font:inherit;font-size:12px;color:#29372b}
-  #sellGrid{max-height:36vh;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px}
-  .sellItem{transition:background .13s,border-color .13s}.sellItem:focus-visible,#tentChest:focus-visible{outline:3px solid #c9a24a;outline-offset:2px}
-  .sellItem.on{outline:none;border:2px solid #426748}
-  #sellSummary{font-weight:700;color:#3c6945}
-  #tentTransition{position:fixed;inset:0;z-index:70;background:#050605;opacity:0;pointer-events:none;transition:opacity .34s ease}
-  #tentTransition.on{opacity:1;pointer-events:auto}
-  @media (max-width:760px),(pointer:coarse){#sellPanel{width:94vw;max-height:80vh;padding:12px}#sellGrid{max-height:31vh}#sellTabs button{font-size:11px;min-height:38px}#tentStatus{font-size:11px;top:calc(14px + env(safe-area-inset-top))}#tentChest{font-size:12px}#tentView .tentExitBtn{top:calc(12px + env(safe-area-inset-top));right:12px}}
+#iosClouds .left{left:-30%}
+#iosClouds .right{right:-30%;transform:scaleX(-1)}
+#radioPanel{position:fixed;right:14px;top:75px;width:min(360px,calc(100vw - 28px));max-height:70vh;overflow:auto;background:rgba(244,239,227,.97);border:1px solid #4c6b3c;border-radius:12px;padding:13px;z-index:14;box-shadow:0 12px 32px #0003;pointer-events:auto}
+.radioHead{font-weight:700;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+#radioChoices{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+#radioChoices button{background:#e9e2cf;border:1px solid #b3ad95;border-radius:8px;padding:10px 5px;color:#24342b;font-family:inherit;cursor:pointer}
+#radioLog{margin-top:10px;max-height:125px;overflow:auto;font-size:12px;line-height:1.65}
+.radioLine{padding:5px;border-bottom:1px solid #c9c2ab}
+#radioToast{position:fixed;left:50%;bottom:18%;transform:translateX(-50%);min-width:min(350px,90vw);max-width:90vw;background:#263a31ed;color:#f5f1da;border:1px solid #bcb590;border-radius:12px;padding:12px 18px;text-align:center;z-index:15;font-size:14px;pointer-events:none;transition:opacity .4s}
+#radioToast.hide{display:none!important}
+#faintOverlay{position:fixed;inset:0;background:rgba(0,0,0,.97);color:#e5e4dc;z-index:90;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;text-align:center;padding:25px}
+#faintOverlay h2{font-size:23px;font-family:"Nanum Myeongjo",serif}
+#faintOverlay p{font-size:15px;opacity:.8}
+#faintCountdown{font-size:40px;font-weight:bold;font-variant-numeric:tabular-nums}
+#faintOverlay small{opacity:.55}
+#boarWarning{position:fixed;left:50%;bottom:calc(135px + env(safe-area-inset-bottom));transform:translateX(-50%);max-width:min(380px,90vw);width:max-content;padding:11px 15px;border-radius:10px;border:1px solid #8f5e3d;background:rgba(58,43,32,.91);color:#fff0d7;box-shadow:0 6px 22px #0005;text-align:center;font-size:14px;line-height:1.5;pointer-events:none;z-index:13}
+#boarWarning strong{display:block;font-size:15px;font-weight:700;margin-bottom:2px}
+@media (max-width:760px){#boarWarning{bottom:calc(168px + env(safe-area-inset-bottom));font-size:12px}}
+.faintSymbol{font-size:45px;opacity:.4}
+#intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14vh;pointer-events:none;z-index:5}
+#title{font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:clamp(44px,9vw,96px);letter-spacing:.18em;color:#1d2a27;opacity:0;transition:opacity 2.2s ease, transform 2.2s ease;transform:translateY(10px);text-shadow:0 2px 24px rgba(255,255,255,.6)}
+#title.on{opacity:1;transform:none}
+#subtitle{margin-top:10px;font-family:"Nanum Myeongjo",serif;font-size:clamp(14px,2.4vw,20px);letter-spacing:.3em;color:#2c3d39;opacity:0;transition:opacity 2s ease .6s}
+#subtitle.on{opacity:.85}
+#continueBtn{pointer-events:auto;position:fixed;left:50%;bottom:12vh;transform:translateX(-50%);font-family:"Nanum Myeongjo",serif;font-weight:700;font-size:20px;letter-spacing:.3em;padding:16px 34px 16px 40px;background:rgba(244,239,227,.92);color:var(--ink);border:1.5px solid #1f2b28;border-radius:2px;cursor:pointer;opacity:0;transition:opacity 1.2s ease, background .2s;box-shadow:0 10px 30px rgba(20,30,28,.18)}
+#continueBtn.on{opacity:1}
+#continueBtn:hover{background:#fff}
+#skip{position:fixed;right:18px;bottom:16px;font-size:13px;color:#2c3d39;opacity:.6;pointer-events:none}
+#fade{position:fixed;inset:0;background:#f6f4ee;opacity:0;pointer-events:none;transition:opacity 1s ease;z-index:20}
+#fade.on{opacity:1}
+#hud{position:fixed;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:6}
+.plate{background:rgba(244,239,227,.88);border:1px solid rgba(31,43,40,.25);border-radius:10px;padding:8px 14px;box-shadow:0 6px 18px rgba(20,30,28,.12);backdrop-filter:blur(4px)}
+#alt{font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:22px;letter-spacing:.04em}
+#alt small{font-family:"Gowun Dodum";font-weight:400;font-size:12px;opacity:.7;margin-right:6px;letter-spacing:.1em}
+#count{font-size:13px;opacity:.8;margin-top:2px}
+.btns{display:flex;gap:8px;pointer-events:auto}
+.btn{pointer-events:auto;cursor:pointer;font-family:"Gowun Dodum";font-size:14px;padding:9px 14px;border-radius:10px;border:1px solid rgba(31,43,40,.3);background:rgba(244,239,227,.92);color:var(--ink);box-shadow:0 6px 18px rgba(20,30,28,.12)}
+.btn:hover{background:#fff}
+#toast{position:fixed;left:50%;top:76px;transform:translate(-50%,-10px);font-family:"Nanum Myeongjo",serif;font-weight:700;font-size:16px;letter-spacing:.08em;padding:10px 20px;border-radius:6px;background:rgba(244,239,227,.95);border:1px solid rgba(31,43,40,.3);opacity:0;transition:opacity .4s, transform .4s;pointer-events:none;z-index:7}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#found{position:fixed;left:50%;top:40%;transform:translate(-50%,-46%) scale(.92);width:min(320px,86vw);background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:18px 18px 20px;text-align:center;opacity:0;pointer-events:none;transition:opacity .35s ease, transform .45s cubic-bezier(.2,1.4,.4,1);z-index:9;box-shadow:0 30px 60px rgba(20,30,28,.28)}
+#found.on{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
+#found .tag{font-size:12px;letter-spacing:.3em;opacity:.65}
+#found h2{font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:34px;letter-spacing:.12em;margin:4px 0 2px}
+#found .rar{color:var(--gold);letter-spacing:.2em;font-size:14px}
+#found p{font-size:14px;line-height:1.6;margin-top:8px;opacity:.85}
+#found canvas{position:static;width:180px;height:150px;margin:6px auto 0;display:block;background:radial-gradient(circle at 50% 60%, #fffaf0 0%, #ece4d0 70%);border-radius:50%}
+#found.legend{border-color:#b8892b;box-shadow:0 0 0 4px rgba(201,162,74,.35),0 30px 60px rgba(20,30,28,.28)}
+#found.legend h2{color:#8a2a1a}
+#bag{position:fixed;inset:0;background:rgba(20,28,26,.45);display:flex;align-items:center;justify-content:center;z-index:10}
+#bag .sheet{width:min(720px,94vw);max-height:86vh;overflow:auto;background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:20px}
+#bag h3{font-family:"Nanum Myeongjo",serif;font-size:24px;letter-spacing:.2em;display:flex;justify-content:space-between;align-items:center}
+#bag h4{font-size:13px;letter-spacing:.3em;opacity:.6;margin:16px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.card{background:var(--hanji);border-radius:6px;padding:8px 6px 10px;text-align:center;border:1px solid rgba(31,43,40,.12)}
+.card canvas,.card img{position:static;width:96px;height:80px;display:block;margin:0 auto;object-fit:contain}
+.card.unk img{filter:brightness(0) opacity(.22)}
+.card .hb{font-size:10.5px;opacity:.6;margin-top:3px;line-height:1.35}
+.card .n{font-family:"Nanum Myeongjo",serif;font-weight:700;font-size:15px;margin-top:2px}
+.card .c{font-size:12px;opacity:.7}
+.card.unk .n{opacity:.4}
+#pad{position:fixed;bottom:18px;left:14px;right:14px;display:flex;justify-content:space-between;pointer-events:none;z-index:6}
+#pad button{pointer-events:auto;width:64px;height:64px;border-radius:50%;border:1px solid rgba(31,43,40,.35);background:rgba(244,239,227,.8);font-size:24px;color:var(--ink);box-shadow:0 6px 18px rgba(20,30,28,.15)}
+#pad button:active{background:#fff}
+body{background:linear-gradient(#b9d3df,#eef1e7)}
+#startPanel{pointer-events:auto;position:fixed;left:50%;bottom:9vh;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:12px;opacity:0;transition:opacity 1.2s ease}
+#startPanel.on{opacity:1}
+#startPanel .row{display:flex;gap:10px;align-items:center;background:rgba(244,239,227,.88);padding:8px 12px;border-radius:999px;border:1px solid rgba(31,43,40,.25)}
+#nick{font-family:"Gowun Dodum";font-size:15px;border:none;background:transparent;outline:none;width:150px;color:var(--ink)}
+.sw{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.8);cursor:pointer;box-shadow:0 0 0 1px rgba(31,43,40,.3)}
+.sw.on{box-shadow:0 0 0 2px #1f2b28}
+#continueBtn{position:static;transform:none;opacity:1;font-size:17px;padding:11px 20px 11px 24px}
+.profilePinRow{display:flex;align-items:center;gap:10px;background:rgba(244,239,227,.9);border:1px solid rgba(31,43,40,.25);padding:9px 12px;border-radius:999px}
+.profilePinRow label{font-size:13px;white-space:nowrap}
+#profilePin{width:110px;outline:none;border:0;background:transparent;color:var(--ink);font-family:"Gowun Dodum";font-size:16px;letter-spacing:.14em}
+.recordActions{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap}
+#saveFileBtn,#loadFileBtn{font-family:"Gowun Dodum";cursor:pointer;border:1px solid rgba(31,43,40,.45);background:rgba(244,239,227,.93);color:var(--ink);padding:12px 14px;border-radius:4px;font-size:15px;box-shadow:0 6px 16px rgba(20,30,28,.12)}
+#saveFileBtn:hover,#loadFileBtn:hover{background:#fff}
+#profileStatus{max-width:min(450px,92vw);min-height:30px;padding:4px 10px;border-radius:7px;background:rgba(244,239,227,.8);text-align:center;color:var(--ink);font-size:12px;line-height:1.6;word-break:keep-all}
+#labels{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:4}
+.wl{position:absolute;left:0;top:0;white-space:nowrap;font-family:"Gowun Dodum";font-size:14px;color:#1f2b28;text-shadow:0 0 4px #fff,0 0 8px #fff}
+.wl.pip{font-size:15px;letter-spacing:2px;color:#2f4a3a}
+.wl.msg{font-family:"Nanum Myeongjo",serif;font-weight:700;background:rgba(244,239,227,.92);padding:4px 10px;border-radius:6px;text-shadow:none;border:1px solid rgba(31,43,40,.2)}
+.nametag{position:absolute;left:0;top:0;white-space:nowrap;font-size:12px;padding:3px 8px;border-radius:999px;background:rgba(31,43,40,.7);color:#f4efe3}
+#people{margin-top:6px;font-size:12px;opacity:.85}
+#joy{position:fixed;left:22px;bottom:26px;width:120px;height:120px;border-radius:50%;background:rgba(244,239,227,.35);border:1.5px solid rgba(244,239,227,.8);z-index:6;touch-action:none}
+#knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(244,239,227,.9);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+#help{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(20,28,26,.4);z-index:11}
+#help .sheet{background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:20px 24px;max-width:420px;line-height:1.9;font-size:14px}
+#help h3{font-family:"Nanum Myeongjo",serif;letter-spacing:.2em;margin-bottom:6px}
+#help b{display:inline-block;min-width:110px}
+#mapView{position:fixed;inset:0;background:rgba(20,28,26,.45);display:flex;align-items:center;justify-content:center;z-index:10}
+.mapsheet{background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:10px;max-width:96vw;max-height:96vh}
+.mhead{display:flex;align-items:center;gap:12px}
+.mhead b{font-family:"Nanum Myeongjo",serif;font-size:22px;letter-spacing:.2em}
+.mhead .mkey{font-size:12px;opacity:.55;flex:1}
+#mapLiveCoords{position:absolute;left:9px;top:65px;z-index:2;max-width:min(290px,calc(100% - 18px));padding:9px 11px;border:1px solid rgba(31,43,40,.25);border-radius:8px;background:rgba(244,239,227,.94);box-shadow:0 3px 9px rgba(16,25,19,.12);color:#25332b;font-size:12px;line-height:1.62;pointer-events:none;font-variant-numeric:tabular-nums}
+#mapLiveCoords .geoTitle{font-family:"Nanum Myeongjo",serif;font-weight:800;margin-bottom:2px}
+#mapLiveCoords .geoDecimal{font-weight:700}
+#mapLiveCoords .geoDms{opacity:.78;font-size:11px}
+#mapLiveCoords .geoNote{opacity:.6;font-size:10px;margin-top:2px}
+@media (max-width:760px),(pointer:coarse){#mapLiveCoords{top:58px;left:7px;padding:7px 9px;font-size:11px;line-height:1.5}
+#mapLiveCoords .geoDms{font-size:10px}}
+.mwrap{position:relative}
+#mapC{position:static;display:block;width:min(680px,92vw,calc(96vh - 90px));height:auto;aspect-ratio:1;border:1px solid rgba(31,43,40,.4);border-radius:3px}
+#found{z-index:12}
+.card.click{cursor:pointer;transition:transform .15s,box-shadow .15s}
+.card.click:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(31,43,40,.15)}
+#clock{font-size:12.5px;opacity:.85;margin-top:2px;letter-spacing:.02em}
+#ecoBtn.on{background:#2f4a3a;color:#f4efe3;border-color:#2f4a3a}
+#jumpBtn{position:fixed;right:calc(22px + env(safe-area-inset-right));bottom:calc(36px + env(safe-area-inset-bottom));width:78px;height:78px;border-radius:50%;border:1.5px solid rgba(244,239,227,.85);background:rgba(244,239,227,.42);color:#1f2b28;font-family:"Gowun Dodum";font-size:15px;font-weight:700;z-index:6;touch-action:none;box-shadow:0 6px 16px rgba(0,0,0,.18)}
+#jumpBtn:active{background:rgba(244,239,227,.85)}
+#jumpBtn.climbAvailable{background:rgba(212,161,86,.94);border-color:#76542b;color:#372a1c}
+#climbPanel{position:fixed;left:50%;bottom:calc(125px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(350px,90vw);padding:12px 15px;border:1px solid #81643b;border-radius:12px;background:rgba(244,239,227,.96);color:#26392c;box-shadow:0 10px 28px #0004;z-index:8;text-align:center;pointer-events:none}
+#climbPanel strong{font-family:"Nanum Myeongjo",serif;font-size:17px;display:block}
+#climbPanel small{display:block;font-size:12px;line-height:1.6;margin:5px 0}
+#climbBeat{position:relative;height:19px;border-radius:8px;overflow:hidden;background:#c2b8a5;border:1px solid #86745e;margin-top:8px}
+#climbBeatSafe{position:absolute;height:100%;width:34%;left:33%;background:#85a870}
+#climbNeedle{position:absolute;left:0%;top:-2px;width:4px;height:23px;background:#a74331;border:1px solid #fff;box-shadow:0 0 4px #fff6}
+@media (max-width:760px){#climbPanel{bottom:calc(126px + env(safe-area-inset-bottom));width:min(330px,85vw)}
+#jumpBtn.climbAvailable{font-size:15px}}
+#hud{top:calc(14px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));right:calc(14px + env(safe-area-inset-right))}
+#joy{left:calc(22px + env(safe-area-inset-left));bottom:calc(26px + env(safe-area-inset-bottom))}
+@media (max-width:760px),(pointer:coarse){#hud{top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:calc(8px + env(safe-area-inset-right));gap:6px}
+.plate{padding:6px 10px;border-radius:9px}
+#alt{font-size:18px}
+#clock,#count{font-size:11px}
+.btns{gap:5px;flex-wrap:wrap;justify-content:flex-end;max-width:58vw}
+.btn{font-size:12.5px;padding:9px 11px;min-height:40px;border-radius:9px}
+#joy{width:132px;height:132px}
+#knob{width:58px;height:58px;margin:-29px 0 0 -29px}
+#toast{top:calc(64px + env(safe-area-inset-top));font-size:13px;max-width:88vw;white-space:normal;text-align:center}
+#found{width:min(320px,88vw);padding:14px 14px 16px}
+#found canvas{width:160px;height:133px}
+#found h2{font-size:28px}
+#found p{font-size:13px}
+#bag .sheet{width:100vw;max-height:none;height:100%;border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom))}
+#bag{align-items:stretch}
+.grid{grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px}
+.mapsheet{width:100vw;max-width:none;max-height:none;height:100%;border:none;border-radius:0;padding:calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));align-items:center}
+.mhead{width:100%}
+#mapC{width:min(96vw,calc(100vh - 120px))}
+.wl{font-size:13px}
+#startPanel{width:92vw}
+#startPanel .row{flex-wrap:wrap;justify-content:center;border-radius:14px}
+#nick{width:130px}}
+@media (pointer:coarse){.mkey{display:none}
+#mapView .mapsheet{justify-content:flex-start}
+.mwrap{margin-top:auto;margin-bottom:auto}
+.card .c{font-size:11px}}
+#saveConfirm{position:fixed;inset:0;z-index:80;background:rgba(20,28,26,.62);display:flex;align-items:center;justify-content:center;padding:20px;pointer-events:auto}
+#saveConfirm .saveConfirmSheet{width:min(350px,92vw);padding:24px 20px;background:var(--paper);border:1.5px solid var(--ink);border-radius:12px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28);font-family:"Gowun Dodum",sans-serif}
+#saveConfirm h3{font-family:"Nanum Myeongjo",serif;font-size:21px;margin:0 0 12px;color:var(--ink)}
+#saveConfirm p{font-size:14px;line-height:1.7;color:var(--ink);margin:0 0 20px}
+#saveConfirm .saveConfirmActions{display:flex;gap:10px;justify-content:center}
+#saveConfirm .saveConfirmActions button{flex:1;max-width:140px;min-height:44px;border:1px solid #53654e;border-radius:8px;background:#ece4d0;color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
+#saveConfirm #saveConfirmYes{background:#3b623b;color:#fff;border-color:#3b623b}
+#saveConfirm .saveConfirmActions button:focus-visible{outline:3px solid #c9a24a;outline-offset:2px}
+.bagMeta{margin:8px 0 14px;font-size:13px;opacity:.78;line-height:1.7}
+#tentView{position:fixed;inset:0;z-index:45;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:16px}
+#tentView .tentExitBtn{position:absolute;top:16px;right:16px;z-index:3}
+#tentStatus{position:absolute;top:18px;left:18px;z-index:3;color:#efe7d4;background:rgba(0,0,0,.28);padding:7px 11px;border:1px solid rgba(255,255,255,.15);border-radius:999px;font-size:12px;letter-spacing:.04em}
+#tentChest{position:absolute;left:50%;transform:translateX(-50%);bottom:18%;width:72px;height:52px;border-radius:8px;background:linear-gradient(180deg,#a66453,#7d4135);border:2px solid #4e2a20;box-shadow:0 8px 18px rgba(0,0,0,.18);cursor:pointer}
+#tentChest:before{content:"";position:absolute;left:0;right:0;top:8px;height:12px;background:rgba(255,255,255,.12);border-bottom:2px solid rgba(78,42,32,.8)}
+#tentChest:after{content:"상자";position:absolute;left:0;right:0;bottom:-24px;text-align:center;color:#f0e5cf;font-size:12px;letter-spacing:.16em}
+#tentCash{position:absolute;left:50%;transform:translateX(-50%);bottom:6%;font-size:14px;color:#f2e7d5;background:rgba(0,0,0,.22);padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.12)}
+#sellPanel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,94vw);background:rgba(244,239,227,.98);border:1.5px solid #1f2b28;border-radius:12px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.3);z-index:4;color:#1f2b28}
+#sellPanel h3{font-family:"Nanum Myeongjo",serif;letter-spacing:.18em;margin-bottom:6px}
+#sellHelp{font-size:12px;opacity:.74;line-height:1.6;margin-bottom:10px}
+#sellGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;max-height:34vh;overflow:auto}
+.sellItem{background:#ece4d0;border:1px solid rgba(31,43,40,.16);border-radius:8px;padding:8px;cursor:pointer;text-align:center}
+.sellItem.on{outline:2px solid #4c6b3c;background:#f4efe3}
+.sellItem .name{font-size:13px;font-family:"Nanum Myeongjo",serif;font-weight:700}
+.sellItem .meta{font-size:11px;opacity:.76;line-height:1.45;margin-top:2px}
+#sellDetail{margin-top:12px;padding-top:12px;border-top:1px solid rgba(31,43,40,.14);display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+#sellInfo{font-size:13px;line-height:1.7}
+#sellQtyControls{display:flex;align-items:center;gap:6px}
+#sellQtyControls button,#sellDoBtn,#sellCloseBtn{min-height:40px}
+#sellQty{width:78px;text-align:center;border:1px solid rgba(31,43,40,.25);border-radius:8px;padding:9px;background:#fff}
+#sellSummary{grid-column:1 / -1;font-size:13px;opacity:.82}
+@media (max-width:760px),(pointer:coarse){#tentChest{bottom:20%}
+#sellPanel{padding:14px}
+#sellDetail{grid-template-columns:1fr}
+#sellQtyControls{justify-content:flex-start;flex-wrap:wrap}}
+.tentNameTag{position:absolute;z-index:1;pointer-events:none;transform:translate(-50%,-100%);background:rgba(31,43,40,.82);color:#f4efe3;border-radius:999px;font:12px "Gowun Dodum",sans-serif;padding:4px 9px;white-space:nowrap;text-shadow:none;box-shadow:0 4px 10px #0003}
+#tentView{height:100vh;height:100dvh;min-height:0;overflow:hidden}
+#tentExitBtn{min-height:44px}
+#tentStatus{top:calc(14px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:auto}
+#tentExitBtn{top:calc(14px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right))}
+#tentCash{bottom:calc(16px + env(safe-area-inset-bottom))}
+#sellPanel{width:min(560px,94vw);max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overscroll-behavior:contain}
+@media (max-width:760px){#tentStatus{font-size:11px;max-width:58vw;line-height:1.5}
+#tentExitBtn{font-size:12px;padding:8px 10px}
+#tentChest{min-height:44px;min-width:104px}
+#sellPanel{max-height:calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}}
+#tentView{background:transparent;pointer-events:none;z-index:45;padding:0;display:block}
+#tentView .tentExitBtn,#tentStatus,#tentChest,#tentCash,#sellPanel{pointer-events:auto}
+#tentStatus{max-width:65vw;font-weight:700;background:rgba(27,31,25,.8)}
+#tentChest{position:absolute;z-index:2;bottom:auto;left:50%;top:60%;transform:translate(-50%,-50%);width:auto;min-width:104px;height:auto;min-height:43px;padding:9px 12px;border:1px solid #e5ce94;border-radius:20px;white-space:nowrap;background:rgba(31,43,40,.9);color:#fff3d6;font:700 13px "Gowun Dodum",sans-serif;box-shadow:0 6px 20px #0006}
+#tentChest:before,#tentChest:after{display:none}
+#tentCash{bottom:calc(20px + env(safe-area-inset-bottom));background:rgba(21,26,21,.88);white-space:nowrap}
+#sellPanel{max-height:90vh;overflow:auto;border:1.5px solid #5d6b4c;background:#f4efe3}
+.sellTools{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0}
+#sellTabs{display:flex;gap:5px;flex-wrap:wrap}
+#sellTabs button{font:inherit;font-size:12px;min-height:36px;padding:7px 9px;border:1px solid #c6bea7;border-radius:7px;background:#e5ddca;color:#29372b;cursor:pointer}
+#sellTabs button.on{background:#3b6243;color:#fff;border-color:#3b6243}
+#sellSort{min-height:36px;max-width:136px;background:#fffaf0;border:1px solid #c6bea7;padding:7px;border-radius:7px;font:inherit;font-size:12px;color:#29372b}
+#sellGrid{max-height:36vh;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px}
+.sellItem{transition:background .13s,border-color .13s}
+.sellItem:focus-visible,#tentChest:focus-visible{outline:3px solid #c9a24a;outline-offset:2px}
+.sellItem.on{outline:none;border:2px solid #426748}
+#sellSummary{font-weight:700;color:#3c6945}
+#tentTransition{position:fixed;inset:0;z-index:70;background:#050605;opacity:0;pointer-events:none;transition:opacity .34s ease}
+#tentTransition.on{opacity:1;pointer-events:auto}
+@media (max-width:760px),(pointer:coarse){#sellPanel{width:94vw;max-height:80vh;padding:12px}
+#sellGrid{max-height:31vh}
+#sellTabs button{font-size:11px;min-height:38px}
+#tentStatus{font-size:11px;top:calc(14px + env(safe-area-inset-top))}
+#tentChest{font-size:12px}
+#tentView .tentExitBtn{top:calc(12px + env(safe-area-inset-top));right:12px}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
@@ -300,6 +298,7 @@
 <div id="faintOverlay" class="hide"><div class="faintSymbol">✦</div><h2>잠시 정신을 잃었습니다</h2><p id="faintMessage">산짐승을 피해 쉬고 있습니다.</p><div id="faintCountdown"></div><small>현실 시간 3분 동안 움직일 수 없습니다.</small></div>
 <div id="joy" class="hide"><div id="knob"></div></div>
 <button id="jumpBtn" class="hide">점프</button>
+<div id="climbPanel" class="hide" role="status" aria-live="off"><strong id="climbTitle">큰 바위 오르기</strong><small id="climbInfo">초록색 구간에 맞춰 오르기를 누르세요. 실패하면 3분간 기절합니다.</small><div id="climbBeat"><div id="climbBeatSafe"></div><div id="climbNeedle"></div></div></div>
 
 <div id="found">
   <div class="tag" id="fTag">채집 성공</div>
@@ -354,13 +353,19 @@
 
 <div id="mapView" class="hide"><div class="sheet mapsheet">
   <div class="mhead"><b>지도</b><span class="mkey">M 키로 열고 닫기</span><button class="btn" id="mapClose">닫기</button></div>
-  <div class="mwrap"><canvas id="mapC" width="680" height="680"></canvas></div>
+  <div class="mwrap"><canvas id="mapC" width="680" height="680"></canvas>
+    <div id="mapLiveCoords" aria-live="off">
+      <div class="geoTitle">📍 나의 현재 위치</div>
+      <div class="geoDecimal" id="mapGeoDecimal"></div>
+      <div class="geoDms" id="mapGeoDms"></div>
+      <div class="geoNote">무전기와 동일한 좌표 · 이동 시 실시간 갱신</div>
+    </div>
+  </div>
 </div></div>
 <div id="fade"></div>
 <script>
 (()=>{
-'use strict';
-const IOS_CLOUD_SAFE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+'use strict';const IOS_CLOUD_SAFE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
 if(IOS_CLOUD_SAFE) document.getElementById('iosClouds').style.display='block';
 if(!window.THREE){document.body.innerHTML='<p style="padding:40px;font-family:sans-serif">3D 엔진을 불러오지 못했습니다. 새로고침해 주세요.</p>';return}
 /* ================= DATA ================= */
@@ -384,15 +389,27 @@ const MUSH = {
   sanghwang:{name:'상황버섯',  w:1.6,need:6, rar:5, desc:'뽕나무에 말발굽처럼 붙은 노란 버섯. 산에서도 만나기 어렵다.'},
 };
 const HERB_KEYS = Object.keys(HERBS), MUSH_KEYS = Object.keys(MUSH);
-
+const COMMON_MUSH_KEYS=MUSH_KEYS.slice();
+Object.assign(MUSH,{
+ songi:{name:'송이',w:.16,need:6,rar:5,hab:'마른 소나무 숲의 낙엽층',desc:'소나무 뿌리 주변의 낙엽층에서 드물게 만나는 향버섯.'},
+ neungi:{name:'능이',w:.23,need:5,rar:5,hab:'참나무 숲의 낙엽과 흙',desc:'넓은잎나무 숲 바닥에서 자라는 어두운 깔때기 형태의 버섯.'},
+ norugung:{name:'노루궁뎅이버섯',w:.38,need:4,rar:4,hab:'습한 활엽수 고목',desc:'죽은 활엽수에 둥글게 매달린 흰 버섯.'},
+ kkotsongi:{name:'꽃송이버섯',w:.28,need:5,rar:5,hab:'소나무·침엽수의 밑동',desc:'소나무 밑동 근처에 꽃송이처럼 갈라진 덩어리가 돋는다.'},
+ seogi:{name:'석이버섯',w:.35,need:5,rar:5,hab:'습한 큰 바위·절벽 표면',desc:'큰 바위의 표면에 얇고 검은 조각처럼 붙어 있는 지의류.'},
+ ipsae:{name:'잎새버섯',w:.35,need:5,rar:4,hab:'참나무 고목의 뿌리 주변',desc:'나무 밑에서 여러 겹의 갈색 부채가 피어난다.'}
+});
+MUSH_KEYS.push('songi','neungi','norugung','kkotsongi','seogi','ipsae');
 const BAG_LIMIT=50;
-// Game-only prices, not actual market quotations or guaranteed values.
-// One object = one harvest unit, *not* 1 kg. Rarity influences difficult-to-find species.
 const MARKET_PRICE={
   sansam:95000,deodeok:2200,doraji:1400,dunggule:1200,gomchwi:1100,chamchwi:850,gosari:850,dallae:650,naengi:550,ssuk:400,
   pyogo:950,neutari:650,mogi:800,yeongji:11500,sanghwang:15500,
   acorn:250,chestnut:500,pinecone:150,wildberry:650,ginkgo:350
 };
+Object.assign(MARKET_PRICE,{
+ kkulpul:1200,oipul:1800,eonggeong:1400,miyeokchwi:2400,baechohyang:2200,sanbakha:1300,kkothyangyu:1900,soetteugi:1200,
+ seokchangpo:4800,doldanpung:5400,bawichwi:4600,gorancho:7800,bawichaesong:5100,aegigirin:5300,
+ songi:36000,neungi:24000,norugung:16000,kkotsongi:23000,seogi:28000,ipsae:14000
+});
 const won=v=>Math.round(v).toLocaleString('ko-KR')+'원';
 const discoveredCount=()=>Object.keys(save.known||{}).length;
 function itemInfo(key){return HERBS[key]||MUSH[key]||FRUITS[key]||null}
@@ -403,8 +420,6 @@ function itemPrice(key){
   const base=info.cat==='root'?950:info.cat==='leaf'?600:info.cat==='herb'?750:850;
   return Math.round(base*([1,.9,1.5,2.3,5,12][Math.max(1,Math.min(5,info.rar||1))])/50)*50;
 }
-
-
 /* ================= UTIL ================= */
 const $ = id => document.getElementById(id);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -418,13 +433,10 @@ function pickW(table, keys, r, boost){
 function mixHex(a,b,t){const pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);
   const r=Math.round(lerp(pa>>16,pb>>16,t)),g=Math.round(lerp(pa>>8&255,pb>>8&255,t)),bl=Math.round(lerp(pa&255,pb&255,t));
   return '#'+((1<<24)|(r<<16)|(g<<8)|bl).toString(16).slice(1)}
-
-
 /* ================= AUDIO ================= */
 let AC=null, soundOn=true, audioOutput=null;
 let faintMix=1, placeMix=1;
 function refreshAudioMaster(){if(!AC||!audioOutput)return;const t=AC.currentTime;audioOutput.gain.cancelScheduledValues(t);audioOutput.gain.setTargetAtTime(faintMix*placeMix,t,.15)}
-// All game audio (effects, rain, water, wildlife and forest ambience) passes through one output.
 function ac(){
   if(!AC){try{
     AC=new (window.AudioContext||window.webkitAudioContext)();
@@ -432,7 +444,6 @@ function ac(){
   }catch(e){}}
   return AC;
 }
-// Unconscious: silence until 30 real seconds remain, then a gradual fade-in.
 function faintSoundVolume(remainingMs){
   if(!AC||!audioOutput)return;
   const progress=remainingMs<=0?1:Math.max(0,Math.min(1,(30000-remainingMs)/30000));
@@ -454,8 +465,6 @@ function thud(){ if(!soundOn) return; const a=ac(); if(!a) return;
   s.buffer=b;s.connect(f);f.connect(g);g.connect(audioOutput);s.start(t); tone(110,.12,'triangle',.12,.6);
 }
 function chime(rar){const base=[392,494,587,784,988]; const n=rar>=4?5:3; for(let i=0;i<n;i++) tone(base[i],.62,'sine',.057,1,i*.11); if(rar>=4) tone(1175,1,'sine',.026,1,.55)}
-
-
 /* ================= 3D MAIN ================= */
 const SAVE3='baekyaksan3d-v1'; // Old single-browser record; kept for one-time migration.
 const PROFILE_STORE_PREFIX='baekyaksan-profile-v2:', PROFILE_APP='baekyaksan3d', PROFILE_FORMAT=2;
@@ -473,9 +482,7 @@ function persist(){
   try{localStorage.setItem(activeProfileKey,JSON.stringify(profileDocument(activeCredential,profileProgress())))}catch(e){console.warn('백약산 기록을 기기에 저장하지 못했습니다.',e)}
 }
 const totalCount=()=>Object.values(save.inv).reduce((a,b)=>a+b,0);
-// Shared wild resources expire exactly 20 real minutes after collection.
 const RESPAWN_MS=20*60*1000,sharedTaken=new Map();
-// Old local perma-harvest records are not used for new shared world.
 save.taken={};
 function takenUntil(id){const end=sharedTaken.get(id)||0;if(end<=Date.now()){if(end)sharedTaken.delete(id);return 0}return end}
 function markTaken(id,until,broadcast=false){
@@ -490,12 +497,9 @@ function refreshRespawns(){const now=Date.now();let needs=false;
  for(const [id,end] of sharedTaken)if(end<=now){sharedTaken.delete(id);needs=true}
  if(needs){for(const c of [...chunks.values()]){disposeChunk(c)}chunkKey='';updateChunks(P.x,P.z,true,0)}
 }
-
-
 const JACKETS=[0x2f56b0,0xc0392b,0x2e7d4f,0xe08a1e,0x6a4a9a,0x4a4e55];
 const ALT_K=2.5;                      // world unit → displayed metres
 const CLOUD_Y=240;                    // sea of clouds height (world units)
-
 /* ---------- noise / terrain ---------- */
 function h2(ix,iz){let h=(Math.imul(ix,374761393)+Math.imul(iz,668265263))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return (h>>>0)/4294967295}
 function vn(x,z){const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz,ux=fx*fx*(3-2*fx),uz=fz*fz*(3-2*fz);
@@ -513,7 +517,6 @@ function H(x,z){
   const n=fbm(x*.025,z*.025)*9+fbm(x*.11,z*.11)*1.3+fbm(x*.4,z*.4)*.18+Math.max(0,fbm(x*.05+40,z*.05)-.25)*7;
   return base+side+groove+n-streamCarve(x,z);
 }
-
 /* ---------- renderer ---------- */
 const canvas=$('c');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:!IOS_CLOUD_SAFE,alpha:true,powerPreference:IOS_CLOUD_SAFE?'default':'high-performance'});
@@ -526,7 +529,6 @@ function onResize(){W=innerWidth;Hh=innerHeight;renderer.setSize(W,Hh,false);cam
 const matCache={};
 function M(c,o){const k=c+'|'+(o?JSON.stringify(o):'');if(!matCache[k])matCache[k]=new THREE.MeshPhongMaterial(Object.assign({color:c,flatShading:true,shininess:0,specular:0x000000},o||{}));return matCache[k]}
 function keep(g){g.userData.keep=true;return g}
-
 /* ---------- textures ---------- */
 function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);return t}
 const puffTex=canvasTex(128,128,(g)=>{const r=g.createRadialGradient(64,64,4,64,64,62);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.5,'rgba(255,255,255,.75)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,128,128)});
@@ -537,57 +539,63 @@ const weaveTex=canvasTex(64,64,(g)=>{g.fillStyle='#b48a4e';g.fillRect(0,0,64,64)
 const cloudSeaTex=canvasTex(512,512,(g)=>{g.clearRect(0,0,512,512);const r=rngOf(9);for(let i=0;i<260;i++){const x=r()*512,y=r()*512,s=20+r()*70;for(const [ox,oy] of [[0,0],[512,0],[-512,0],[0,512],[0,-512]]){const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,s);gr.addColorStop(0,`rgba(255,255,255,${.35+r()*.3})`);gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(x+ox-s,y+oy-s,s*2,s*2)}}});
 cloudSeaTex.wrapS=cloudSeaTex.wrapT=THREE.RepeatWrapping;cloudSeaTex.repeat.set(5,5);
 function textTex(txt,w=256,h=96,bg='#d9c49a',fg='#3a2a1a',font='bold 44px "Nanum Myeongjo",serif'){return canvasTex(w,h,(g)=>{g.fillStyle=bg;g.fillRect(0,0,w,h);g.strokeStyle='#6b4a2a';g.lineWidth=6;g.strokeRect(3,3,w-6,h-6);g.fillStyle=fg;g.font=font;g.textAlign='center';g.textBaseline='middle';g.fillText(txt,w/2,h/2+2)})}
-
 function tent3D(styleIdx=0){
   const g=new THREE.Group();
   const palettes=[
-    {cloth:0xd6a33b,door:0xe6c28f,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffb257},
-    {cloth:0xc36f34,door:0xd9b48b,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffaf63},
-    {cloth:0xa8a05f,door:0xd7d0ad,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffc27b},
-    {cloth:0x6d8d84,door:0xbfd1ca,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffc17b},
-    {cloth:0x8d6f95,door:0xd4bfd7,trim:0x2d2a29,pole:0x58534c,rope:0x75614c,glow:0xffbf72}
+    {cloth:0xd6a33b,door:0xe9c991,trim:0x2c2b28,pole:0x4c4742,rope:0x74624c,glow:0xffb15e},
+    {cloth:0xbe743b,door:0xe6c9aa,trim:0x292b29,pole:0x504944,rope:0x76614c,glow:0xffb66a},
+    {cloth:0x8f9b64,door:0xcfd0b0,trim:0x2d302c,pole:0x4b4d45,rope:0x7e7655,glow:0xffb77b},
+    {cloth:0x688787,door:0xb7cbcb,trim:0x292d31,pole:0x49535b,rope:0x646b61,glow:0xffb36c},
+    {cloth:0x8b718a,door:0xd1bdcf,trim:0x29282c,pole:0x53505b,rope:0x777079,glow:0xffb37c}
   ];
   const pal=palettes[((styleIdx%palettes.length)+palettes.length)%palettes.length];
-  const mkMat=(c,em=0)=>new THREE.MeshPhongMaterial({color:c,flatShading:true,shininess:0,specular:0x000000,emissive:em?pal.glow:0x000000,emissiveIntensity:0,transparent:false});
-  const clothMat=mkMat(pal.cloth,1), doorMat=mkMat(pal.door,1), trimMat=mkMat(pal.trim), poleMat=mkMat(pal.pole), ropeMat=mkMat(pal.rope);
-  const glowMats=[clothMat,doorMat];
-  const add=(geo,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);o.scale.set(sx,sy,sz);o.castShadow=true;o.receiveShadow=true;g.add(o);return o};
-  // low-poly dome body similar to a 2-person tunnel tent
-  add(new THREE.BoxGeometry(2.95,.18,4.15),trimMat,0,.09,0);
-  const shell=add(new THREE.SphereGeometry(1.88,8,6,0,Math.PI*2,0,Math.PI*.64),clothMat,0,.06,0,0,0,0,1,.95,1.14);
-  shell.material.side=THREE.DoubleSide;
-  // front and back lower walls
-  add(new THREE.BoxGeometry(2.85,1.08,.08),clothMat,0,.62,2.02);
-  add(new THREE.BoxGeometry(2.85,1.08,.08),clothMat,0,.62,-2.02);
-  // black skirt around base
-  add(new THREE.BoxGeometry(2.98,.24,4.18),trimMat,0,.12,0);
-  // door panel and vestibule arch, matching the reference image
-  const door=add(new THREE.CylinderGeometry(.74,.74,.08,7,1,false,Math.PI,Math.PI),doorMat,0,.82,2.05,Math.PI/2,0,0,1.08,1.06,1);
-  door.material.side=THREE.DoubleSide;
-  add(new THREE.TorusGeometry(.94,.04,5,10,Math.PI),poleMat,0,.92,2.08,0,0,Math.PI);
-  add(new THREE.TorusGeometry(1.62,.04,6,12,Math.PI),poleMat,0,1.46,0,0,0,Math.PI/2,1,1.08,1.22);
-  add(new THREE.TorusGeometry(1.54,.035,6,12,Math.PI),poleMat,0,1.4,-.08,0,0,Math.PI/2,1,1.04,1.16);
-  // guy lines and pegs
-  const pegPts=[[-1.42,.14,1.88,-2.22,.08,2.48],[1.42,.14,1.88,2.22,.08,2.48],[-1.46,.14,-1.78,-2.18,.08,-2.34],[1.46,.14,-1.78,2.18,.08,-2.34]];
-  for(const [x1,y1,z1,x2,y2,z2] of pegPts){
-    const dx=x2-x1,dy=y2-y1,dz=z2-z1,len=Math.hypot(dx,dy,dz);const cx=(x1+x2)/2,cy=(y1+y2)/2,cz=(z1+z2)/2;
-    const line=add(new THREE.CylinderGeometry(.015,.015,len,4),ropeMat,cx,cy,cz); line.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,dz).normalize());
-    add(new THREE.CylinderGeometry(.02,.03,.2,4),trimMat,x2,.08,z2,0,0,Math.PI/12);
+  const mat=(c,em=false)=>new THREE.MeshPhongMaterial({color:c,flatShading:true,shininess:0,specular:0x000000,side:THREE.DoubleSide,emissive:em?pal.glow:0x000000,emissiveIntensity:0});
+  const shellMat=mat(pal.cloth,true),frontMat=mat(pal.cloth),rearMat=mat(pal.cloth),doorMat=mat(pal.door,true),trimMat=mat(pal.trim),poleMat=mat(pal.pole),ropeMat=mat(pal.rope);
+  const add=(geo,m,x=0,y=0,z=0)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o};
+  const xAt=t=>1.72*Math.cos(t), yAt=t=>.14+2.06*Math.sin(t);
+  const strips=10,z0=-2.13,z1=2.13;
+  const roofPoints=[];
+  for(let i=0;i<strips;i++){
+    const a=i*Math.PI/strips,b=(i+1)*Math.PI/strips;
+    const A=[xAt(a),yAt(a),z0],B=[xAt(b),yAt(b),z0],C=[xAt(a),yAt(a),z1],D=[xAt(b),yAt(b),z1];
+    roofPoints.push(...A,...B,...C,...C,...B,...D);
   }
-  // brand patch as a simple dark mark rather than direct logo text
-  add(new THREE.BoxGeometry(.34,.18,.02),trimMat,.84,1.04,1.95,0,-.2,0);
-  // invisible interaction volume
-  const hit=new THREE.Mesh(new THREE.BoxGeometry(3.4,2.35,4.55),new THREE.MeshBasicMaterial({transparent:true,opacity:0}));
-  hit.position.y=1.05; hit.userData.tent=true; g.add(hit);
-  g.userData.glowMats=glowMats;
-  g.userData.setGlow=(on,boost=1)=>{for(const m of glowMats)m.emissiveIntensity=on?boost:0};
+  const roofGeo=new THREE.BufferGeometry();roofGeo.setAttribute('position',new THREE.Float32BufferAttribute(roofPoints,3));roofGeo.computeVertexNormals();add(roofGeo,shellMat);
+  function face(z,m){const pts=[];for(let i=0;i<strips;i++){const a=i*Math.PI/strips,b=(i+1)*Math.PI/strips;
+    pts.push(0,.14,z,xAt(a),yAt(a),z,xAt(b),yAt(b),z);
+  }const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));geo.computeVertexNormals();add(geo,m)}
+  face(z0,rearMat);face(z1,frontMat);
+  add(new THREE.BoxGeometry(3.52,.19,4.32),trimMat,0,.095,0);
+  const doorShape=new THREE.Shape();doorShape.moveTo(-1.1,.18);doorShape.lineTo(-1.1,.89);
+  doorShape.bezierCurveTo(-1.10,1.55,-.78,1.83,0,1.83);
+  doorShape.bezierCurveTo(.78,1.83,1.10,1.55,1.1,.89);
+  doorShape.lineTo(1.1,.18);doorShape.closePath();
+  add(new THREE.ShapeGeometry(doorShape,10),doorMat,0,0,z1+.028);
+  const rimPoints=[];for(let i=0;i<=12;i++){const a=i/12*Math.PI;rimPoints.push(new THREE.Vector3(-1.1*Math.cos(a),.89+.94*Math.sin(a),z1+.042))}
+  const rim=new THREE.CatmullRomCurve3([new THREE.Vector3(-1.1,.18,z1+.045),...rimPoints,new THREE.Vector3(1.1,.18,z1+.045)]);
+  add(new THREE.TubeGeometry(rim,18,.031,4,false),poleMat);
+  const poleCurve=z=>new THREE.CatmullRomCurve3(Array.from({length:13},(_,i)=>{const a=i/12*Math.PI;return new THREE.Vector3(xAt(a),yAt(a)+.042,z)}));
+  for(const z of [z0+.08,z1-.08])add(new THREE.TubeGeometry(poleCurve(z),22,.025,4,false),poleMat);
+  const poleDiagonalA=new THREE.CatmullRomCurve3([new THREE.Vector3(-1.62,.4,-1.97),new THREE.Vector3(-.8,1.84,-.95),new THREE.Vector3(0,2.25,0),new THREE.Vector3(.8,1.84,.95),new THREE.Vector3(1.62,.4,1.97)]);
+  add(new THREE.TubeGeometry(poleDiagonalA,24,.018,4,false),poleMat);
+  for(const side of [-1,1])for(const z of [-1.86,1.86]){
+    const a=new THREE.Vector3(side*1.46,.58,z),b=new THREE.Vector3(side*2.44,.08,z+(z>0?.55:-.55));
+    const d=b.clone().sub(a),m=add(new THREE.CylinderGeometry(.009,.009,d.length(),4),ropeMat,...a.clone().add(b).multiplyScalar(.5).toArray());
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());
+    add(new THREE.CylinderGeometry(.03,.03,.17,4),trimMat,b.x,.09,b.z);
+  }
+  add(new THREE.IcosahedronGeometry(.10,0),trimMat,1.5,.91,.65).scale.set(1,.8,.3);
+  const light=new THREE.PointLight(pal.glow,0,7,2);light.position.set(0,1.18,.9);g.add(light);
+  const hit=new THREE.Mesh(new THREE.BoxGeometry(3.7,2.35,4.55),new THREE.MeshBasicMaterial({visible:false}));
+  hit.position.y=1.12;hit.userData.tent=true;g.add(hit);
+  g.userData.setGlow=(night,near)=>{
+    shellMat.emissiveIntensity=night ? .08 : 0;doorMat.emissiveIntensity=night ? .56 : 0;
+    light.intensity=(night&&near) ? .37 : 0;
+  };
   return {group:g,hit,palette:pal};
 }
 const tents=[];const tentHintWorld=new THREE.Vector3();
 function zForAltitude(targetAlt){
-  // The trail rises by roughly .22 world units for each unit of northward travel.
-  // Begin near the expected altitude rather than rescanning the entire mountain
-  // for every tent (much faster on phones).
   let z=-targetAlt/(ALT_K*.22), alt=H(pathX(z),z)*ALT_K;
   if(alt<targetAlt){for(let i=0;i<150&&alt<targetAlt;i++){z-=6;alt=H(pathX(z),z)*ALT_K}}
   else{for(let i=0;i<150&&alt>targetAlt;i++){z+=6;alt=H(pathX(z),z)*ALT_K}z-=6}
@@ -599,7 +607,6 @@ function ensureTents(){
   while(targetAlt<7200 && idx<16){
     const z=zForAltitude(targetAlt); if(z==null) break;
     const side=r()<.5?-1:1;
-    // Pick the flattest nearby ground, keeping the approach close to the hiking trail.
     let site={x:pathX(z)+side*6.5,z,y:H(pathX(z)+side*6.5,z),score:Infinity};
     for(let trial=0;trial<18;trial++){
       const tz=z+(r()-.5)*10,tx=pathX(tz)+side*(5+r()*5.5),ty=H(tx,tz);
@@ -637,9 +644,7 @@ function makeBranchRibbon(tree){
   const piece=(geo,mat,x,y,z,sx,sy,sz,rz=0)=>{
     const o=new THREE.Mesh(geo,mat);o.position.set(x*sc,y*sc,z*sc);o.scale.set(sx*sc,sy*sc,sz*sc);o.rotation.z=rz;g.add(o);return o;
   };
-  // A short woody twig extends out from the real trunk.
   piece(RIBBON_BRANCH_GEO,RIBBON_BRANCH,.47,.07,0,1.08,1,1,-Math.PI/2+.13);
-  // Two bow loops, a visible central knot and two separate hanging ribbon tails.
   piece(RIBBON_KNOT_GEO,RIBBON_PINK_LIGHT,.89,.13,0,.12,.11,.07);
   piece(RIBBON_KNOT_GEO,RIBBON_PINK,.76,.18,.025,.18,.09,.055,.38);
   piece(RIBBON_KNOT_GEO,RIBBON_PINK,1.02,.18,-.025,.18,.09,.055,-.38);
@@ -652,7 +657,6 @@ function placeTentTrailRibbons(c,grp){
   for(const tree of c.trees){
     if(tree.s<.38||n>=5)continue;
     const closest=closestTentToTree(tree);if(!closest)continue;
-    // Only some branches get a knot. No Math.random(): stable across browsers.
     const seed=h2(Math.round(tree.x*11)+318,Math.round(tree.z*11)+741);
     if(seed>.14)continue;
     const marker=makeBranchRibbon(tree);marker.visible=false;marker.userData.zoneVisible=false;
@@ -670,10 +674,10 @@ function updateRibbonVisibility(force=false){
 }
 function updateTents(){
  updateRibbonVisibility();
- const hour=(gameMin/60)%24; const night=(hour>=18.3||hour<=5.4); const glowBoost=night ? .28 : .05;
+ const hour=(gameMin/60)%24; const night=(hour>=18.3||hour<=5.4);
  for(const t of tents){
    const d=Math.hypot(t.x-P.x,t.z-P.z);t.mesh.visible=d<180;
-   if(t.mesh.userData.setGlow)t.mesh.userData.setGlow(night,glowBoost);
+   if(t.mesh.userData.setGlow)t.mesh.userData.setGlow(night,d<23);
    if(mode!=='game'||inTent||d>16){t.label.style.display='none';continue}
    tentHintWorld.set(t.x,t.y+2.6,t.z).project(camera);
    if(tentHintWorld.z<=-1||tentHintWorld.z>=1||Math.abs(tentHintWorld.x)>1.1||Math.abs(tentHintWorld.y)>1.1){t.label.style.display='none';continue}
@@ -681,8 +685,6 @@ function updateTents(){
  }
 }
 let inTent=false,activeTent=null,selectedSellKey='';
-// Public MQTT is peer-to-peer coordination, so concurrent arrivals use a deterministic tie-break.
-// Strict atomic admission would require an authoritative server; do not claim otherwise.
 const TENT_CAPACITY=2;
 function tentPeople(t){
  if(!t)return [];
@@ -705,8 +707,7 @@ function tentSetVisible(enter,t){
  inTent=enter; activeTent=enter?t:null; target=null; pending=null;joy.x=joy.y=0;
  $('tentView').classList.toggle('hide',!enter);
  $('sellPanel').classList.add('hide');selectedSellKey='';
- if(enter){$('tentStatus').textContent=`⛺ 백약산 쉼터 · 해발 ${t.alt.toLocaleString()}m`;updateTentMoney();buildSellGrid();syncTentChestButton();}
- // Keep the map HUD and touch movement controls out of the interior view.
+ if(enter){tentMat.canvas.color.setHex(t.palette.cloth);tentMat.back.color.setHex(t.palette.door);$('tentStatus').textContent=`⛺ 백약산 쉼터 · 해발 ${t.alt.toLocaleString()}m`;updateTentMoney();buildSellGrid();syncTentChestButton();}
  $('hud').classList.toggle('hide',enter);
  if(IS_TOUCH){$('joy').classList.toggle('hide',enter);$('jumpBtn').classList.toggle('hide',enter)}
  $('labels').style.visibility=enter?'hidden':'visible';
@@ -725,7 +726,6 @@ function changeTent(enter,t){
  setTimeout(()=>{
    if(enter&&netJoined&&tentVacancies(t)<=0){tentSwitching=false;overlay.classList.remove('on');toast('이 텐트는 현재 2명으로 가득 찼습니다');return}
    tentSetVisible(enter,t);
-   // A short dark pause masks the switch between game and room cameras.
    setTimeout(()=>{overlay.classList.remove('on');setTimeout(()=>{tentSwitching=false;reconcileTentOccupants()},360)},90);
  },350);
 }
@@ -797,17 +797,19 @@ const tentAdd=(geo,mat,x,y,z,parent=tentFurniture)=>{const m=new THREE.Mesh(geo,
 function tentTriangle(a,b,c,d,e,f,mat){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute([...a,...b,...c,...c,...b,...d],3));geo.computeVertexNormals();const o=tentAdd(geo,mat,0,0,0);o.material.side=THREE.DoubleSide;return o}
 function setupTentInterior(){
  tentCam.position.set(0,2.45,7.8);tentCam.lookAt(0,1.05,-.5);
- // Floor and triangular rear wall. The entrance stays open towards the camera.
  tentAdd(new THREE.BoxGeometry(4.2,.10,3.8),tentMat.mat,0,.06,0);
- const rear=new THREE.BufferGeometry();rear.setAttribute('position',new THREE.Float32BufferAttribute([-2,.12,-1.8,2,.12,-1.8,0,2.9,-1.8],3));rear.computeVertexNormals();tentAdd(rear,tentMat.back,0,0,0).material.side=THREE.DoubleSide;
- const mkpanel=(points,mat)=>{const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(points,3));geo.computeVertexNormals();const m=tentAdd(geo,mat,0,0,0);m.material.side=THREE.DoubleSide};
- mkpanel([-2,.12,-1.8,0,2.9,-1.8,-2,.12,1.8, -2,.12,1.8,0,2.9,-1.8,0,2.9,1.8],tentMat.canvas);
- mkpanel([0,2.9,-1.8,2,.12,-1.8,0,2.9,1.8,0,2.9,1.8,2,.12,-1.8,2,.12,1.8],tentMat.back);
- // Seams, poles, and tie lines have simple faceted cylinders like herb stems.
+ const n=10,rx=2,hh=2.74;const ptsRoof=[],ptsRear=[];
+ for(let i=0;i<n;i++){
+   const a=i*Math.PI/n,b=(i+1)*Math.PI/n;
+   const x1=rx*Math.cos(a),x2=rx*Math.cos(b),y1=.12+hh*Math.sin(a),y2=.12+hh*Math.sin(b);
+   ptsRoof.push(x1,y1,-1.8,x2,y2,-1.8,x1,y1,1.8,x1,y1,1.8,x2,y2,-1.8,x2,y2,1.8);
+   ptsRear.push(0,.12,-1.8,x1,y1,-1.8,x2,y2,-1.8);
+ }
+ for(const [pts,mat] of [[ptsRoof,tentMat.canvas],[ptsRear,tentMat.back]]){
+   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));geo.computeVertexNormals();tentAdd(geo,mat).material.side=THREE.DoubleSide;
+ }
  const pole=tentAdd(new THREE.CylinderGeometry(.035,.035,3.65,6),tentMat.seam,0,2.9,0);pole.rotation.x=Math.PI/2;
  for(const x of [-1.85,1.85]){tentAdd(new THREE.CylinderGeometry(.035,.05,.35,6),tentMat.seam,x,.24,1.6)}
- // The ground is bare: two seated hikers take the place of sleeping mats.
- // lantern, bare decorative objects and a low-poly wooden chest near entry.
  tentAdd(new THREE.CylinderGeometry(.09,.12,.26,6),tentMat.metal,-1.5,.42,-.98);
  tentAdd(new THREE.IcosahedronGeometry(.10,0),tentMat.gold,-1.5,.59,-.98);
  const chestGroup=new THREE.Group();chestGroup.position.set(0,.18,1.03);tentFurniture.add(chestGroup);
@@ -854,7 +856,6 @@ function syncTentChestButton(){
  $('tentChest').style.left=((p.x+1)*W/2)+'px';
  $('tentChest').style.top=((1-p.y)*Hh/2)+'px';
 }
-
 /* ---------- mountains (shared by intro + far scenery) ---------- */
 function makeMountain(radius,height,seed,col,snowCol,opts={}){
   const seg=opts.seg||14, hs=opts.hs||8;
@@ -874,7 +875,6 @@ function makeMountain(radius,height,seed,col,snowCol,opts={}){
   const m=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:0,specular:0x000000,fog:opts.fog!==false}));
   return m;
 }
-
 /* ================= INTRO SCENE ================= */
 const iScene=new THREE.Scene();iScene.fog=new THREE.Fog(0xe3ebe8,700,3400);
 const iCam=new THREE.PerspectiveCamera(42,1,1,5000);
@@ -904,14 +904,12 @@ function drawIntro(dt){
   if(t>4)$('startPanel').classList.add('on');
   if(zoomT>=0){zoomT+=dt;if(zoomT>1.2)$('fade').classList.add('on');if(zoomT>2.2)beginGame()}
 }
-
 /* ================= GAME SCENE ================= */
 const scene=new THREE.Scene();
 scene.fog=new THREE.Fog(0xdfe8e4,45,175);
 const hemi=new THREE.HemisphereLight(0xeef2ea,0x3d4a34,.55);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xfff0d8,.72);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45,near:1,far:260});sun.shadow.bias=-.0006;scene.add(sun);scene.add(sun.target);
-
 /* far scenery: ring of mountains that never gets closer (they sink below you as you climb), and the summit that is always ahead */
 const farGroup=new THREE.Group();scene.add(farGroup);
 const farMts=[];
@@ -924,7 +922,6 @@ const cloudSea=[0,1].map(i=>{const tex=IOS_CLOUD_SAFE?null:(i?cloudSeaTex.clone(
 const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);sp.visible=!IOS_CLOUD_SAFE;skyPuffs.push(sp)}}
 const stars=(()=>{const n=600,p=new Float32Array(n*3),r=rngOf(4);for(let i=0;i<n;i++){const u=r()*2-1,a=r()*Math.PI*2,s=Math.sqrt(1-u*u);p[i*3]=Math.cos(a)*s*1500;p[i*3+1]=Math.abs(u)*1500+100;p[i*3+2]=Math.sin(a)*s*1500}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xfffff0,size:2.2,sizeAttenuation:false,transparent:true,opacity:0,fog:false,depthWrite:false}));scene.add(m);return m})();
-
 /* ---------- shared geometries ---------- */
 const LEAF=keep(new THREE.SphereGeometry(1,6,4));LEAF.translate(0,0,1);
 const BALL=keep(new THREE.SphereGeometry(1,8,6));
@@ -937,11 +934,9 @@ const oakF2=keep(new THREE.IcosahedronGeometry(2.4,0));oakF2.translate(1.7,12.2,
 const oakF3=keep(new THREE.IcosahedronGeometry(2.1,0));oakF3.translate(-1.6,11.5,-.9);
 const STONE=keep(new THREE.DodecahedronGeometry(1,0));const ROCK2=keep(new THREE.IcosahedronGeometry(1,1));{const p=ROCK2.attributes.position;for(let i=0;i<p.count;i++){const f=1+(h2(Math.round(p.getX(i)*50),Math.round(p.getZ(i)*50+p.getY(i)*30))-.5)*.35;p.setXYZ(i,p.getX(i)*f,p.getY(i)*f,p.getZ(i)*f)}ROCK2.computeVertexNormals()}
 const BUSH=keep(new THREE.IcosahedronGeometry(1,0));
-
 function leafM(parent,x,y,z,len,wid,yaw,pitch,mat){const m=new THREE.Mesh(LEAF,mat);m.position.set(x,y,z);m.rotation.order='YXZ';m.rotation.y=yaw;m.rotation.x=-pitch;m.scale.set(wid,.012,len/2);parent.add(m);return m}
 function stemM(parent,x,y,z,h,r,mat,rx=0,rz=0){const m=new THREE.Mesh(CYL,mat);m.position.set(x,y,z);m.scale.set(r,h,r);m.rotation.set(rx,0,rz);parent.add(m);return m}
 function ballM(parent,x,y,z,r,mat,sx=1,sy=1,sz=1){const m=new THREE.Mesh(BALL,mat);m.position.set(x,y,z);m.scale.set(r*sx,r*sy,r*sz);parent.add(m);return m}
-
 /* ---------- 3D herbs ---------- */
 function herb3D(type){
   const g=new THREE.Group();const G1=M(0x4f7d36),G2=M(0x6b9a45),ST=M(0x5d7c3a);
@@ -976,13 +971,17 @@ function mush3D(type){
     case 'mogi':for(const [y,x] of [[0,0],[.08,.05],[-.06,-.04]])ballM(g,x,y,.05,.065,M(0x3a2420),1,.6,.35);break;
     case 'yeongji':ballM(g,0,0,.08,.11,M(0x8a2a17),1.2,.22,1);ballM(g,0,-.01,.08,.12,M(0xe2973a),1.25,.12,1.05);ballM(g,0,.02,.07,.05,M(0xffffff,{transparent:true,opacity:.35}),1.2,.1,.6);break;
     case 'sanghwang':ballM(g,0,0,.07,.12,M(0x5a3a1c),1,.4,.9);ballM(g,0,-.03,.075,.12,M(0xe0b23a),1.03,.15,.95);break;
+    case 'songi':stemM(g,0,-.08,0,.30,.045,M(0xe7d8bd));ballM(g,0,.20,0,.14,M(0x845e3b),1,.50,1);ballM(g,0,.16,0,.138,M(0xd5b88d),1,.18,1);break;
+    case 'neungi':stemM(g,0,-.07,0,.18,.034,M(0x766555));ballM(g,0,.15,0,.21,M(0x413d39),1,.32,1);ballM(g,0,.16,0,.13,M(0x726c62),1,.24,1);break;
+    case 'norugung':for(let i=0;i<5;i++){const a=i*2.399,rr=.08+i*.015;ballM(g,Math.sin(a)*rr,.08+(i%2)*.055,Math.cos(a)*rr,.11,M(i%2?0xd6cdb2:0xf0e8d5),1,.95,.9)}break;
+    case 'kkotsongi':for(let i=0;i<10;i++){const a=i*2.399,rad=.06+.015*(i%3),y=.07+(i%4)*.05;const l=ballM(g,Math.sin(a)*rad,y,Math.cos(a)*rad,.074,M(i%2?0xe8d8b0:0xb5a079),1.3,.26,.7);l.rotation.z=Math.sin(a)*.28}break;
+    case 'seogi':for(let i=0;i<6;i++){const a=i*Math.PI/3;const l=ballM(g,Math.cos(a)*.095,.0,Math.sin(a)*.095,.09,M(i%2?0x3f3c35:0x59554a),1.0,.16,.8);l.rotation.z=.2*Math.sin(a)}break;
+    case 'ipsae':for(let i=0;i<8;i++){const a=i*2.399,y=.04+(i%4)*.055,radius=.045+(i%3)*.035;ballM(g,Math.cos(a)*radius,y,Math.sin(a)*radius,.12,M(i%2?0x917a59:0x71654b),1.1,.18,.7)}break;
   }
   g.traverse(o=>{if(o.isMesh)o.castShadow=true});return g;
 }
-
 /* ---------- hiker avatar ---------- */
 function makeHiker(jacket){
-  // 한국 등산 아저씨: 버킷햇, 분홍 목도리, 투톤 바람막이, 카고 등산바지, 등산화, 빨간 코팅 목장갑, 지팡이, 연두색 등산가방
   const T=(c,o)=>{const k='toon'+c+(o?JSON.stringify(o):'');if(!matCache[k])matCache[k]=new THREE.MeshToonMaterial(Object.assign({color:c},o||{}));return matCache[k]};
   const root=new THREE.Group(),body=new THREE.Group();root.add(body);
   const jk=T(jacket),navy=T(0x1f2a5c),pants=T(0x3a3d42),pantsD=T(0x2a2c30),boot=T(0x6e6253),sole=T(0x2b2622),lace=T(0xe07a2a),
@@ -990,7 +989,6 @@ function makeHiker(jacket){
         pack=T(0x9ccf2a),packD=T(0x86b521),grey=T(0x8b9096),greyD=T(0x5d6268),black=T(0x232528),wood=T(0xa47a4a);
   const mk=(geo,mat,parent,x=0,y=0,z=0)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m};
   const box=(w,h,d,mat,parent,x,y,z)=>mk(new THREE.BoxGeometry(w,h,d),mat,parent,x,y,z);
-  // legs (hip pivot)
   const legL=new THREE.Group(),legR=new THREE.Group();legL.position.set(-.1,.9,0);legR.position.set(.1,.9,0);
   for(const [lg,s] of [[legL,-1],[legR,1]]){
     mk(new THREE.CylinderGeometry(.085,.07,.8,8),pants,lg,0,-.4,0);
@@ -999,7 +997,6 @@ function makeHiker(jacket){
     box(.13,.1,.27,boot,lg,0,-.82,.04);box(.14,.035,.29,sole,lg,0,-.885,.045);
     for(let i=0;i<3;i++)box(.07,.008,.01,lace,lg,0,-.8+i*.025,.175-i*.015);
     body.add(lg)}
-  // torso
   const torso=new THREE.Group();torso.position.y=.9;body.add(torso);
   mk(new THREE.CylinderGeometry(.215,.235,.62,12),jk,torso,0,.33,0);
   mk(new THREE.CylinderGeometry(.226,.226,.15,12),navy,torso,0,.57,0);          // navy yoke
@@ -1009,10 +1006,8 @@ function makeHiker(jacket){
   box(.09,.012,.01,black,torso,.1,.46,.225);box(.012,.04,.012,lace,torso,.06,.44,.23); // chest pocket + orange pull
   for(const s of [-1,1]){const zp=box(.01,.16,.01,greyD,torso,s*.12,.17,.215);zp.rotation.z=s*.25}  // hand-warmer zips
   mk(new THREE.CylinderGeometry(.085,.1,.1,10),navy,torso,0,.66,0);              // collar stand
-  // pink scarf: loop + two hanging ends with fringe
   const sc=mk(new THREE.TorusGeometry(.1,.04,8,16),pink,torso,0,.66,.01);sc.rotation.x=Math.PI/2;
   for(const [x,len,rz] of [[-.035,.3,.06],[.05,.24,-.1]]){const e=box(.07,len,.025,pink,torso,x,.62-len/2,.235);e.rotation.z=rz;for(let f=0;f<4;f++)box(.008,.05,.008,pink,torso,x-.025+f*.017+rz*.1,.6-len-.02,.24)}
-  // head
   const head=new THREE.Group();head.position.y=.86;torso.add(head);
   mk(new THREE.CylinderGeometry(.055,.06,.1,8),skin,torso,0,.72,0);             // neck
   mk(new THREE.SphereGeometry(.125,16,14),skin,head,0,0,0).scale.set(1,1.12,1.02);
@@ -1022,14 +1017,12 @@ function makeHiker(jacket){
     mk(new THREE.SphereGeometry(.014,6,5),black,head,s*.045,.01,.118);box(.045,.01,.01,hair,head,s*.047,.04,.118)} // eyes, brows
   mk(new THREE.ConeGeometry(.018,.04,5),skin,head,0,-.02,.13).rotation.x=Math.PI/2;
   const mouth=mk(new THREE.TorusGeometry(.025,.006,4,8,Math.PI),T(0x7a3a2a),head,0,-.065,.115);mouth.rotation.z=Math.PI;
-  // bucket hat with green zigzag band and chin strap
   const hatG=new THREE.Group();hatG.position.y=.09;head.add(hatG);
   mk(new THREE.CylinderGeometry(.12,.138,.11,16),hat,hatG,0,.04,0);
   mk(new THREE.CylinderGeometry(.122,.122,.012,16),hat,hatG,0,.1,0);
   const band=mk(new THREE.CylinderGeometry(.14,.14,.035,16,1,true),new THREE.MeshToonMaterial({map:zigTex,side:THREE.DoubleSide}),hatG,0,0,0);
   mk(new THREE.CylinderGeometry(.14,.255,.06,20,1,true),T(0x34363a,{side:THREE.DoubleSide}),hatG,0,-.035,0);       // drooping brim
   const strap=mk(new THREE.TorusGeometry(.118,.005,4,16,Math.PI),black,head,0,-.01,.035);strap.rotation.set(-.35,0,Math.PI);strap.scale.set(1.02,1.2,1);
-  // backpack (lime with grey panels, lid, mesh side pocket, straps)
   const bp=new THREE.Group();bp.position.set(0,.36,-.34);bp.rotation.x=.06;torso.add(bp);
   box(.36,.56,.22,pack,bp,0,0,0);
   for(const s of [-1,1]){box(.04,.56,.2,grey,bp,s*.175,0,0);box(.05,.12,.035,greyD,bp,s*.1,-.05,-.12)}
@@ -1044,19 +1037,16 @@ function makeHiker(jacket){
   for(const s of [-1,1]){const st=box(.06,.5,.03,grey,torso,s*.12,.45,.2);st.rotation.x=-.12;const st2=box(.06,.16,.08,grey,torso,s*.12,.65,.08)}  // shoulder straps
   box(.44,.05,.05,greyD,torso,0,.1,-.24);                                         // hip belt
   const greens=new THREE.Group();greens.position.set(.2,-.06,0);bp.add(greens);   // herbs poke out of the side pocket
-  // arms with work gloves
   const mkArm=(sx)=>{const a=new THREE.Group();a.position.set(sx*.29,.58,0);
     mk(new THREE.SphereGeometry(.07,10,8),navy,a,0,0,0);mk(new THREE.CylinderGeometry(.064,.056,.3,8),jk,a,0,-.15,0);mk(new THREE.CylinderGeometry(.056,.05,.27,8),navy,a,0,-.4,0);mk(new THREE.CylinderGeometry(.052,.052,.04,8),black,a,0,-.53,0);
     mk(new THREE.SphereGeometry(.055,10,8),glove,a,0,-.6,0).scale.set(1,1.15,1);
     const palm=mk(new THREE.SphereGeometry(.056,10,8,0,Math.PI*2,0,Math.PI*.5),red,a,0,-.6,.01);palm.rotation.x=Math.PI/2+.3;palm.scale.set(1,1.1,.9);
     torso.add(a);return a};
   const armL=mkArm(-1),armR=mkArm(1);
-  // 지팡이 in the left hand
   const stick=new THREE.Group();stick.position.set(0,-.6,.05);armL.add(stick);
   mk(new THREE.CylinderGeometry(.018,.014,1.15,6),wood,stick,0,-.35,0);
   mk(new THREE.CylinderGeometry(.022,.022,.05,6),black,stick,0,-.94,0);
   const crook=mk(new THREE.TorusGeometry(.05,.016,6,10,Math.PI),T(0x6a6560),stick,.05,.22,0);
-  // 호미 in the right hand
   const hoe=new THREE.Group();hoe.position.set(0,-.6,.02);armR.add(hoe);
   const handle=mk(new THREE.CylinderGeometry(.022,.026,.3,8),wood,hoe,0,0,.1);handle.rotation.x=Math.PI/2;
   mk(new THREE.CylinderGeometry(.01,.01,.09,5),T(0x5a5a5a),hoe,0,-.02,.27).rotation.x=.5;
@@ -1071,6 +1061,7 @@ function poseHiker(h,dt,speed){
   if(h.mode==='walk'){h.phase+=dt*(2.6+speed*1.6);const s=Math.sin(h.phase);lL=s*.6;lR=-s*.6;aL=-s*.45;aR=s*.45;by=Math.abs(Math.cos(h.phase))*.035;lean=.1;h.torso.rotation.z=Math.sin(h.phase)*.03}
   else if(h.mode==='dig'){const k=h.t/DIG_T;aR=k<.5?lerp(.1,-2.7,ease(k/.5)):k<.7?lerp(-2.7,-.55,(k-.5)/.2):-.55;aL=k<.5?lerp(0,-1.2,k*2):-.4;lean=k>.5?.45:.1;lL=.3;lR=-.2;hd=.2}
   else if(h.mode==='joy'){const k=h.t;by=Math.abs(Math.sin(k*7))*.42*Math.max(0,1-k/2.2);aL=-2.85+Math.sin(k*16)*.15;aR=-2.85-Math.sin(k*16)*.15;aLz=-.45;aRz=.45;lL=-.5*Math.abs(Math.sin(k*7));lR=lL;lean=-.12;hd=-.25}
+  else if(h.mode==='climb'){const st=(climbing?.steps||0),w=Math.sin(clock*5+st*1.6);lL=-.55+w*.4;lR=-.55-w*.4;aL=-2.35-w*.4;aR=-2.35+w*.4;lean=.38;by=.06;}
   else if(h.mode==='sit'){lL=-1.28;lR=-1.28;aL=-.36;aR=-.36;aLz=.10;aRz=-.10;by=-.36;lean=.08;hd=-.06}
   else if(h.mode==='faint'){lL=.13;lR=-.18;aL=-.25;aR=-.35;aLz=.9;aRz=-.9;lean=0;hd=-.12;by=0}
   const f=1-Math.exp(-dt*(h.mode==='dig'?40:14));
@@ -1081,13 +1072,11 @@ function poseHiker(h,dt,speed){
   h.body.position.y=lerp(h.body.position.y,by,h.mode==='joy'?1:f);h.torso.rotation.x=lerp(h.torso.rotation.x,lean,f);h.head.rotation.x=lerp(h.head.rotation.x,hd,f);
   if(h.mode!=='walk')h.torso.rotation.z*=.85;h.mouth.scale.setScalar(h.mode==='joy'?1.7:1);if(h.mode==='idle'){h.head.rotation.y=Math.sin(h.t*.5)*.35;h.head.rotation.z=0;h.body.scale.y=1+Math.sin(h.t*2)*.006}else{h.head.rotation.y*=.9;h.body.scale.y=1}
 }
-
-/* ================= FLORA: 한국 자생 약초·나물 50종 =================
+/* ================= FLORA: 한국 자생 약초·나물 64종 =================
    (법정 멸종위기종인 산작약·석곡 등은 제외)
    alt: 자라는 해발(m) / L: sun 양지 · half 반그늘 · shade 그늘 / W: dry · mid · moist · wet(물가 습지) · water(물속 가장자리)
    ab: 상대 개체수(한국 기준 흔함→귀함) / need: 캐는 데 필요한 호미질 / m: 지상부 모양 / root: 땅속 부위 */
 const SPECIES=[
-// ── 뿌리·덩이 약초 (땅속에 묻혀 있음) ──
 {id:'sansam',n:'산삼',cat:'root',part:'뿌리',hab:'해발 400m 이상 북향의 서늘한 활엽수림 그늘',alt:[400,1500],L:'shade',W:'mid',ab:.05,need:9,
  m:{k:'up',h:.45,st:0x6f7f3a,lv:{shape:'palm5',n:3,arr:'whorl',at:.82,len:.14,col:0x3f7a34,pitch:.2},fl:{t:'berries',col:0xd8382a,s:.03}},root:{k:'fork',col:0xe8d2a2,len:.17,w:.03},
  d:'수십 년을 그늘에서 버틴 뿌리. 붉은 열매 한 송이가 유일한 신호다. 심봤다!'},
@@ -1148,7 +1137,6 @@ const SPECIES=[
 {id:'sanmaneul',n:'산마늘(명이)',cat:'leaf',part:'잎·비늘줄기',hab:'해발 1,000m 넘는 서늘하고 습한 숲, 남획으로 귀해짐',alt:[1000,2200],L:'half',W:'moist',ab:.3,need:4,
  m:{k:'big',n:2,h:.12,shape:'lance',size:.22,col:0x3f7a34,stalk:{h:.35,fl:{t:'globe',col:0xf4f2e4,s:.02}}},root:{k:'bulb',col:0xe8dcd0,len:.06,w:.02},
  d:'넓은 잎 두세 장에서 마늘 향이 난다. 높은 산에서만 겨우 만난다.'},
-// ── 산나물 (지상부) ──
 {id:'gosari',n:'고사리',cat:'leaf',part:'새순',hab:'볕 잘 드는 산비탈',alt:[0,1200],L:'sun',W:'mid',ab:8,need:2,
  m:{k:'fern',n:4,h:.4,curl:1,st:0x7c6c35,col:0x6f8b34},root:{k:'fib',col:0x5a4a30,len:.08,w:.006},
  d:'주먹 쥔 새순. 봄 산이 가장 먼저 내미는 인사.'},
@@ -1218,7 +1206,6 @@ const SPECIES=[
 {id:'bakjwi',n:'박쥐나물',cat:'leaf',part:'잎',hab:'높은 산 습한 숲',alt:[900,1800],L:'shade',W:'moist',ab:.8,need:2,
  m:{k:'big',n:2,h:.7,shape:'bat',size:.2,col:0x4a7a34},
  d:'박쥐 날개처럼 펼친 세모 잎.'},
-// ── 약초 (지상부 전체·열매) ──
 {id:'samji',n:'삼지구엽초',cat:'herb',part:'잎·줄기',hab:'산지 숲 그늘',alt:[300,1400],L:'shade',W:'mid',ab:.5,need:3,
  m:{k:'samji',h:.35,st:0x7a6a3a,col:0x5a8a3a,fl:{t:'bell',col:0xf4eccc,s:.014}},
  d:'세 가지에 아홉 장 잎. 이름이 곧 생김새다.'},
@@ -1240,19 +1227,30 @@ const SPECIES=[
 {id:'buchoson',n:'부처손',cat:'herb',part:'전초',hab:'볕 드는 바위 위',alt:[0,1200],L:'sun',W:'dry',rock:1,ab:1.5,need:2,
  m:{k:'scales',n:12,len:.12,col:0x4a6a34},
  d:'가물면 주먹을 쥐었다가 비가 오면 다시 편다. 바위에 붙어 산다.'},
+{id:'kkulpul',n:'꿀풀',cat:'herb',part:'꽃이삭',hab:'양지바른 산자락 풀밭',alt:[100,1100],L:'sun',W:'mid',ab:3.2,need:3,m:{k:'up',h:.38,st:0x6c8b45,lv:{n:6,arr:'opp',len:.065,wid:.037,col:0x547a42},fl:{t:'spike',col:0x8763b2,s:.027}},d:'보랏빛 꽃이삭이 층층이 피는 꿀풀. 햇볕 드는 풀밭에서 만난다.'},
+{id:'oipul',n:'오이풀',cat:'herb',part:'꽃이삭·잎',hab:'햇빛 드는 산지 초원',alt:[150,1400],L:'sun',W:'mid',ab:2.5,need:3,m:{k:'up',h:.63,st:0x70874b,lv:{n:6,len:.085,col:0x5b7e43,shape:'compound'},fl:{t:'spike',col:0x89453a,s:.028}},d:'가느다란 줄기 끝에 자줏빛 꽃이삭을 단 산지 풀.'},
+{id:'eonggeong',n:'엉겅퀴',cat:'herb',part:'꽃과 잎',hab:'양지바른 산비탈과 풀밭',alt:[0,1300],L:'sun',W:'dry',ab:2.1,need:4,m:{k:'up',h:.78,st:0x587d45,lv:{n:8,len:.12,wid:.044,col:0x4c7946},fl:{t:'thistle',col:0xa36aa8,s:.038}},d:'가시 달린 잎과 붉은 보랏빛 꽃머리가 눈에 띈다.'},
+{id:'miyeokchwi',n:'미역취',cat:'leaf',part:'어린잎',hab:'건조한 산능선 양지와 숲 가장자리',alt:[100,1600],L:'sun',W:'dry',ab:2.8,need:3,m:{k:'up',h:.82,st:0x738547,lv:{n:8,len:.095,wid:.035,col:0x5e8646},fl:{t:'spike',col:0xd8b83c,s:.02}},d:'가을에 노란 꽃들이 모여 피는 산지 풀.'},
+{id:'baechohyang',n:'배초향',cat:'herb',part:'잎과 꽃대',hab:'볕 좋은 산기슭과 숲 가장자리',alt:[0,900],L:'sun',W:'mid',ab:2.0,need:3,m:{k:'up',h:.83,st:0x6b834e,lv:{n:8,arr:'opp',len:.105,wid:.057,col:0x4f8357},fl:{t:'spike',col:0x956aae,s:.024}},d:'향긋한 잎과 연보라 꽃이삭이 돋보이는 식물.'},
+{id:'sanbakha',n:'산박하',cat:'herb',part:'지상부',hab:'산길 주변 반그늘과 산비탈',alt:[100,1300],L:'half',W:'mid',ab:2.9,need:3,m:{k:'up',h:.7,st:0x69854f,lv:{n:9,arr:'opp',len:.09,wid:.04,col:0x5e8345},fl:{t:'spike',col:0x9d84c2,s:.018}},d:'톱니잎 사이로 작은 보라 꽃들이 피는 산박하.'},
+{id:'kkothyangyu',n:'꽃향유',cat:'herb',part:'꽃대',hab:'햇살 드는 산지 풀밭·가장자리',alt:[100,1300],L:'sun',W:'mid',ab:2.1,need:3,m:{k:'up',h:.62,st:0x69884c,lv:{n:7,arr:'opp',len:.075,wid:.038,col:0x547d4b},fl:{t:'spike',col:0xb176ae,s:.03}},d:'한쪽으로 쏠린 자주빛 꽃이삭이 특징인 가을 들꽃.'},
+{id:'soetteugi',n:'쇠뜨기',cat:'herb',part:'푸른 줄기',hab:'축축한 숲 가장자리와 산길',alt:[0,1050],L:'half',W:'moist',ab:3.0,need:3,m:{k:'grass',n:12,h:.48,strap:.007,col:0x668c62,stalk:{h:.30,fl:{t:'spike',col:0xa6a782,s:.016}}},d:'가느다란 마디가 이어지는 양치식물. 이른 봄 포자줄기를 내민다.'},
+{id:'seokchangpo',n:'석창포',cat:'root',part:'뿌리줄기',hab:'계곡 물가 젖은 돌 사이',alt:[100,900],L:'half',W:'wet',ab:.85,need:5,m:{k:'grass',n:13,h:.29,strap:.011,col:0x547f4c,stalk:{h:.24,fl:{t:'spike',col:0xb49b5b,s:.019}}},root:{k:'rhizome',col:0xa98b58,len:.14,w:.026},d:'물소리 가까운 바위 틈에서 잎이 촘촘하게 솟아난다.'},
+{id:'doldanpung',n:'돌단풍',cat:'herb',part:'잎·꽃대',hab:'습한 계곡 큰 바위의 틈과 경계',alt:[150,1300],L:'half',W:'moist',rock:1,ab:.9,need:4,m:{k:'big',n:5,h:.20,shape:'palm',size:.13,col:0x6c8a58,stalk:{h:.38,fl:{t:'umbel',col:0xe8cfba,s:.028}}},d:'계곡 돌 틈에 매달린 손바닥 모양 잎과 작은 흰 꽃.'},
+{id:'bawichwi',n:'바위취',cat:'herb',part:'잎·꽃대',hab:'그늘지고 습한 바위 표면',alt:[150,1250],L:'shade',W:'moist',rock:1,ab:.7,need:4,m:{k:'big',n:5,h:.10,shape:'round',size:.115,col:0x4b7351,stalk:{h:.42,fl:{t:'star',col:0xf3e8d5,s:.017,n:6}}},d:'축축한 바위 틈의 둥근 잎 위로 가는 꽃대가 솟는다.'},
+{id:'gorancho',n:'고란초',cat:'herb',part:'잎',hab:'계곡 그늘진 절벽·바위틈',alt:[100,1500],L:'shade',W:'moist',rock:1,ab:.35,need:5,m:{k:'fern',n:5,h:.28,curl:0,st:0x507950,col:0x4a7b57},d:'그늘지고 습한 바위에 붙는 짙은 녹색 양치식물.'},
+{id:'bawichaesong',n:'바위채송화',cat:'herb',part:'지상부',hab:'바람 드는 마른 암벽 틈',alt:[200,1550],L:'sun',W:'dry',rock:1,ab:1.1,need:3,m:{k:'scales',n:12,len:.09,col:0x84945b},d:'건조한 바위 틈에 작은 잎이 다닥다닥 모여 자란다.'},
+{id:'aegigirin',n:'애기기린초',cat:'herb',part:'지상부',hab:'햇볕 드는 바위와 자갈 사면',alt:[250,1500],L:'sun',W:'dry',rock:1,ab:.85,need:3,m:{k:'up',h:.20,stems:4,st:0x768c4f,lv:{n:6,len:.036,wid:.02,col:0x788f54},fl:{t:'umbel',col:0xe6cc3c,s:.018}},d:'바위 틈에 잎을 촘촘히 모으고 작은 노란 꽃을 피운다.'},
 ];
-// ── HERBS 표를 50종으로 교체 ──
 for(const k of Object.keys(HERBS))delete HERBS[k];HERB_KEYS.length=0;
 const starOf=ab=>ab>=6?1:ab>=2.5?2:ab>=1?3:ab>=.3?4:5;
 for(const s of SPECIES){HERBS[s.id]={name:s.n,w:s.ab,need:s.need,rar:starOf(s.ab),root:!!s.root,under:!!s.root&&s.cat==='root',desc:s.d,part:s.part,hab:s.hab,cat:s.cat,sp:s};HERB_KEYS.push(s.id)}
 const SPI={};SPECIES.forEach(s=>SPI[s.id]=s);
-
 /* ---------- 계곡(물길) ---------- */
 function sX1(z){return pathX(z)-26+Math.sin(z*.017)*9}
 function sX2(z){return pathX(z)+30+Math.sin(z*.013+2)*11}
 function streamD(x,z){return Math.min(Math.abs(x-sX1(z)),Math.abs(x-sX2(z)))}
 function streamCarve(x,z){let c=0;for(const sx of [sX1(z),sX2(z)]){const d=x-sx;c+=1.7*Math.exp(-d*d/12)+1.6*Math.exp(-d*d/110)}return c}
-
 /* ---------- 서식 환경 ---------- */
 function canopyAt(x,z){const alt=H(x,z)*ALT_K;const patch=vn(x*.035+3,z*.035-5);return clamp(.75+patch*.9,.08,1)*clamp(1-(alt-1200)/1600,.3,1)}
 function envAt(x,z,c){
@@ -1272,7 +1270,6 @@ function fitOf(sp,e){
   if(sp.pine)f*=e.pine*1.2;if(sp.oak)f*=(1-e.pine)*2.2;
   return f;
 }
-
 /* ---------- 로우폴리 식물 빌더 ---------- */
 const UPV=new THREE.Vector3(0,1,0),V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const TAPER=keep(new THREE.ConeGeometry(1,1,7));TAPER.rotateX(Math.PI);TAPER.translate(0,-.5,0);
@@ -1413,7 +1410,6 @@ function makePlantMesh(sp,v){
   const h=sp.m.h||.4,hr=clamp(h*.45,.22,.6);const hit=new THREE.Mesh(HITGEO,HITMAT);hit.scale.setScalar(hr);hit.position.y=Math.min(h*.45,.6);g.add(hit);
   return g;
 }
-
 /* ---------- 청크에 식물 심기: 서식지 적합도 × 개체수 ---------- */
 function placeFlora(c,r,ox,oz,grp){
   const cand=26;
@@ -1439,7 +1435,6 @@ function placeStreams(c,r,ox,oz,grp){
     const wm=new THREE.Mesh(geo,waterMat);wm.receiveShadow=true;grp.add(wm);
     for(let k=0;k<5;k++){const z=oz+(r()-.5)*CH,x=fn(z)+(r()<.5?-1:1)*(1+r()*1.2);if(Math.abs(x-ox)>CH/2)continue;const s=.15+r()*.35;const st=new THREE.Mesh(STONE,M(0x8f8b7c));st.scale.set(s,s*.55,s);st.position.set(x,H(x,z)+s*.2,z);st.rotation.y=r()*6;grp.add(st)}}
 }
-
 /* ---------- 도감 아이콘: 3D 모델을 그대로 렌더 (땅속 뿌리까지) ---------- */
 let iconR=null,iconScene=null,iconCam=null;const iconCache={};
 function iconInit(){if(iconR)return;const cv=document.createElement('canvas');cv.width=240;cv.height=200;
@@ -1452,13 +1447,9 @@ const FRUITS={
  wildberry:{name:'산딸기',rar:2,desc:'햇살 드는 숲 가장자리의 붉은 열매.',hab:'숲 가장자리',color:0xb73d48},
  ginkgo:{name:'은행 열매',rar:2,desc:'가을에 볼 수 있는 노란 은행 열매.',hab:'입구 부근 은행나무 아래',color:0xd4bd43}
 };
-// Small, real-world-scale woodland fruit. Local meshes stay detailed for the field guide;
-// placement scales them to centimeters in the world (the hiker is about 1.9 units tall).
 const FRUIT_SCALE={acorn:.15,chestnut:.20,pinecone:.34,wildberry:.14,ginkgo:.16};
 const FRUIT_HEIGHT={acorn:.045,chestnut:.047,pinecone:.065,wildberry:.043,ginkgo:.043};
 function fruit3D(type){
- // The existing herb assets use matte, flat-shaded primitives with few polygons.
- // Match that exact material/geometry language, including the field-guide renders.
  const g=new THREE.Group(),d=FRUITS[type];
  const stemMat=M(0x705438),leafMat=M(0x587342),leafLite=M(0x7c9252);
  const add=(geo,mat,x=0,y=0,z=0,sx=1,sy=1,sz=1,parent=g)=>{
@@ -1473,7 +1464,6 @@ function fruit3D(type){
  if(type==='acorn'){
    const nut=ball(M(0x976031),0,-.018,0,.175,.225,.17,1);
    nut.rotation.z=.06;
-   // Acorn cup is an open, angular cap, not a second smooth sphere.
    const cup=add(new THREE.CylinderGeometry(.17,.145,.085,9,1,true),M(0x796044),0,.142,0);
    add(new THREE.CylinderGeometry(.012,.017,.13,5),stemMat,0,.236,0);
    for(let i=0;i<7;i++){
@@ -1483,7 +1473,6 @@ function fruit3D(type){
    const nut=ball(M(0x824628),0,-.012,0,.185,.185,.165,1);
    add(new THREE.ConeGeometry(.105,.125,7),M(0x9b5a30),0,.180,0);
    ball(M(0xc4a57b),0,-.17,.005,.11,.018,.12,0);
-   // Glossy chestnuts are deliberately matte to fit the existing herbs.
  }else if(type==='pinecone'){
    add(new THREE.CylinderGeometry(.045,.067,.46,6),stemMat,0,0,0);
    for(let row=0;row<5;row++){
@@ -1497,7 +1486,6 @@ function fruit3D(type){
      }
    }
  }else if(type==='wildberry'){
-   // Nine clustered angular drupelets, each sharing the original berry palette.
    for(let i=0;i<9;i++){
      const a=i*2.3999632,r=i<3?.075:.116;
      ball(M(i%3===0?0xa93441:i%3===1?0xc74650:0xd15c59),Math.sin(a)*r,.02+(i%3-1)*.065,Math.cos(a)*r,.088,.082,.084);
@@ -1524,16 +1512,13 @@ function renderIcon(kind,type){
   iconR.render(iconScene,iconCam);return iconR.domElement;
 }
 function iconURL(kind,type){const k=kind+':'+type;if(!iconCache[k])iconCache[k]=renderIcon(kind,type).toDataURL();return iconCache[k]}
-
 /* 땅을 파서 나오는 것: 그 자리 환경에 맞는 땅속 약초 */
 function digFind(x,z){
   const c=chunks.get(Math.floor(x/CH)+','+Math.floor(z/CH));const e=envAt(x,z,c);let S=0;const list=[];
   for(const sp of SPECIES){if(sp.cat!=='root')continue;const f=sp.ab*fitOf(sp,e);if(f>0){list.push([sp.id,f]);S+=f}}
   if(!S||Math.random()>clamp(S/(S+10),0,1)*.6)return null;let p=Math.random()*S;for(const[id,f] of list){p-=f;if(p<=0)return id}return list[list.length-1][0];
 }
-
 /* ---------- 도감에 없는 야생초·야생화·버섯·열매 (약초스타일그래픽) ---------- */
-// Names are game-world labels, not an identification guide for edible or poisonous species.
 const WILD_DECOYS = [
   {id:'fleabane',name:'개망초',kind:'weed',green:0x64834c,accent:0xe1d9bb,note:'개망초였다… ㅠㅠ 도감에 없는 들풀이네.'},
   {id:'plantain',name:'질경이',kind:'weed',green:0x4a7442,accent:0xa8a16e,note:'질경이였구나… 약초인 줄 알았네 ㅠㅠ'},
@@ -1550,11 +1535,17 @@ const WILD_DECOYS = [
   {id:'pokeberry',name:'자리공 닮은 열매',kind:'inedible',green:0x56704e,accent:0x543a62,note:'먹으면 위험할 수 있는 열매다! 가방에 넣지 않았다.'},
   {id:'jackberry',name:'천남성 닮은 열매',kind:'inedible',green:0x527649,accent:0xb95040,note:'천남성을 닮은 붉은 열매다. 식용이 아니니 두고 가자.'},
   {id:'blueberry',name:'푸른 야생 열매',kind:'inedible',green:0x5e744b,accent:0x64718e,note:'낯선 푸른 열매였다… 먹을 수 있는지 몰라 놓아두었다 ㅠㅠ'},
-  {id:'coralberry',name:'산속 붉은 열매',kind:'inedible',green:0x587844,accent:0xaa584a,note:'산속 붉은 열매다. 식용 여부를 모르니 가져가지 말자.'}
+  {id:'coralberry',name:'산속 붉은 열매',kind:'inedible',green:0x587844,accent:0xaa584a,note:'산속 붉은 열매다. 식용 여부를 모르니 가져가지 말자.'},
+  {id:'yeoro',name:'여로처럼 생긴 풀',kind:'weed',green:0x436c4c,accent:0x82735e,need:5,morph:'lance',note:'여로를 닮은 낯선 풀… ㅠㅠ 도감에 없는 야생초다.'},
+  {id:'baksae',name:'박새처럼 생긴 풀',kind:'weed',green:0x5f8b52,accent:0xb7b999,need:4,morph:'lance',note:'박새를 닮은 풀이다. 조심해야 할 식물이라 내려놓았다.'},
+  {id:'tugukkot',name:'투구꽃',kind:'flower',green:0x4c714e,accent:0x6c69b0,need:5,morph:'bell',note:'투구꽃이었다! 독성이 있을 수 있어 수집하지 않았다.'},
+  {id:'pinamul',name:'피나물',kind:'flower',green:0x4e7a47,accent:0xe1b751,need:4,morph:'star',note:'피나물이었다… ㅠㅠ 도감에 없는 들꽃이네.'},
+  {id:'satgat',name:'삿갓나물',kind:'weed',green:0x446b45,accent:0x75583c,need:5,morph:'palm',note:'삿갓나물이다. 다른 약초로 착각했네 ㅠㅠ'},
+  {id:'eunbangul',name:'은방울꽃',kind:'flower',green:0x557849,accent:0xe9e7d6,need:4,morph:'bell',note:'은방울꽃이었구나. 독성이 있는 식물이므로 두고 가자.'},
+  {id:'aegidong',name:'애기똥풀',kind:'flower',green:0x57864a,accent:0xdfc74d,need:3,morph:'star',note:'노란 꽃은 애기똥풀이었어. 도감에는 없다 ㅠㅠ'},
+  {id:'kkachisum',name:'큰까치수염',kind:'flower',green:0x5c824d,accent:0xe2dfc8,need:4,morph:'spike',note:'큰까치수염이네. 꽃 모양은 비슷했지만 이번에는 실패 ㅠㅠ'},
+  {id:'jjuio',name:'쥐오줌풀',kind:'flower',green:0x608658,accent:0xd7b9b6,need:4,morph:'umbel',note:'쥐오줌풀이었네! 알고 보니 도감 대상이 아니야 ㅠㅠ'},
 ];
-// 백약산 서식지 규칙: 실제 채집·식용 판별 자료가 아니라 자연스러운 게임 환경용 확률 모델.
-// L: 양지/반그늘/그늘, W: 건조/보통/습함, place: 가장자리/길가/계곡/숲/바위.
-// 이름이 불확실한 야생화·열매는 일반적인 유사 식생의 환경만 참고한다.
 const DECOY_HABITAT={
   fleabane:  {L:'sun', W:'mid', alt:[0,1100],place:'open',trail:true,ab:1.35},    // 개망초: 밝은 빈터·산길 가장자리
   plantain: {L:'sun', W:'mid', alt:[0,950], place:'path',ab:1.10},               // 질경이: 밟히는 길 가장자리
@@ -1571,7 +1562,16 @@ const DECOY_HABITAT={
   pokeberry:{L:'sun',W:'moist',alt:[0,950],place:'edge',ab:.75},                 // 자리공 모양: 교란된 숲가
   jackberry:{L:'shade',W:'moist',alt:[200,1300],place:'forest',tree:'broad',ab:.45},
   blueberry:{L:'half',W:'mid',alt:[250,1650],place:'forest',tree:'pine',ab:.55}, // 미확인 푸른 열매: 솔숲 덤불류 연출
-  coralberry:{L:'half',W:'mid',alt:[100,1400],place:'edge',ab:.70}
+  coralberry:{L:'half',W:'mid',alt:[100,1400],place:'edge',ab:.70},
+  yeoro:{L:'half',W:'moist',alt:[350,1750],place:'forest',ab:.75},
+  baksae:{L:'half',W:'moist',alt:[500,1800],place:'forest',ab:.85},
+  tugukkot:{L:'half',W:'moist',alt:[500,1750],place:'forest',ab:.6},
+  pinamul:{L:'shade',W:'moist',alt:[80,1250],place:'forest',ab:.8},
+  satgat:{L:'shade',W:'mid',alt:[150,1500],place:'forest',ab:.75},
+  eunbangul:{L:'half',W:'mid',alt:[250,1500],place:'forest',ab:.65},
+  aegidong:{L:'sun',W:'mid',alt:[0,800],place:'edge',ab:1.15},
+  kkachisum:{L:'half',W:'moist',alt:[120,1200],place:'streamEdge',ab:.95},
+  jjuio:{L:'half',W:'moist',alt:[200,1300],place:'edge',ab:.8},
 };
 const habitatBell=(v,target,width)=>Math.exp(-.5*Math.pow((v-target)/width,2));
 function microHabitatAt(x,z,c){
@@ -1585,7 +1585,6 @@ function microHabitatAt(x,z,c){
       if(t.kind==='chestnut'&&d<nearChestnut)nearChestnut=d;
       if(t.kind==='ginkgo'&&d<nearGinkgo)nearGinkgo=d}
   }
-  // Local slope and actual trees make microhabitats distinct even within the same chunk.
   const slope=Math.hypot(H(x+1,z)-H(x-1,z),H(x,z+1)-H(x,z-1))*.5;
   return {...e,nearTree,nearBroad,nearPine,nearOak,nearChestnut,nearGinkgo,
     trail:Math.abs(x-pathX(z)),slope};
@@ -1636,15 +1635,23 @@ function decoy3D(spec,r){
       stemM(g,x,0,z,ht,.011,stem,0,(r()-.5)*.22);
       for(let k=0;k<(spec.kind==='inedible'?3:4);k++){
         const y=ht*(.19+k*.16),ang=a+k*2.4,spread=.12+r()*.085;
-        leafM(g,x,y,z,spread,.045+r()*.022,ang,.3,k%2?leafA:leafB);
+        leafM(g,x,y,z,spec.morph==='lance'?spread*1.3:spread,spec.morph==='lance'?.022:spec.morph==='palm'?.075:.045+r()*.022,ang,.3,k%2?leafA:leafB);
       }
       if(spec.kind==='flower'){
-        for(let k=0;k<5;k++){
-          const ang=k*Math.PI*2/5;
-          const p=add(DECOY_PETAL,petal,x+Math.cos(ang)*.044,ht,z+Math.sin(ang)*.044,.035,.016,.035);
-          p.rotation.y=ang;
+        if(spec.morph==='bell'||spec.morph==='spike'||spec.morph==='umbel'){
+          const n=spec.morph==='spike'?7:5;
+          for(let k=0;k<n;k++){
+            const ang=k*2.399,yy=ht+(k%3)*.037;
+            add(spec.morph==='bell'?DECOY_CAP:BALL,petal,x+Math.cos(ang)*.035,yy,z+Math.sin(ang)*.035,.029,.034,.029);
+          }
+        }else{
+          for(let k=0;k<5;k++){
+            const ang=k*Math.PI*2/5;
+            const p=add(DECOY_PETAL,petal,x+Math.cos(ang)*.044,ht,z+Math.sin(ang)*.044,.035,.016,.035);
+            p.rotation.y=ang;
+          }
+          add(BALL,M(0xcbb968),x,ht+.012,z,.023,.023,.023);
         }
-        add(BALL,M(0xcbb968),x,ht+.012,z,.023,.023,.023);
       }else if(spec.kind==='inedible'){
         const cols=spec.id==='jackberry'?2:spec.id==='pokeberry'?5:4;
         for(let k=0;k<cols;k++){
@@ -1666,8 +1673,6 @@ function decoy3D(spec,r){
   return g;
 }
 function placeDecoyFlora(c,r,ox,oz,grp,nearStart,inRock,dens){
-  // Each candidate is evaluated against its own light, moisture, altitude, trees and terrain.
-  // Fixed seeded attempts => every player sees the same locations and shared harvest IDs.
   const tries=Math.round((32+r()*7)*Math.max(.55,dens));
   let accepted=0;const limit=Math.round(8+dens*7);
   for(let i=0;i<tries&&accepted<limit;i++){
@@ -1679,16 +1684,58 @@ function placeDecoyFlora(c,r,ox,oz,grp,nearStart,inRock,dens){
     let pick=r()*total,index=weights.length-1;
     for(let k=0;k<weights.length;k++){pick-=weights[k];if(pick<=0){index=k;break}}
     const spec=WILD_DECOYS[index];
-    // Accepted slots are counted regardless of collection status so sampling stays deterministic.
     accepted++;
     const id=`${c.key}:decoy${i}`;if(takenUntil(id))continue;
     const mesh=decoy3D(spec,r);mesh.position.set(x,H(x,z)-.025,z);mesh.rotation.y=r()*Math.PI*2;
     mesh.scale.setScalar(.82+r()*.38);
-    const it={kind:'decoy',type:spec.id,spec,id,hits:0,need:1,mesh};mesh.userData.item=it;
+    const it={kind:'decoy',type:spec.id,spec,id,hits:0,need:spec.need||3,mesh};mesh.userData.item=it;
     grp.add(mesh);c.items.push(it);
   }
 }
-
+const ROCK_PLANT_TYPES=['doldanpung','bawichwi','gorancho','bawichaesong','aegigirin','buchoson'];
+function placeRockPlants(c,r,grp){
+ for(let i=0;i<c.rocks.length;i++){
+   const rock=c.rocks[i];if(!rock.climbable||!rock.mesh)continue;
+   const x=rock.x,z=rock.z,light=1-canopyAt(x,z),moist=envAt(x,z,c).moist,alt=rock.groundY*ALT_K;
+   let list=ROCK_PLANT_TYPES.filter(k=>{
+     const sp=SPI[k];return sp&&alt>=sp.alt[0]&&alt<=sp.alt[1]&&
+       (sp.L==='sun'?light>.33:sp.L==='shade'?light<.74:true)&&
+       (sp.W==='dry'?moist<.62:moist>.22);
+   });
+   if(!list.length&&r()>.25)continue;
+   const spec=(r()<.18&&moist>.30)?null:list[Math.floor(r()*list.length)];
+   const type=spec?spec.id:'seogi';if(type==='seogi'&&moist<.26)continue;
+   const ang=r()*Math.PI*2,rr=rock.r*(.13+r()*.25);
+   const px=x+Math.cos(ang)*rr,pz=z+Math.sin(ang)*rr,py=rock.topY-.04;
+   const id=`${c.key}:rock${i}`;if(takenUntil(id))continue;
+   const isMush=type==='seogi';
+   const mesh=isMush?mush3D(type):makePlantMesh(spec,Math.floor(r()*3));
+   mesh.position.set(px,py,pz);mesh.rotation.y=r()*Math.PI*2;
+   if(isMush)mesh.scale.setScalar(1.4);
+   const it={kind:isMush?'mush':'herb',type,id,hits:0,need:isMush?MUSH[type].need:spec.need,mesh,rock};
+   mesh.userData.item=it;grp.add(mesh);c.items.push(it);
+ }
+}
+function placeExtraMushrooms(c,r,grp,nearStart){
+ const mk=(type,id,x,y,z,sc=1)=>{
+   if(takenUntil(id)||nearStart(x,z,4))return;
+   const m=mush3D(type);m.position.set(x,y,z);m.rotation.y=r()*6.28;m.scale.setScalar(sc);
+   const it={kind:'mush',type,id,hits:0,need:MUSH[type].need,mesh:m};m.userData.item=it;grp.add(m);c.items.push(it);
+ };
+ for(let i=0;i<c.trees.length;i++){
+   const t=c.trees[i],alt=t.y*ALT_K;
+   if(t.s<.62||r()>.17)continue;
+   const pine=t.kind==='pine',broad=!pine,oak=t.kind==='oak';
+   const e=envAt(t.x+1,t.z,c),ds=e.ds;
+   const a=r()*Math.PI*2,rr=.6+r()*1.3,x=t.x+Math.sin(a)*rr,z=t.z+Math.cos(a)*rr;
+   if(streamD(x,z)<2.8)continue;
+   if(pine&&alt>180&&alt<1500&&e.moist<.64&&r()<.22)mk('songi',`${c.key}:xm${i}`,x,H(x,z)+.03,z,1.45);
+   else if(oak&&alt>200&&alt<1500&&e.moist>.28&&r()<.23)mk('neungi',`${c.key}:xm${i}`,x,H(x,z)+.04,z,1.35);
+   else if(broad&&alt>180&&alt<1250&&e.moist>.38&&r()<.25)mk('norugung',`${c.key}:xm${i}`,t.x,t.y+1.15*t.s,t.z,1.25);
+   else if(pine&&alt>200&&alt<1500&&e.moist>.25&&r()<.2)mk('kkotsongi',`${c.key}:xm${i}`,x,H(x,z)+.03,z,1.35);
+   else if(oak&&alt>140&&alt<1300&&e.moist>.25&&r()<.24)mk('ipsae',`${c.key}:xm${i}`,x,H(x,z)+.03,z,1.45);
+ }
+}
 /* ---------- world chunks ---------- */
 const CH=48,RES=32;let VIEW=3;
 const chunks=new Map();
@@ -1713,7 +1760,6 @@ function buildChunk(cx,cz){
   const ground=new THREE.Mesh(geo,terrainMat);ground.receiveShadow=true;ground.userData.terrain=true;
   const grp=new THREE.Group();grp.add(ground);
   const c={key:cx+','+cz,cx,cz,grp,ground,trees:[],items:[],treeMeshes:[]};
-  // a wild mountain: no trail. Boulders first, then dense forest with patchy clearings, then undergrowth
   const altHere=H(ox,oz)*ALT_K, dens=clamp(1-(altHere-1200)/1600,.3,1);
   const startX=pathX(24);
   const nearStart=(x,z,r)=>Math.hypot(x-startX,z-24)<r;
@@ -1723,10 +1769,11 @@ function buildChunk(cx,cz){
     const nr=big?1+Math.floor(r()*2):2+Math.floor(r()*4);
     for(let q=0;q<nr;q++){const rad=big?2.6+r()*3.2:.9+r()*1.8;const x=cx0+(r()-.5)*(big?6:9),z=cz0+(r()-.5)*(big?6:9);
       if(nearStart(x,z,rad+4))continue;
-      const rk={x,z,r:rad};c.rocks.push(rk);
+      const rk={x,z,r:rad,climbable:big&&rad>3.0};c.rocks.push(rk);
       const m=new THREE.Mesh(r()<.5?STONE:ROCK2,M([0x8b8778,0x7d7a6c,0x96917f,0x6f6c60][q%4]));
       m.scale.set(rad*(1+r()*.3),rad*(.55+r()*.45),rad*(.85+r()*.35));m.rotation.set(r()*.6,r()*6.28,r()*.4);
       m.position.set(x,H(x,z)-rad*.25,z);m.castShadow=true;m.receiveShadow=true;grp.add(m);
+      rk.mesh=m;rk.topY=m.position.y+m.scale.y*.78;rk.groundY=H(x,z);
       if(r()<.6){const moss=new THREE.Mesh(BALL,M(0x4a6a34));moss.scale.set(rad*.7,rad*.18,rad*.6);moss.position.set(x+(r()-.5)*rad*.4,m.position.y+rad*(.45+r()*.2),z+(r()-.5)*rad*.4);grp.add(moss)}}}
   const inRock=(x,z,pad)=>c.rocks.some(k=>Math.hypot(x-k.x,z-k.z)<k.r+pad);
   const pines=[],oaks=[];const n=Math.round(64*dens);
@@ -1735,12 +1782,11 @@ function buildChunk(cx,cz){
     if(nearStart(x,z,3.5)||inRock(x,z,.8)||streamD(x,z)<2.6)continue;
     const pineP=clamp(.55+altHere/2500,.55,.95),treeRoll=r();
     const cls=r(),sz=cls<.55?.8+r()*.45:cls<.82?.42+r()*.3:.14+r()*.22;
-    // Chestnuts prefer the lower broadleaf slope; ginkgos are uncommon and mainly near the entrance.
     const gateDist=Math.hypot(x-pathX(24),z-24);
     const broadType=(gateDist<60&&altHere<420&&r()<.24)?'ginkgo':(altHere<950&&r()<.30)?'chestnut':'oak';
     const t={x,z,y:H(x,z)-.2,s:sz,rot:r()*6.28,lean:(r()-.5)*(sz>.6?.05:.12),kind:treeRoll<pineP?'pine':broadType,id:`${c.key}:t${i}`,hits:0,searched:false};
     (t.kind==='pine'?pines:oaks).push(t);c.trees.push(t);
-    if(t.s>.5&&r()<.24){const mt=pickW(MUSH,MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
+    if(t.s>.5&&r()<.24){const mt=pickW(MUSH,COMMON_MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
       const it={kind:'mush',type:mt,id:`${c.key}:m${i}`,hits:0,need:MUSH[mt].need,tree:t};
       if(!takenUntil(it.id)){const m=mush3D(mt);m.position.set(x+Math.cos(a)*rr,t.y+.55+r()*.75,z+Math.sin(a)*rr);m.rotation.y=Math.atan2(Math.cos(a),Math.sin(a));m.scale.setScalar(1.6);it.mesh=m;t.mush=m;m.userData.item=it;grp.add(m);c.items.push(it)}}}
   const snowy=altHere>1500;
@@ -1755,16 +1801,13 @@ function buildChunk(cx,cz){
     else oc.setHSL(.26+h2(i,k+3)*.06,.36,.28+k*.04+h2(i,9)*.05);
     return oc}));
   placeTentTrailRibbons(c,grp);
-  // undergrowth: bushes and ferns
+  placeExtraMushrooms(c,r,grp,nearStart);
   {const nb=Math.round(46*dens);const im=new THREE.InstancedMesh(BUSH,foliage,nb);const o=new THREE.Object3D(),bc=new THREE.Color();let k=0;
    for(let i=0;i<nb;i++){const x=ox+(r()-.5)*CH,z=oz+(r()-.5)*CH;if(inRock(x,z,.2)||nearStart(x,z,2))continue;const sc=.22+r()*.38;
      o.position.set(x,H(x,z)+sc*.25,z);o.rotation.set(0,r()*6.28,0);o.scale.set(sc*1.3,sc*.8,sc*1.2);o.updateMatrix();im.setMatrixAt(k,o.matrix);bc.setHSL(.27+r()*.08,.35,.2+r()*.1);im.setColorAt(k,bc);k++}
    im.count=k;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.castShadow=true;grp.add(im)}
-  // 약초 50종: 서식지 적합도에 따라 심고, 계곡 물길을 깐다
-  placeFlora(c,r,ox,oz,grp);placeStreams(c,r,ox,oz,grp);
+  placeFlora(c,r,ox,oz,grp);placeRockPlants(c,r,grp);placeStreams(c,r,ox,oz,grp);
   placeDecoyFlora(c,r,ox,oz,grp,nearStart,inRock,dens);
-  // Fallen fruit matches its actual host: pinecones under pines, acorns under oaks,
-  // chestnuts under chestnut trees and ginkgo fruit mainly near planted entrance ginkgos.
   const putFruit=(type,id,x,z,fall=true)=>{
     if(takenUntil(id))return;
     if(inRock(x,z,.12)||nearStart(x,z,3)||streamD(x,z)<2.6)return;
@@ -1773,7 +1816,6 @@ function buildChunk(cx,cz){
     pickArea.scale.setScalar(.19/FRUIT_SCALE[type]);pickArea.userData.pickArea=true;mesh.add(pickArea);
     const ground=H(x,z),groundY=ground+(fall?FRUIT_HEIGHT[type]:.31);
     if(type==='wildberry'){
-      // 산딸기는 떨어진 나무 열매가 아니라 햇빛이 드는 가장자리의 낮은 관목에 매달린다.
       const bush=new THREE.Group();bush.position.set(x,ground,z);
       for(let k=0;k<3;k++){
         const a=k*Math.PI*2/3,xx=Math.sin(a)*.11,zz=Math.cos(a)*.11;
@@ -1793,13 +1835,11 @@ function buildChunk(cx,cz){
     const a=r()*Math.PI*2,d=.65+r()*1.65;
     putFruit(type,c.key+':fruit'+i,tree.x+Math.cos(a)*d,tree.z+Math.sin(a)*d);
   }
-  // Wild raspberries grow at bright forest edges rather than falling from an unrelated tree.
   for(let i=0;i<8;i++){
     const x=ox+(r()-.5)*(CH-5),z=oz+(r()-.5)*(CH-5),e=microHabitatAt(x,z,c);
     if(e.alt>1250||e.light<.43||e.moist<.16||e.moist>.89||e.nearTree>12||e.nearTree<1.3||e.slope>2.0||r()>.52)continue;
     putFruit('wildberry',c.key+':berry'+i,x,z,false);
   }
-
   scene.add(grp);chunks.set(c.key,c);return c;
 }
 function disposeChunk(c){scene.remove(c.grp);c.grp.traverse(o=>{if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();if(o.isInstancedMesh&&o.dispose)o.dispose();if(o.material&&o.material.map&&o.material.map!==sparkTex&&o.material.map!==weaveTex&&o.isMesh&&!o.isSprite)o.material.map.dispose()});chunks.delete(c.key)}
@@ -1814,7 +1854,6 @@ function updateChunks(px,pz,force,dt){
   chunkQueue=[...want].filter(k=>!chunks.has(k)).sort((a,b)=>{const[ax,az]=a.split(',').map(Number),[bx,bz]=b.split(',').map(Number);return((ax-ccx)**2+(az-ccz)**2)-((bx-ccx)**2+(bz-ccz)**2)});
   const n=force?chunkQueue.length:0;for(let i=0;i<n&&chunkQueue.length;i++){const[x,z]=chunkQueue.shift().split(',').map(Number);buildChunk(x,z)}
 }
-
 /* start gate (일주문) */
 function buildGate(){
   const g=new THREE.Group(),z=18,x0=pathX(z),y0=H(x0,z);g.position.set(x0,y0,z);
@@ -1828,7 +1867,6 @@ function buildGate(){
   const plq2=plq.clone();plq2.position.z=-.22;plq2.rotation.y=Math.PI;g.add(plq2);
   scene.add(g);
 }
-
 /* ---------- particles ---------- */
 const MAXP=500,pPos=new Float32Array(MAXP*3),pCol=new Float32Array(MAXP*3),parts=[];
 const pGeo=new THREE.BufferGeometry();pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
@@ -1843,7 +1881,6 @@ function updParticles(dt){
   pGeo.setDrawRange(0,n);pGeo.attributes.position.needsUpdate=true;pGeo.attributes.color.needsUpdate=true;
   for(let i=sparks.length-1;i>=0;i--){const s=sparks[i],u=s.userData;u.t+=dt;if(!u.heart)u.v.y-=2.5*dt;s.position.addScaledVector(u.v,dt);const k=u.t/u.life;s.material.opacity=1-k;s.scale.setScalar(u.s*(u.heart?1:1-k*.5));if(u.t>u.life){scene.remove(s);s.material.dispose();sparks.splice(i,1)}}
 }
-
 /* ================= PLAYER ================= */
 const me=makeHiker(JACKETS[save.color%JACKETS.length]);scene.add(me.root);
 const P={x:pathX(24),z:24,y:0,h:Math.PI,vy:0,air:false,speed:0};
@@ -1855,10 +1892,15 @@ const keys={};
 let target=null,pending=null,curAct=null,queued=null,hitDone=false;
 let joyT=0;
 const v3=new THREE.Vector3();
-
 function nearTo(p,r){return Math.hypot(p.x-P.x,p.z-P.z)<r}
 function act(tg){
-  if(Date.now()<faintUntil||me.mode==='joy'||(tg.item&&takenUntil(tg.item.id)))return;
+  if(Date.now()<faintUntil||climbing||me.mode==='joy'||(tg.item&&takenUntil(tg.item.id)))return;
+  if(tg.item&&tg.item.rock&&onRock!==tg.item.rock){
+    const rock=tg.item.rock;
+    toast('바위 위에 붙어 있다. 근처에서 오르기 버튼을 이용하자.');
+    if(nearestClimbableRock()===rock)beginClimb(rock);
+    return;
+  }
   if(tg.kind==='herb'&&HERBS[tg.item.type].care&&nearTo(tg.pos,2.4)){const gap=HERBS[tg.item.type].care,it=tg.item;if((me.mode==='dig'&&curAct&&curAct.item===it)||(queued&&queued.item===it)||(it.hits>0&&clock-(it.lastHit||-9)<gap)){queued=null;careFail(tg);return}}
   const reach=tg.kind==='ground'?1.9:2.4;
   if(nearTo(tg.pos,reach)){target=null;pending=null;swing(tg)}
@@ -1874,8 +1916,8 @@ function impact(tg){
   thud();
   if(tg.kind==='herb'||tg.kind==='ground'||tg.kind==='fruit'||tg.kind==='decoy')dirt(tg.pos,16);else dirt(tg.pos,10,[0x7a4a30,0x5a3a24,0x5e8f3e]);
   if(tg.kind==='decoy'){
-    // Wrong find: never add to the bag, discovery counter, or field guide.
     const it=tg.item;if(!it||takenUntil(it.id))return;
+    it.hits++; if(it.hits<(it.need||3)){pip(tg.pos,it.hits,it.need||3);if(it.mesh){it.mesh.userData.shake=.25;shaking.add(it)}return;}
     markTaken(it.id,Date.now()+RESPAWN_MS,true);
     floatMsg(tg.pos,'도감에 없는 발견… ㅠㅠ');
     toast(it.spec.note);
@@ -1887,7 +1929,7 @@ function impact(tg){
   }else if(tg.kind==='tree'){
     const t=tg.tree;if(t.searched){floatMsg(tg.pos,'이미 살펴본 나무');return}
     t.hits++;for(let i=0;i<6;i++){if(parts.length>=MAXP)parts.shift();parts.push({x:t.x+(Math.random()-.5)*3,y:t.y+4*t.s,z:t.z+(Math.random()-.5)*3,vx:(Math.random()-.5),vy:-.2,vz:(Math.random()-.5),t:0,life:2,c:new THREE.Color(0x5e8f3e)})}
-    if(t.hits>=4){t.searched=true;if(Math.random()<.4){const mt=pickW(MUSH,MUSH_KEYS,Math.random(),1+P.y*ALT_K/600);collect('mush',mt,tg.pos,null)}else{floatMsg(tg.pos,'버섯은 없었다…');tone(220,.25,'triangle',.06,.8)}}
+    if(t.hits>=4){t.searched=true;if(Math.random()<.4){const mt=pickW(MUSH,COMMON_MUSH_KEYS,Math.random(),1+P.y*ALT_K/600);collect('mush',mt,tg.pos,null)}else{floatMsg(tg.pos,'버섯은 없었다…');tone(220,.25,'triangle',.06,.8)}}
     else pip(tg.pos,t.hits,4);
   }else{
     const k=Math.round(tg.pos.x/1.6)+','+Math.round(tg.pos.z/1.6);const sp=spots[k]||(spots[k]={hits:0,done:false});
@@ -1899,11 +1941,10 @@ function impact(tg){
   }
 }
 let foundTimer=0,lastFound=null;
-function showInfoCard(kind,type,fromBag,blankIcon=false){
+function showInfoCard(kind,type,fromBag){
   const info=kind==='herb'?HERBS[type]:kind==='fruit'?FRUITS[type]:MUSH[type];
   const fc=$('fCanvas'),g=fc.getContext('2d');g.clearRect(0,0,fc.width,fc.height);
-  if(!blankIcon)g.drawImage(renderIcon(kind==='fruit'?'fruit':kind==='herb'?'herb':'mush',type),0,0,fc.width,fc.height);
-  else{g.fillStyle='rgba(31,43,40,.08)';g.beginPath();g.arc(fc.width/2,fc.height/2,78,0,Math.PI*2);g.fill();g.strokeStyle='rgba(31,43,40,.25)';g.lineWidth=6;g.beginPath();g.arc(fc.width/2,fc.height/2,54,0,Math.PI*2);g.stroke();g.lineWidth=3;g.beginPath();g.moveTo(fc.width/2-34,fc.height/2+34);g.lineTo(fc.width/2+34,fc.height/2-34);g.stroke();}
+  g.drawImage(renderIcon(kind==='fruit'?'fruit':kind==='herb'?'herb':'mush',type),0,0,fc.width,fc.height);
   $('fTag').textContent=fromBag?'도감':info.rar>=5?'심봤다!!':info.rar>=4?'귀한 것을 찾았다':'채집 성공';
   $('fName').textContent=info.name;$('fRar').textContent='★'.repeat(info.rar)+'☆'.repeat(5-info.rar);
   $('fDesc').textContent=info.desc;$('fMeta').textContent=(info.part?`채취: ${info.part} · `:'')+(info.hab||'나무 줄기')+(info.care?' · 뿌리가 여려 천천히 캐야 함':'')+` · 등산가방 속 ${save.inv[type]||0}개`;
@@ -1911,7 +1952,6 @@ function showInfoCard(kind,type,fromBag,blankIcon=false){
   $('found').classList.toggle('legend',info.rar>=4);$('found').classList.add('on');
   foundTimer=fromBag?0:(info.rar>=4?3.8:2.6);
 }
-
 function collect(kind,type,pos,it){
   const info=kind==='herb'?HERBS[type]:kind==='fruit'?FRUITS[type]:MUSH[type];
   if(it&&takenUntil(it.id))return;
@@ -1926,7 +1966,6 @@ function collect(kind,type,pos,it){
   sendPresence(true);
 }
 $('found').addEventListener('pointerdown',e=>{e.stopPropagation();$('found').classList.remove('on');foundTimer=0});
-
 /* screen-space labels */
 const labels=[];
 function worldLabel(pos,html,cls,life){const el=document.createElement('div');el.className='wl '+(cls||'');el.textContent=html;$('labels').appendChild(el);labels.push({el,pos:new THREE.Vector3(pos.x,pos.y+1.1,pos.z),t:0,life});}
@@ -1935,10 +1974,9 @@ function floatMsg(pos,txt){worldLabel(pos,txt,'msg',1.4)}
 function updLabels(dt){for(let i=labels.length-1;i>=0;i--){const l=labels[i];l.t+=dt;v3.copy(l.pos);v3.y+=l.t*.6;v3.project(camera);
   if(v3.z>1||l.t>l.life){if(l.t>l.life){l.el.remove();labels.splice(i,1);continue}l.el.style.display='none';continue}
   l.el.style.display='';l.el.style.transform=`translate(${(v3.x*.5+.5)*W}px,${(-v3.y*.5+.5)*Hh}px) translate(-50%,-100%)`;l.el.style.opacity=clamp(1-(l.t/l.life-.6)/.4,0,1)}}
-
 /* ---------- input ---------- */
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;keys[e.code]=true;if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
-  if(e.code==='Space')jump();
+  if(e.code==='Space'&&mode==='game'){e.preventDefault();climbAct();}
   if(e.code==='Escape'){$('bag').classList.add('hide')}
   if(mode==='intro'&&introT>.3&&introT<4)introT=4.05;
   if(mode==='game')hideHint()});
@@ -1961,13 +1999,11 @@ function clickAt(sx,sy){if(Date.now()<faintUntil||inTent)return;
     if(o.userData.tent){const t=o.userData.tent,pos=t.mesh.position.clone(); if(nearTo(pos,3.1)) openTent(t); else{target={x:pos.x,z:pos.z,stop:2.4}; pending={kind:'tent',tent:t,pos};} hideHint(); return}
     if(o.userData.item){const it=o.userData.item;act({kind:it.kind,item:it,pos:it.mesh.position.clone()});hideHint();return}
     if(o.userData.trees){const t=o.userData.trees[h.instanceId];if(!t)continue;
-      // a click on a tree that has a mushroom goes to the mushroom
       for(const c of chunks.values())for(const it of c.items)if(it.tree===t&&it.mesh){act({kind:'mush',item:it,pos:it.mesh.position.clone()});return}
       act({kind:'tree',tree:t,pos:new THREE.Vector3(t.x,t.y+1.2,t.z)});hideHint();return}
     if(o.userData.terrain){const p=h.point;if(nearTo(p,1.9))act({kind:'ground',pos:p.clone()});else{target={x:p.x,z:p.z,stop:.35};pending=null}hideHint();return}
   }
 }
-// touch joystick
 const joy={x:0,y:0,id:null};
 {const pad=$('joy'),knob=$('knob');
   const set=(e)=>{const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=(e.clientX-cx)/(r.width/2),dy=(e.clientY-cy)/(r.height/2);const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l}joy.x=dx;joy.y=dy;knob.style.transform=`translate(${dx*34}px,${dy*34}px)`};
@@ -1975,9 +2011,7 @@ const joy={x:0,y:0,id:null};
   pad.addEventListener('pointermove',e=>{if(joy.id===e.pointerId)set(e)});
   const end=e=>{if(joy.id!==e.pointerId)return;joy.id=null;joy.x=joy.y=0;knob.style.transform=''};pad.addEventListener('pointerup',end);pad.addEventListener('pointercancel',end)}
 function hideHint(){}
-
 /* ---------- sky by altitude ---------- */
-
 /* ---------- HUD ---------- */
 const MILES=['솔바람이 등을 민다','능선 너머로 다른 산들이 내려앉는다','구름이 가까워진다','구름 위로 올라섰다. 산들이 섬처럼 떠 있다','공기가 차갑다. 귀한 것들의 기운이 짙다','노을이 산을 물들인다','별이 머리 위로 쏟아진다','아무도 와 본 적 없는 높이'];
 let lastMile=-1,toastT=0;
@@ -1993,34 +2027,39 @@ function buildBag(){
   const meta=document.createElement('div');meta.className='bagMeta';
   meta.textContent=`가방에는 종류와 상관없이 최대 ${BAG_LIMIT}개까지 담을 수 있습니다. 현재 ${totalCount()} / ${BAG_LIMIT}개 · 정산금 ${won(+save.won||0)}`;
   host.appendChild(meta);
-  const groups=[['root','뿌리·덩이 약초 (땅속)'],['leaf','산나물'],['herb','약초'],['mush','나무 버섯'],['fruit','숲에서 떨어지는 열매']];
+  const groups=[['root','뿌리·덩이 약초 (땅속)'],['leaf','산나물'],['herb','약초'],['mush','산속 버섯'],['fruit','숲에서 떨어지는 열매']];
   for(const [cat,title] of groups){
     const keys=cat==='fruit'?Object.keys(FRUITS):cat==='mush'?MUSH_KEYS:HERB_KEYS.filter(k=>HERBS[k].cat===cat);
     const got=keys.filter(k=>(save.known||{})[k]).length;
     const h=document.createElement('h4');h.textContent=`${title} · ${got}/${keys.length}`;host.appendChild(h);
     const grid=document.createElement('div');grid.className='grid';host.appendChild(grid);
     for(const key of keys){const info=cat==='fruit'?FRUITS[key]:cat==='mush'?MUSH[key]:HERBS[key],have=save.inv[key]||0,known=!!((save.known||{})[key]);
-      const c=document.createElement('div');c.className='card'+(known?(have?'':' empty'):' unk');
+      const c=document.createElement('div');c.className='card'+(known?'':' unk');
       const img=document.createElement('img');img.src=iconURL(cat==='fruit'?'fruit':cat==='mush'?'mush':'herb',key);img.alt='';c.appendChild(img);
       const n=document.createElement('div');n.className='n';n.textContent=known?info.name:'???';
       const cc=document.createElement('div');cc.className='c';
       cc.textContent=!known?`${'★'.repeat(info.rar)} · 아직 못 찾음`:have?`${have}개 · ${'★'.repeat(info.rar)}`:`현재 0개 · 판매함`;
       c.appendChild(n);c.appendChild(cc);
       if(known&&info.hab){const hb=document.createElement('div');hb.className='hb';hb.textContent=info.hab+' · '+info.desc;c.appendChild(hb)}
-      if(known){c.classList.add('click');c.onclick=()=>showInfoCard(cat==='fruit'?'fruit':cat==='mush'?'mush':'herb',key,true,!have)}
+      if(known){c.classList.add('click');c.onclick=()=>showInfoCard(cat==='fruit'?'fruit':cat==='mush'?'mush':'herb',key,true)}
       grid.appendChild(c)}
   }
 }
-
 /* ================= 지도 · 나침반 ================= */
-// 게임 속 좌표를 강원 고산지대 어딘가의 위도·경도로 환산 (북쪽 = 오르막 방향 -z, 동쪽 = +x)
 const GEO={lat0:37.7312,lon0:128.5946};
 function toLatLon(x,z){const lat=GEO.lat0+(-z)/111320;return[lat,GEO.lon0+x/(111320*Math.cos(lat*Math.PI/180))]}
-function dms(v,pos,neg){const s=v>=0?pos:neg;v=Math.abs(v);const d=Math.floor(v),mf=(v-d)*60,m=Math.floor(mf),sec=(mf-m)*60;return `${s} ${d}° ${String(m).padStart(2,'0')}′ ${sec.toFixed(1).padStart(4,'0')}″`}
+function myGeo(){const [lat,lon]=toLatLon(P.x,P.z);return {lat,lon,alt:Math.round(P.y*ALT_K)}}
+function dms(v,pos,neg,decimals=1){
+ const sign=v>=0?pos:neg,unit=Math.pow(10,decimals);
+ const ticks=Math.round(Math.abs(v)*3600*unit);
+ const deg=Math.floor(ticks/(3600*unit)),rem=ticks-deg*3600*unit;
+ const min=Math.floor(rem/(60*unit)),sec=(rem-min*60*unit)/unit;
+ const secText=sec.toFixed(decimals).padStart(decimals?3+decimals:2,'0');
+ return `${sign} ${deg}°${String(min).padStart(2,'0')}′${secText}″`;
+}
 const DIRS=['북','북북동','북동','동북동','동','동남동','남동','남남동','남','남남서','남서','서남서','서','서북서','북서','북북서'];
 const bearingOf=h=>(Math.atan2(Math.sin(h),-Math.cos(h))*180/Math.PI+360)%360;
 const dirName=b=>DIRS[Math.round(b/22.5)%16];
-// 걸어온 길 기록
 delete save.trail;
 let mapOpen=false;const mapZoom=.25;let mapBase=null,mapBaseAt=null;
 function renderMapBase(){
@@ -2048,15 +2087,16 @@ function drawMap(){
   if(!mapBaseAt||mapBaseAt.s!==s||Math.hypot(P.x-mapBaseAt.x,P.z-mapBaseAt.z)>Wm*s*.18)renderMapBase();
   const toPx=(x,z)=>[cx+(x-P.x)/s,cy+(z-P.z)/s];
   g.fillStyle='#e8e2d2';g.fillRect(0,0,Wm,Hm);g.drawImage(mapBase,(mapBaseAt.x-P.x)/s,(mapBaseAt.z-P.z)/s);
-  // 확대했을 때: 바위와 나무 수관
   if(s<=.5){const r0=Wm*s*.6;for(const ch of chunks.values()){
     for(const t of ch.trees){if(Math.abs(t.x-P.x)>r0||Math.abs(t.z-P.z)>r0)continue;const[x,y]=toPx(t.x,t.z);const rr=(t.kind==='pine'?2.4:3)*t.s/s;g.fillStyle=t.kind==='pine'?'rgba(38,70,44,.42)':'rgba(70,110,52,.4)';g.beginPath();g.arc(x,y,rr,0,7);g.fill();g.fillStyle='rgba(60,40,25,.7)';g.beginPath();g.arc(x,y,Math.max(1,.4*t.s/s),0,7);g.fill()}
     for(const k of ch.rocks||[]){if(Math.abs(k.x-P.x)>r0||Math.abs(k.z-P.z)>r0)continue;const[x,y]=toPx(k.x,k.z);g.fillStyle='rgba(150,146,132,.95)';g.strokeStyle='rgba(80,76,66,.9)';g.lineWidth=1;g.beginPath();g.arc(x,y,k.r/s,0,7);g.fill();g.stroke()}}}
-  // 위도·경도 눈금: 확대에 맞춰 간격(초)을 고름
-  const[lat0,lon0]=toLatLon(P.x,P.z),mPerLon=111320*Math.cos(lat0*Math.PI/180);
+  const {lat:lat0,lon:lon0,alt:myAlt}=myGeo();
+  $('mapGeoDecimal').textContent=`북위 ${lat0.toFixed(5)}° · 동경 ${lon0.toFixed(5)}° · 해발 ${myAlt.toLocaleString()}m`;
+  $('mapGeoDms').textContent=`${dms(lat0,'N','S')} · ${dms(lon0,'E','W')}`;
+  const mPerLon=111320*Math.cos(lat0*Math.PI/180);
   const step=[1,2,5,10,15,30,60,120,300].find(v=>v/3600*111320/s>=95)||300;
   const latTop=lat0+cy*s/111320,latBot=lat0-cy*s/111320,lonL=lon0-cx*s/mPerLon,lonR=lon0+cx*s/mPerLon;
-  const fmt=(v,p,n)=>{const sg=v>=0?p:n;v=Math.abs(v)+1e-9;const d=Math.floor(v),m=Math.floor((v-d)*60),sec=Math.round(((v-d)*60-m)*60);return sec===60?`${d}°${m+1}′00″${sg}`:`${d}°${String(m).padStart(2,'0')}′${String(sec).padStart(2,'0')}″${sg}`};
+  const fmt=(v,p,n)=>dms(v,p,n,0);
   g.font='10.5px "Gowun Dodum",sans-serif';g.lineWidth=1;
   for(let v=Math.ceil(latBot*3600/step)*step/3600;v<=latTop;v+=step/3600){const y=cy-(v-lat0)*111320/s;
     g.strokeStyle='rgba(31,43,40,.22)';g.beginPath();g.moveTo(0,y);g.lineTo(Wm,y);g.stroke();
@@ -2066,9 +2106,7 @@ function drawMap(){
     g.strokeStyle='rgba(31,43,40,.22)';g.beginPath();g.moveTo(x,0);g.lineTo(x,Hm);g.stroke();
     g.strokeStyle='#1f2b28';g.beginPath();g.moveTo(x,0);g.lineTo(x,9);g.moveTo(x,Hm-9);g.lineTo(x,Hm);g.stroke();
     const t=fmt(v,'E','W'),tw=g.measureText(t).width;g.fillStyle='rgba(244,239,227,.85)';g.fillRect(x-tw/2-2,Hm-24,tw+4,13);g.fillStyle='#1f2b28';g.textAlign='center';g.fillText(t,x,Hm-14)}
-  // 테두리 눈금자
   g.strokeStyle='#1f2b28';g.lineWidth=2;g.strokeRect(1,1,Wm-2,Hm-2);
-  // 베이스 캠프 권역: 정확한 점이 아닌 넓은 범위로만 표시
   { const [bx,by]=toPx(BASE_CAMP.x,BASE_CAMP.z), rr=BASE_CAMP.r/s;
     g.save();
     g.fillStyle='rgba(233,156,61,.13)'; g.strokeStyle='rgba(181,102,23,.88)'; g.lineWidth=2; g.setLineDash([8,6]);
@@ -2080,15 +2118,12 @@ function drawMap(){
       g.fillStyle='#7a4716'; g.fillText(text,bx,by+7);
     }
     g.restore(); }
-  // 내 위치
   const b=bearingOf(P.h)*Math.PI/180;g.save();g.translate(cx,cy);
   g.fillStyle='rgba(216,52,44,.18)';g.beginPath();g.arc(0,0,17,0,7);g.fill();
   g.rotate(b);g.fillStyle='#d8342c';g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.moveTo(0,-12);g.lineTo(8,9);g.lineTo(0,4);g.lineTo(-8,9);g.closePath();g.stroke();g.fill();g.restore();
-  // 축척 + 해발
   const sbm=20,sb=sbm/s;
   g.fillStyle='rgba(244,239,227,.92)';g.fillRect(14,14,Math.max(sb,96)+20,40);g.fillStyle='#1f2b28';g.fillRect(24,42,sb,3);g.fillRect(24,38,2,7);g.fillRect(24+sb-2,38,2,7);
   g.font='11px "Gowun Dodum",sans-serif';g.textAlign='left';g.fillText(`${sbm}m · 해발 ${Math.max(0,Math.round(P.y*ALT_K)).toLocaleString()}m`,24,32);
-  // 작은 나침반 (지도 위, 오른쪽 위)
   drawCompassOn(g,Wm-52,52,40,bearingOf(P.h));
 }
 function drawCompassOn(g,cx,cy,r,bd){
@@ -2105,10 +2140,9 @@ function toggleMap(open){mapOpen=open===undefined?!mapOpen:open;$('mapView').cla
 $('mapBtn').onclick=()=>toggleMap(true);$('mapClose').onclick=()=>toggleMap(false);
 $('mapView').addEventListener('pointerdown',e=>{if(e.target.id==='mapView')toggleMap(false)});
 addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||mode!=='game')return;if(e.code==='KeyM')toggleMap();if(e.code==='Escape')toggleMap(false)});
-
 /* ================= RADIO ================= */
 const RADIO_PHRASES=[
- ['위치 공유',()=>{const [lat,lon]=toLatLon(P.x,P.z);return `여기는 ${cleanNick(save.nick)||'산객'}! 현재 북위 ${lat.toFixed(5)}°, 동경 ${lon.toFixed(5)}°, 해발 ${Math.round(P.y*ALT_K)}m입니다. 위치 확인 부탁합니다.`}],
+ ['위치 공유',()=>{const {lat,lon,alt}=myGeo();return `여기는 ${cleanNick(save.nick)||'산객'}! 현재 북위 ${lat.toFixed(5)}°, 동경 ${lon.toFixed(5)}°, 해발 ${alt}m입니다. 위치 확인 부탁합니다.`}],
  ['희귀 발견',()=>`여기는 ${cleanNick(save.nick)||'산객'}! ${lastFound&&Date.now()-lastFound.t<90000?'방금 귀한 약초를 발견했습니다!':'이 근처에 희귀한 약초가 있을지도 모르겠습니다.'} 주변을 살펴봐 주세요!`],
  ['산짐승 조심',()=>`산객 여러분, 주변에 야생동물이 보입니다. 소리 지르거나 가까이 가지 말고 조심해서 이동하세요!`],
  ['인사',()=>`산객 여러분, 안녕하세요! 오늘도 안전한 산행 되시길 바랍니다. 좋은 약초 만나세요!`]
@@ -2123,10 +2157,7 @@ $('radioBtn').onclick=()=>{$('radioPanel').classList.toggle('hide')};$('radioClo
 for(const [title,getMessage] of RADIO_PHRASES){const b=document.createElement('button');b.textContent=title;b.onclick=()=>{
  const msg=getMessage();showRadioLine(cleanNick(save.nick)||'나',msg);if(netJoined)netPublish('radio',{name:cleanNick(save.nick),msg});
  $('radioPanel').classList.add('hide');};$('radioChoices').appendChild(b)}
-
 /* ================= MULTIPLAYER (GitHub Pages + public MQTT) ================= */
-// No user setup: the shared public MQTT broker relays avatar snapshots.
-// A browser-only 4-seat limit is cooperative/best-effort, not authoritative.
 const MQTT_BROKER='wss://broker.emqx.io:8084/mqtt';
 const GAME_ROOM='baekyaksan-herbs-public-v2';
 const MQTT_TOPIC=GAME_ROOM+'/presence/';
@@ -2144,19 +2175,16 @@ function netState(){const act=Date.now()<faintUntil?'f':me.mode==='walk'?'w':me.
 function updatePeople(){
   const count=netJoined?1+[...peerSeen.values()].filter(v=>Date.now()-v.seen<11000).length:0;
   peopleCount=count;
-  // Keep 1/4 off-screen as requested in previous revisions.
   const el=$('people');el.classList.toggle('hide',count<=1||!mqttOnline);
   if(count>1&&mqttOnline)el.textContent='함께 오르는 산객 '+Math.min(count,4)+'/4명';
 }
 function netDrop(id){const o=others.get(id);if(o){
-    // Remove remote player's light and target as well as the avatar.
     if(o.headLamp){scene.remove(o.headLamp);scene.remove(o.headLamp.target);o.headLamp.dispose&&o.headLamp.dispose()}
     if(o.lampLens){o.av.root.remove(o.lampLens);o.lampLens.geometry.dispose();o.lampLens.material.dispose()}
     scene.remove(o.av.root);o.el.remove();others.delete(id)
   }peerSeen.delete(id);updatePeople();if(inTent)updateTentSeats(.12)}
 function netCleanup(){const now=Date.now();if(now-lastPeerCleanup<1500)return;lastPeerCleanup=now;
   for(const [id,peer] of peerSeen)if(now-peer.seen>11000)netDrop(id);
-  // All participating browsers use the same ordering for the cooperative 4-seat cap.
   if(netJoined){const all=[{id:myId,joined:netJoinTime},...[...peerSeen].map(([id,p])=>({id,joined:p.joined}))].sort((a,b)=>a.joined-b.joined||a.id.localeCompare(b.id));
     if(all.findIndex(v=>v.id===myId)>=4){netJoined=false;netPublish('bye');toast('4명이 모두 접속해 있습니다 · 혼자 모드로 전환합니다');}}
   updatePeople();
@@ -2191,7 +2219,6 @@ function connectRoom(){
       if(d.type==='harvestSync'){if(Array.isArray(d.items))for(const e of d.items)if(Array.isArray(e)&&e.length===2)markTaken(e[0],+e[1],false);return}
       if(d.type==='radio'){if(typeof d.msg==='string'&&d.msg.length<=180)showRadioLine(cleanNick(d.name)||'산객',d.msg);return}
       if(d.type==='boarDisperse'){
-        // Nearby hikers see the same temporary clearing when someone wakes.
         const peer=others.get(d.id);
         if(peer&&Number.isFinite(d.x)&&Number.isFinite(d.z)&&
            Math.hypot(peer.x-d.x,peer.z-d.z)<45)
@@ -2204,7 +2231,6 @@ function connectRoom(){
       peerSeen.set(d.id,{seen:Date.now(),joined:d.joined,tent:d.type==='state'&&typeof d.tent==='string'&&/^tent-\d{1,2}$/.test(d.tent)?d.tent:(prev?.tent||''),name:cleanNick(d.n||prev?.name),color:Number.isInteger(d.c)?d.c:(prev?.color||0)});
       if(d.type==='hello'){if(netJoined){sendPresence(true);shareHarvestSnapshot()}return}
       if(!Number.isFinite(d.x)||!Number.isFinite(d.z)||!Number.isFinite(d.y)||Math.abs(d.x)>20000||Math.abs(d.z)>20000)return;
-      // A client with a later join time than the first four is not rendered.
       if(!prev&&peerSeen.size>12)netCleanup();
       upOther({peer:d.id,kind:'viewer',presence:d});updatePeople();
       if(inTent){reconcileTentOccupants();updateTentSeats(.08)}
@@ -2215,8 +2241,6 @@ function upOther(p){
   if(p.sameTab||p.kind!=='viewer')return;const s=p.presence||{};if(!isFinite(s.x)||!isFinite(s.z))return;
   let o=others.get(p.peer);
   if(!o){const col=JACKETS[((s.c|0)%JACKETS.length+JACKETS.length)%JACKETS.length];const av=makeHiker(col);scene.add(av.root);const el=document.createElement('div');el.className='nametag';$('labels').appendChild(el);
-    // A remote headlamp: independent cone, aimed along the avatar's networked heading.
-    // Shadow casting stays disabled to protect mobile performance (max 3 peers).
     const headLamp=new THREE.SpotLight(0xffefd0,0,26,.62,.6,1.4);
     headLamp.castShadow=false;scene.add(headLamp);scene.add(headLamp.target);
     const lampLens=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),
@@ -2240,13 +2264,10 @@ function updOthers(dt){
   const f=1-Math.exp(-dt*8);
   for(const o of others.values()){o.x=lerp(o.x,o.tx,f);o.z=lerp(o.z,o.tz,f);o.y=lerp(o.y,o.ty,f);let dh=o.th-o.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));o.h+=dh*f;
     const down=o.mode==='faint';
-    // Rotate the whole hiker onto their back, face up, on the terrain.
     o.av.root.position.set(o.x,o.y+(down?.28:0),o.z);o.av.root.rotation.y=o.h;
     o.av.root.rotation.x=lerp(o.av.root.rotation.x,down?-Math.PI/2:0,Math.min(1,dt*12));
     poseHiker(o.av,dt,down?0:1);
     const far=Math.hypot(o.x-P.x,o.z-P.z);o.av.root.visible=far<220&&!o.tent;
-    // Lanterns automatically follow the same 20-minute day/night clock as ours.
-    // Position and facing are already shared by multiplayer state packets.
     const night=skyAtHour(gameMin/60).night;
     const nearEnough=far<55;
     o.headLamp.intensity=nearEnough&&!down&&!o.tent?night*1.3:0;
@@ -2295,9 +2316,7 @@ function applyPerf(){
   const b=$('ecoBtn');if(b){b.classList.toggle('on',PERF.eco);b.textContent=PERF.eco?'절전 켬':'절전'}
   try{localStorage.setItem('baekyaksan-eco',PERF.eco?'1':'0')}catch(e){}
 }
-
 /* ================= 공동 게임 시간 : KST 20분 = 산속 하루 ================= */
-// KST 00/20/40분을 산속 자정으로 맞춰 모든 기기에서 같은 시각을 계산합니다.
 const KST_OFFSET=9*60*60*1000;
 const GAME_DAY_MS=20*60*1000;
 let gameMin=0,dayNo=1;
@@ -2308,18 +2327,13 @@ function syncKST(){
 }
 syncKST();
 function phaseOf(h){if(h>=20||h<4)return'밤';if(h<6)return'새벽';if(h<10)return'아침';if(h<17)return'낮';return'저녁'}
-// 시각, 하늘 위, 하늘 아래(지평선·안개), 햇빛, 하늘빛, 밤 정도
 const SKYK=[[0,'#0b1126','#18213d',0,.17,1],[4,'#0f1730','#212a47',0,.18,1],[5.2,'#38406a','#d39a8c',.1,.28,.6],[6.3,'#8fb2d4','#f2d6b0',.45,.45,.1],[8,'#a5c6dc','#eef0e6',.7,.55,0],
   [12,'#94bfe2','#eef2ea',.8,.6,0],[16.5,'#9cc0dc','#f0e8d4',.7,.55,0],[18.3,'#6a78b0','#f0a676',.4,.42,.1],[19.6,'#2e3666','#94687a',.12,.26,.5],[21,'#0e1430','#1c2442',0,.18,1],[24,'#0b1126','#18213d',0,.17,1]];
 const SKYNOW={top:'',bot:'',sun:0,hemi:0,night:0};
 function skyAtHour(h){let i=0;while(i<SKYK.length-2&&h>=SKYK[i+1][0])i++;const a=SKYK[i],b=SKYK[i+1],k=(h-a[0])/(b[0]-a[0]);
   SKYNOW.top=mixHex(a[1],b[1],k);SKYNOW.bot=mixHex(a[2],b[2],k);SKYNOW.sun=lerp(a[3],b[3],k);SKYNOW.hemi=lerp(a[4],b[4],k);SKYNOW.night=lerp(a[5],b[5],k);return SKYNOW}
 function clockText(){const h=Math.floor(gameMin/60)%24,m=Math.floor(gameMin%60);return `${h<12?'오전':'오후'} ${h%12===0?12:h%12}:${String(m).padStart(2,'0')}`}
-
 /* ================= 공동 날씨 : 장기 시드와 가변 지속시간 ================= */
-// 날씨는 게임의 20분 주기와 무관하게 진행됩니다. 이벤트별로 다른 길이를
-// 갖고, KST 밀리초 및 고정 시드를 통해 어느 기기에서도 결과가 같습니다.
-// 공개 MQTT에 의존하지 않으므로 늦게 입장해도 즉시 같은 날씨를 봅니다.
 const WEATHER_ANCHOR=Date.UTC(2026,0,1)-KST_OFFSET;
 const WEATHER_SEED=0x6a35b42d;
 const WEATHER_TYPES=[
@@ -2330,7 +2344,6 @@ const WEATHER_TYPES=[
   {name:'비',type:2,cloud:.85,rain:.62},
   {name:'장마',type:2,cloud:1,rain:1}
 ];
-// 기상 이벤트마다 결정적인 의사난수를 사용합니다. 브라우저별로 Math.random()을 쓰지 않습니다.
 function weatherRandom(index,salt){
   let x=(WEATHER_SEED^Math.imul(index+1,0x9e3779b1)^Math.imul(salt+1,0x85ebca6b))>>>0;
   x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);
@@ -2339,15 +2352,12 @@ function weatherRandom(index,salt){
 function weatherEvent(index,prevKind){
   const pick=weatherRandom(index,0);
   let kind=pick<.36?0:pick<.54?1:pick<.75?2:pick<.86?3:pick<.96?4:5;
-  // 비가 끝나자마자 맑아지기보다는 흐림을 한 번 거치도록 합니다.
   if((prevKind===3||prevKind===4||prevKind===5)&&kind===0)kind=2;
   const r=weatherRandom(index,1),minute=60000;
-  // 소나기는 짧게, 장마는 길게, 맑음과 흐림도 수십 분간 유지합니다.
   const ranges=[[35,95],[18,48],[24,66],[3,8],[12,28],[55,130]];
   const [lo,hi]=ranges[kind];
   return {kind,duration:(lo+(hi-lo)*r)*minute};
 }
-// 최종 이벤트가 끝날 때까지 계산하되, 평소에는 캐시된 구간만 확인합니다.
 let weatherStart=WEATHER_ANCHOR,weatherEnd=WEATHER_ANCHOR,weatherIndex=0,weatherPrevious=-1;
 let weatherKind=0,weatherPriorKind=0,weatherType=0,weatherName='',weatherRain=0,weatherCloud=0;
 function advanceWeather(){
@@ -2360,12 +2370,10 @@ function syncWeather(){
   const now=Date.now();
   if(now<WEATHER_ANCHOR){weatherStart=now;weatherEnd=WEATHER_ANCHOR;weatherKind=0;}
   else {
-    // 기기의 시계가 과거로 바뀌거나 절전 복귀 시에도 계산을 복원합니다.
     if(now<weatherStart){weatherStart=WEATHER_ANCHOR;weatherEnd=WEATHER_ANCHOR;weatherIndex=0;weatherPrevious=-1;}
     while(now>=weatherEnd)advanceWeather();
   }
   const event=WEATHER_TYPES[weatherKind];
-  // 짧은 소나기는 빠르게, 오래 가는 날씨는 천천히 전환합니다.
   const fade=Math.min(event.kind===3?24000:90000,(weatherEnd-weatherStart)*.20);
   const inT=clamp((now-weatherStart)/Math.max(1,fade),0,1);
   const prev=WEATHER_TYPES[weatherPriorKind]||event;
@@ -2374,7 +2382,6 @@ function syncWeather(){
   weatherRain=lerp(prev.rain,event.rain,smooth);
   const outgoing=Math.min(event.kind===3?24000:90000,(weatherEnd-weatherStart)*.20);
   const nextT=clamp((now-(weatherEnd-outgoing))/Math.max(1,outgoing),0,1);
-  // 종료 구간에는 급격히 끊지 않고 강우가 조금씩 약해지도록 합니다.
   if(event.rain>0&&nextT>0){weatherRain*=1-.28*nextT*nextT;}
   weatherType=event.type;
   if(weatherName!==event.name){weatherName=event.name;$('weather').textContent='날씨 · '+weatherName;}
@@ -2391,7 +2398,6 @@ function updateRain(dt){rainPoints.visible=weatherRain>.015;if(!rainPoints.visib
   for(let i=0;i<rainCount;i++){const j=i*3;rainXYZ[j+1]-=dt*(10+7*weatherRain);if(rainXYZ[j+1]<0){rainXYZ[j+1]+=16;rainXYZ[j]=(rainRand()-.5)*26;rainXYZ[j+2]=(rainRand()-.5)*26;}}
   rainGeo.attributes.position.needsUpdate=true;rainPoints.position.set(P.x,P.y+1,P.z);
 }
-// 밤에는 이마에 단 헤드랜턴
 const lamp=new THREE.SpotLight(0xfff0d0,0,26,.62,.6,1.4);scene.add(lamp);scene.add(lamp.target);
 const _white=new THREE.Color(),_fogTmp=new THREE.Color();let skyKey2='';
 function updSky(){
@@ -2400,13 +2406,11 @@ function updSky(){
   const inCloud=clamp(1-Math.abs(P.y-CLOUD_Y)/28,0,1);
   scene.fog.color.set(S.bot).lerp(_white.setScalar(lerp(.96,.3,night)),inCloud);
   scene.fog.near=lerp(45*PERF.fogK,4,inCloud);scene.fog.far=lerp(180*PERF.fogK,38,inCloud);
-  // 공통 날씨의 명암/안개 표현
   if(weatherCloud>.01){
     scene.fog.color.lerp(_fogTmp.set(weatherRain>.02?0x879aa1:0xb5c2c3),weatherCloud*(weatherRain>.02?.42:.20));
     scene.fog.far*=1-weatherCloud*.18-weatherRain*.22;
   }
   hemi.intensity=S.hemi*(1-weatherCloud*.16-weatherRain*.18);
-  // 해: 동(+x)에서 떠서 남(+z) 하늘을 지나 서(-x)로 짐. 밤에는 달빛
   const t=(hr-6)/12*Math.PI,el=Math.sin(t),az=Math.cos(t);
   if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun*(1-weatherCloud*.27-weatherRain*.30);sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
   else{sun.position.set(P.x-az*80,P.y+25-el*100,P.z+30);sun.intensity=.16*night;sun.color.setHex(0x9fb0ff)}
@@ -2420,16 +2424,13 @@ function updSky(){
   cloudSea[0].material.opacity=IOS_CLOUD_SAFE?(P.y<CLOUD_Y?.16:.30):(P.y<CLOUD_Y?.55:.95);
   for(const s of skyPuffs){const u=s.userData;u.a+=u.v*.016;s.position.set(P.x+Math.cos(u.a)*u.d,Math.max(u.y,P.y+u.y*.5),P.z+Math.sin(u.a)*u.d);s.material.opacity=.75*(1-night*.7);s.material.color.setScalar(shade)}
 }
-
 /* ================= 숲 소리 (전부 WebAudio로 합성) ================= */
 let AMB=null;
 function ambInit(){
   const a=ac();if(!a||AMB)return;
   const master=a.createGain();master.gain.value=.79;master.connect(audioOutput);
-  // 공용 잡음 버퍼
   const n=a.sampleRate*2,buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);let b0=0,b1=0;
   for(let i=0;i<n;i++){const w=Math.random()*2-1;b0=.99*b0+w*.05;b1=.9*b1+w*.2;d[i]=(b0+b1+w*.15)*.6}
-  // 잔잔한 시냇물: 낮은 음량의 부드러운 여울음 두 겹. 날카로운 고역과 거센 물소리를 줄인다.
   const water=a.createGain();water.gain.value=0;water.connect(master);
   for(const [f,q,lf,dep,level] of [[470,.55,.17,60,.70],[1250,.65,.29,135,.26]]){
     const s=a.createBufferSource();s.buffer=buf;s.loop=true;
@@ -2457,7 +2458,6 @@ const SND={
   cricket(t){const p=R(-.9,.9),f=R(2300,3000);for(let k=0;k<3;k++)voice(t+k*.055,.06,(g,t0,d)=>osc(g,'sine',t0,d,f,f*.96),.009,p)},
   scops(t){const p=R(-.6,.6),reps=3+Math.floor(R(0,4));for(let i=0;i<reps;i++){const tt=t+i*1.9;voice(tt,.13,(g,t0,d)=>osc(g,'sine',t0,d,920,880),.025,p);voice(tt+.2,.2,(g,t0,d)=>osc(g,'sine',t0,d,810,760),.025,p)}},
   owl(t){const p=R(-.6,.6);voice(t,.4,(g,t0,d)=>osc(g,'sine',t0,d,350,330),.05,p);voice(t+.55,.6,(g,t0,d)=>osc(g,'sine',t0,d,320,290),.05,p)},
-  // 주변 야생동물 소리: 한 마리의 위치와 거리에 따라 볼륨·좌우 방향이 달라진다.
   squirrel(t,v=.03,p=0){for(let k=0;k<3;k++)voice(t+k*.11,.08,(g,tt,d)=>osc(g,'sine',tt,d,1000+k*100,1490+k*70),v*.8,p)},
   redsquirrel(t,v=.03,p=0){for(let k=0;k<4;k++)voice(t+k*.09,.065,(g,tt,d)=>osc(g,'sine',tt,d,880+k*100,1380+k*65),v*.8,p)},
   rabbit(t,v=.018,p=0){voice(t,.18,(g,tt,d)=>noise(g,tt,d,650,1.2),v,p);voice(t+.23,.13,(g,tt,d)=>noise(g,tt,d,920,1.5),v*.6,p)},
@@ -2471,13 +2471,11 @@ const SND={
   frog(t){const p=R(-.8,.8);for(let i=0;i<2+Math.floor(R(0,3));i++)voice(t+i*.22,.14,(g,t0,d)=>{const lp=AMB.a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=700;lp.connect(g);osc(lp,'square',t0,d,R(160,210),130)},.03,p)},
   bubble(t){const p=R(-.4,.4);voice(t,.055,(g,t0,d)=>osc(g,'sine',t0,d,R(330,560),R(550,850)),.0025,p)},
 };
-// 시간대별로 1초에 몇 번쯤 울리는지
 const CHORUS={'새벽':{bird:.06,scops:.018,owl:.022,cricket:.6},'아침':{bird:.31,woodpecker:.024,dove:.10,cuckoo:.025},'낮':{cicada:.09,bird:.16,dove:.055,cuckoo:.025,woodpecker:.015},'저녁':{higurashi:.07,crow:.035,bird:.045,owl:.018,scops:.012,cricket:.7},'밤':{cricket:1.3,scops:.025,owl:.028}};
 let ambT=0;
 function updAmbience(dt){
   if(!AMB)return;const a=AMB.a;if(a.state==='suspended')return;
   const ds=streamD(P.x,P.z),wf=clamp(1-(ds-1)/15,0,1);
-  // 시냇가에 가까울 때만 은은하게 들리고 멀어지면 조용해진다.
   AMB.water.gain.setTargetAtTime(wf*wf*.085,a.currentTime,.9);
   ambT+=dt;if(ambT<.25)return;const step=ambT;ambT=0;
   const ph=phaseOf(gameMin/60),tbl=CHORUS[ph],alt=P.y*ALT_K,thin=clamp(1-(alt-1400)/1600,.35,1),t0=a.currentTime+.05;
@@ -2485,21 +2483,18 @@ function updAmbience(dt){
   if(ph==='밤'&&wf>.2&&Math.random()<.6*wf*step)SND.frog(t0);
   if(wf>.55&&Math.random()<.38*wf*step)SND.bubble(t0+Math.random()*.2);
 }
-
 /* ================= 조심히 캐야 하는 약초 ================= */
-// 뿌리가 가늘거나 길어서 끊어지기 쉬운 것: 호미질 사이에 숨을 고르지 않으면 실패
-const CARE={sansam:1.2,cheonma:1.0,ma:1.0,deodeok:.85,doraji:.8,jandae:.8,keunjorong:.9,jichi:.9,danggwi:.8,sanmaneul:.75,dokhwal:.7};
+const CARE={sansam:1.2,cheonma:1.0,ma:1.0,deodeok:.85,doraji:.8,jandae:.8,keunjorong:.9,jichi:.9,danggwi:.8,sanmaneul:.75,dokhwal:.7,seokchangpo:.9,gorancho:1.05,doldanpung:.8};
 for(const k in CARE)if(HERBS[k])HERBS[k].care=CARE[k];
 function careFail(tg){
-  const it=tg.item;it.hits=0;it.lastHit=-9;
-  floatMsg(tg.pos,'캐기 실패… 뿌리가 끊어질 뻔했다');setTimeout(()=>floatMsg(tg.pos,'조심히 캐야겠다'),700);
-  tone(180,.35,'triangle',.06,.6);if(it.mesh)it.mesh.userData.shake=.25;shaking.add(it);
+  const it=tg.item;if(!it||takenUntil(it.id))return;
+  queued=null;pending=null;curAct=null;it.hits=0;
+  markTaken(it.id,Date.now()+RESPAWN_MS,true);
+  floatMsg(tg.pos,'캐기 실패… 약초가 사라졌다 ㅠㅠ');toast('뿌리가 끊어져 채집 실패! 현실 시간 20분 뒤 다시 찾아보자.');
+  tone(180,.35,'triangle',.06,.6);
 }
 const shaking=new Set();
-
 /* ================= WILDLIFE ================= */
-// Scale ratios relative to the existing ~1.9m human avatar. Distinct silhouettes,
-// gentle flat-shaded geometry, and understated earthy colors match the original herbs.
 const WILDLIFE=[
  {id:'squirrel',name:'다람쥐',hab:'tree',color:0xa76c3b,scale:.19,fear:10},
  {id:'redsquirrel',name:'청설모',hab:'tree',color:0x686056,scale:.24,fear:11},
@@ -2515,9 +2510,6 @@ const WILDLIFE=[
 ];
 const animals=new Map();let animalBuildT=0,lastAnimalAttack=0;
 const BOAR_SMELL_RANGE=10,BOAR_CHARGE_RANGE=6.0,BOAR_CHASE_LIMIT=8.5,BOAR_CONTACT_RANGE=1.4;
-// When a hiker wakes up, the nearby boars disperse. The small temporary
-// safety zone prevents the deterministic chunk spawner from immediately
-// putting the same boar back beside the recovered hiker.
 const BOAR_WAKE_RADIUS=32,BOAR_WAKE_CLEAR_MS=2*60*1000;
 const boarSafeZones=[];
 function clearExpiredBoarZones(now=Date.now()){
@@ -2548,7 +2540,6 @@ function disperseBoars(x,z,until=Date.now()+BOAR_WAKE_CLEAR_MS,broadcast=false){
   if(alert)alert.classList.add('hide');boarAlertActive=false;
   if(broadcast)netPublish('boarDisperse',{x:+x.toFixed(2),z:+z.toFixed(2),until});
 }
-
 let boarAlertActive=false;
 let lastWildSoundAt=0;
 const ANIMAL_SOUND={squirrel:'squirrel',redsquirrel:'redsquirrel',rabbit:'rabbit',deer:'deer',boar:'boar',magpie:'magpie',woodpecker:'woodpecker',pheasant:'pheasant',turtledove:'turtledove',owl:'owlNearby',eagleowl:'eagleowl'};
@@ -2573,9 +2564,6 @@ function nearbyWildSound(now){
   lastWildSoundAt=now;
 }
 function createAnimal(spec){
- // Same low-poly language as herb3D(): small polygon counts, matte M() materials,
- // flat facet surfaces and deliberate, muted natural pigments. Pivots are retained
- // for the existing walking, climbing and wing-flapping animation system.
  const g=new THREE.Group(),rig=new THREE.Group();g.add(rig);
  const mat=M(spec.color),light=M(0xd8c5a7),dark=M(0x352e2a),eye=M(0x181712);
  const make=(parent,geo,m,x,y,z,sx=1,sy=1,sz=1)=>{
@@ -2593,7 +2581,6 @@ function createAnimal(spec){
    const bodyY=owlish?.75:.61;
    softEgg(rig,mat,0,bodyY,-.04,owlish?.43:.37,owlish?.53:.38,owlish?.40:.52);
    softEgg(rig,mat,0,owlish?1.10:.95,.30,owlish?.35:.23,owlish?.34:.24,owlish?.27:.25);
-   // Folded feathers are angular leaf-like planes, just like the existing herb leaves.
    for(const side of [-1,1]){
      const wingPivot=new THREE.Group();wingPivot.position.set(side*.27,owlish?.91:.79,-.04);rig.add(wingPivot);
      const wingMat=id==='magpie'?M(0x363d45):id==='woodpecker'?M(0x4a403c):mat;
@@ -2649,7 +2636,6 @@ function createAnimal(spec){
    softEgg(rig,mat,0,headY,.61,deer?.29:boar?.40:.30,
        deer?.37:boar?.38:.29,deer?.37:boar?.53:.33);
    if(squirrel){
-     // Distinct chipmunk back stripes / grey squirrel chest on the same small body.
      if(id==='squirrel'){
        for(const side of [-1,1]){
          const stripe=egg(rig,M(0xe2c69c),side*.20,bodyY+.25,-.10,.045,.044,.41);
@@ -2706,7 +2692,6 @@ function createAnimal(spec){
 }
 function poseAnimal(a,dt,speed,charging){
  const j=a.mesh.userData.anim;if(!j)return;
- // Damped gait: keep a continuous phase even as an animal slows or turns.
  const gaitTarget=j.bird?(a.kind.hab==='sky'?9.5:6.3):(1.4+Math.min(speed,5)*1.75);
  a.gaitRate=(a.gaitRate??gaitTarget)+(gaitTarget-(a.gaitRate??gaitTarget))*(1-Math.exp(-dt*5));
  a.step=(a.step||0)+dt*a.gaitRate;
@@ -2729,8 +2714,6 @@ function poseAnimal(a,dt,speed,charging){
 function refreshAnimals(){clearExpiredBoarZones();const near=new Set();const cx=Math.floor(P.x/CH),cz=Math.floor(P.z/CH);
  for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){const x=cx+dx,z=cz+dz,id=x+','+z;const rr=rngOf((Math.imul(x,24173)^Math.imul(z,11369)^0x61ac)>>>0);
  for(let j=0;j<2;j++){let kind=WILDLIFE[Math.floor(rr()*WILDLIFE.length)],key=id+':animal'+j;
- // About one fifth fewer boars; use a separate location hash so every
- // browser makes the same choice without altering other animals' positions.
  if(kind.id==='boar'&&h2(x*37+j*13+1041,z*43-j*19-191)>.80)
    kind=WILDLIFE[h2(x*11+j*31+81,z*23-57)>.5?2:3]; // rabbit / water deer
  if(!animals.has(key)){let xx=x*CH+5+rr()*(CH-10),zz=z*CH+5+rr()*(CH-10);
@@ -2738,7 +2721,6 @@ function refreshAnimals(){clearExpiredBoarZones();const near=new Set();const cx=
    const c=chunks.get(id);
  let homeTree=null;
  if(kind.hab==='tree'&&c&&c.trees.length){homeTree=c.trees[Math.floor(rr()*c.trees.length)];
-   // Squirrels begin on the earth beside a trunk; they never spawn suspended in air.
    if(kind.id==='squirrel'||kind.id==='redsquirrel'){
      const a=rr()*Math.PI*2,radius=Math.max(.4,homeTree.s*.4+.24);
      xx=homeTree.x+Math.cos(a)*radius;zz=homeTree.z+Math.sin(a)*radius;
@@ -2750,23 +2732,20 @@ function refreshAnimals(){clearExpiredBoarZones();const near=new Set();const cx=
  near.add(key)}}
  for(const [id,a] of animals)if(!near.has(id))removeWildAnimal(id,a);
 }
-
 const FAINT_MS=3*60*1000;
 let faintUntil=Math.min(+(localStorage.getItem('baek_faint_until')||0),Date.now()+FAINT_MS),faintReason='';
-function faintAnimal(spec){if(Date.now()<faintUntil)return;faintUntil=Date.now()+FAINT_MS;faintReason=spec.name;
+function faintAnimal(spec){if(Date.now()<faintUntil)return;climbing=null;onRock=null;$('climbPanel').classList.add('hide');faintUntil=Date.now()+FAINT_MS;faintReason=spec.name;
  try{localStorage.setItem('baek_faint_until',String(faintUntil))}catch(e){}persist();
  target=null;pending=null;joy.x=0;joy.y=0;me.mode='faint';me.t=0;$('faintOverlay').classList.remove('hide');
  faintSoundVolume(FAINT_MS);
  sendPresence(true);
- $('faintMessage').textContent=`${spec.name}의 공격을 받고 쓰러졌습니다. 잠시 회복해야 합니다.`;
+ $('faintMessage').textContent=spec.fall?'바위에서 미끄러져 추락했습니다. 잠시 회복해야 합니다.':`${spec.name}의 공격을 받고 쓰러졌습니다. 잠시 회복해야 합니다.`;
 }
 function updFaint(){const left=faintUntil-Date.now();const overlay=$('faintOverlay');
  faintSoundVolume(left);
  if(left<=0){overlay.classList.add('hide');if(faintUntil){
     faintUntil=0;
     try{localStorage.removeItem('baek_faint_until')}catch(e){}
-    // Remove boars immediately on waking and suppress nearby respawns for
-    // two real minutes, including after the next chunk refresh.
     disperseBoars(P.x,P.z,Date.now()+BOAR_WAKE_CLEAR_MS,true);
     persist();me.mode='idle';sendPresence(true);
     toast('정신을 차렸다. 주변의 멧돼지는 숲속으로 달아났다.');
@@ -2797,8 +2776,6 @@ function updateBoarWarning(){
 function updateAnimals(dt){
  animalBuildT+=dt;if(animalBuildT>5){animalBuildT=0;refreshAnimals()}
  const t=Date.now()/1000,step=Math.min(dt,.08);
- // Species-dependent movement speeds in game-world metres per second.
- // A fleeing animal is no longer guaranteed to outrun a walking hiker.
  const WILD_SPEED={
    squirrel:{idle:.65,flee:2.6},redsquirrel:{idle:.8,flee:3.3},
    rabbit:{idle:.75,flee:4.4},deer:{idle:1.2,flee:5.4},
@@ -2812,8 +2789,6 @@ function updateAnimals(dt){
    const ang=t*.24+a.phase,baseX=a.originX+Math.sin(ang)*a.range*.65,baseZ=a.originZ+Math.cos(ang)*a.range*.65;
    const squirrel=(sp.id==='squirrel'||sp.id==='redsquirrel');
    const trunk=a.homeTree;
-   // Tree-dwellers alternate ground running and climbing the trunk. Their body
-   // only rises when it is physically adjacent to the trunk (never in midair).
    const fleeNear=person.dist<sp.fear&&awake;
    if(squirrel&&trunk){
      const cycle=(t+a.phase*19)%46;
@@ -2823,7 +2798,6 @@ function updateAnimals(dt){
      a.climbX=trunk.x+Math.cos(around)*radius;
      a.climbZ=trunk.z+Math.sin(around)*radius;
      a.climbTarget=wantClimb?Math.min(5.6,1.5+trunk.s*3.2):0;
-     // When it needs to climb, first run to the base on four legs.
      if(wantClimb&&Math.hypot(a.x-a.climbX,a.z-a.climbZ)>.85)a.climbTarget=0;
    }
    const speciesSpeed=WILD_SPEED[sp.id]||{idle:1,flee:3};
@@ -2835,29 +2809,23 @@ function updateAnimals(dt){
        destX=a.climbX;destZ=a.climbZ;spd=speciesSpeed.idle}
    }
    const danger=sp.id==='boar';
-   // A boar ignores a stationary person. Movement while within its alert range
-   // makes it charge fast; the charge only knocks down after physical contact.
    if(danger){
      const nearbyTerrain=Math.abs(H(a.x,a.z)-H(person.x,person.z))<2.6;
-     // Only a nearby moving hiker provokes the boar; stationary hikers are ignored.
      if(person.dist<BOAR_CHARGE_RANGE&&nearbyTerrain&&person.moving&&awake&&Date.now()>=(a.chargeCooldown||0)&&Date.now()>=(a.chargeUntil||0)){
        a.chargeUntil=Date.now()+2500;
        a.chargeTarget={x:person.x,z:person.z};
      }
-     // Cancel pursuit when the hiker escaped, changed elevation, or the charge expired.
      if(person.dist>BOAR_CHASE_LIMIT||!nearbyTerrain||!awake){a.chargeUntil=0;a.chargeTarget=null;}
      const charging=Date.now()<(a.chargeUntil||0);
      if(charging){
        destX=person.x;destZ=person.z;
        spd=7.0;
      }else if(person.dist<4.5){
-       // Quietly pass beside a stationary human instead of walking through them.
        const dx=a.x-person.x,dz=a.z-person.z,len=Math.hypot(dx,dz)||1;
        destX=a.x+(dx/len)*5+Math.sin(ang)*2;destZ=a.z+(dz/len)*5+Math.cos(ang)*2;spd=1.5;
      }
    }else if(person.dist<sp.fear&&awake){
      if(squirrel&&trunk){
-       // A squirrel seeks shelter up its home tree rather than floating away.
        destX=a.climbX;destZ=a.climbZ;
      }else{
        const dx=a.x-person.x,dz=a.z-person.z,len=Math.hypot(dx,dz)||1;
@@ -2865,11 +2833,7 @@ function updateAnimals(dt){
      }
      spd=speciesSpeed.flee;
    }
-   // Restrict idle exploration to the habitat. Flight responses may temporarily
-   // leave that range but slow back down once nobody is nearby.
    const dx=destX-a.x,dz=destZ-a.z,len=Math.hypot(dx,dz);
-   // Smooth acceleration/deceleration and direction change. Keeping a velocity
-   // instead of teleporting by full speed each frame removes visible stutters.
    const slow=Math.min(1,len/1.4),desiredVx=len>.001?dx/len*spd*slow:0,desiredVz=len>.001?dz/len*spd*slow:0;
    const responsive=danger&&Date.now()<(a.chargeUntil||0)?8:person.dist<sp.fear?5:2.7;
    const blend=1-Math.exp(-responsive*step);
@@ -2878,7 +2842,6 @@ function updateAnimals(dt){
    const fromX=a.x,fromZ=a.z;
    a.x+=a.vx*step;a.z+=a.vz*step;
    if(!danger&&person.dist>=sp.fear&&Math.hypot(a.x-a.originX,a.z-a.originZ)>a.range*2.6){
-     // Gently steer home rather than adding a second discontinuous position jump.
      a.vx+=(a.originX-a.x)*Math.min(.7*step,.09);
      a.vz+=(a.originZ-a.z)*Math.min(.7*step,.09);
    }
@@ -2892,22 +2855,18 @@ function updateAnimals(dt){
    else if(squirrel&&trunk){
      const byTrunk=Math.hypot(a.x-trunk.x,a.z-trunk.z)<Math.max(1.2,trunk.s*.6+.7);
      const goal=byTrunk?a.climbTarget:0;
-     // Vertical climb speed is bounded: no instantaneous jump/teleport.
      const verticalSpeed=sp.id==='redsquirrel'?1.9:1.5;
      a.climbHeight+=(Math.sign(goal-a.climbHeight))*Math.min(Math.abs(goal-a.climbHeight),verticalSpeed*step);
      height=a.climbHeight;
      a.climbing=height>.12;
-     // Match body orientation to the trunk while ascending/descending.
      a.mesh.userData.anim.rig.rotation.x+=( (a.climbing?-.30:0)-a.mesh.userData.anim.rig.rotation.x)*(1-Math.exp(-step*6));
    }else if(sp.hab==='tree')height=Math.max(.4,a.treeY+Math.sin(t*.7+a.phase)*.45);
    const yy=H(a.x,a.z)+height;
-   // Terrain-following height interpolation prevents jitter on uneven slopes.
    a.renderY=a.renderY===undefined?yy:a.renderY+(yy-a.renderY)*(1-Math.exp(-step*12));
    a.mesh.position.set(a.x,a.renderY,a.z);
    a.mesh.visible=awake&&Math.hypot(a.x-P.x,a.z-P.z)<95;
    poseAnimal(a,step,actualSpeed,danger&&Date.now()<(a.chargeUntil||0));
    if(danger&&Date.now()<(a.chargeUntil||0)&&Date.now()-lastAnimalAttack>10000){
-     // Real contact only: horizontal collision AND terrain-level proximity.
      const meDist=Math.hypot(a.x-P.x,a.z-P.z);
      if(P.speed>.07&&me.mode==='walk'&&meDist<BOAR_CONTACT_RANGE&&Math.abs(yy-P.y)<1.4){
        lastAnimalAttack=Date.now();a.chargeUntil=0;a.chargeCooldown=Date.now()+16000;faintAnimal(sp)
@@ -2930,26 +2889,102 @@ function updateAnimalLookLabel(){
    el.style.transform=`translate(${(animalLabelWorld.x*.5+.5)*W}px,${(-animalLabelWorld.y*.5+.5)*Hh}px) translate(-50%,-100%)`;
  }
 }
+/* ======= BIG BOULDER CLIMBING =======
+   Rocks are deterministic chunk geometry. One beat is 1.65 real seconds;
+   five correctly timed presses raise the hiker gradually; a miss triggers
+   the existing 3-minute faint system. Touch and keyboard use the same action.
+*/
+let climbing=null,onRock=null;
+let lastClimbRockCheck=0,cachedClimbRock=null;
+const CLIMB_STEPS=5,CLIMB_BEAT_MS=1650;
+function nearestClimbableRock(){
+ const now=performance.now();
+ if(now-lastClimbRockCheck<200){return cachedClimbRock}
+ lastClimbRockCheck=now;
+ let best=null,dist=1e9;
+ for(const c of chunks.values())for(const rock of c.rocks||[]){
+   if(!rock.climbable)continue;
+   const dx=P.x-rock.x,dz=P.z-rock.z,d=Math.hypot(dx,dz);
+   if(d>rock.r+2.2||d<rock.r*.35||Math.abs(rock.groundY-P.y)>3.5)continue;
+   if(d<dist){best=rock;dist=d}
+ }
+ cachedClimbRock=best;return best;
+}
+function beginClimb(rock){
+ if(!rock||climbing||onRock||inTent||Date.now()<faintUntil)return;
+ const dx=P.x-rock.x,dz=P.z-rock.z,len=Math.hypot(dx,dz)||1;
+ climbing={rock,steps:0,start:performance.now(),dirX:dx/len,dirZ:dz/len};
+ target=null;pending=null;joy.x=joy.y=0;P.speed=0;
+ $('climbPanel').classList.remove('hide');$('climbTitle').textContent='큰 바위 오르기';
+ $('climbInfo').textContent='초록색 구간에 맞춰 오르기를 누르세요 · 0/'+CLIMB_STEPS;
+ $('jumpBtn').textContent='오르기';
+}
+function climbPhase(){return ((performance.now()-climbing.start)%CLIMB_BEAT_MS)/CLIMB_BEAT_MS}
+function climbFail(){
+ if(!climbing)return;
+ const c=climbing,rock=c.rock;climbing=null;onRock=null;
+ P.x=rock.x+c.dirX*(rock.r+1.8);P.z=rock.z+c.dirZ*(rock.r+1.8);
+ P.y=H(P.x,P.z);P.air=false;P.vy=0;P.speed=0;
+ $('climbPanel').classList.add('hide');
+ faintAnimal({name:'바위 추락',fall:true});
+}
+function climbAct(){
+ if(Date.now()<faintUntil||inTent)return;
+ if(onRock){
+   const rock=onRock,dx=P.x-rock.x,dz=P.z-rock.z,len=Math.hypot(dx,dz)||1;
+   P.x=rock.x+dx/len*(rock.r+1.8);P.z=rock.z+dz/len*(rock.r+1.8);P.y=H(P.x,P.z);
+   onRock=null;me.root.rotation.x=0;me.mode='idle';P.speed=0;
+   $('climbPanel').classList.add('hide');$('jumpBtn').textContent='점프';return;
+ }
+ if(!climbing){const rock=nearestClimbableRock();if(rock)beginClimb(rock);else jump();return;}
+ const phase=climbPhase();
+ if(phase<.33||phase>.67){climbFail();return}
+ climbing.steps++;
+ const rock=climbing.rock,k=climbing.steps/CLIMB_STEPS;
+ P.x=rock.x+climbing.dirX*lerp(rock.r*.86,rock.r*.20,k);
+ P.z=rock.z+climbing.dirZ*lerp(rock.r*.86,rock.r*.20,k);
+ P.y=lerp(rock.groundY,rock.topY+.07,k);
+ P.air=false;P.speed=0;
+ tone(365+k*160,.12,'sine',.075,1.18);
+ if(climbing.steps>=CLIMB_STEPS){
+   onRock=rock;climbing=null;P.y=rock.topY+.10;
+   $('climbPanel').classList.add('hide');$('jumpBtn').textContent='내려가기';
+   toast('큰 바위에 올라섰다. 바위 위 채집물을 살펴보자.');
+ }else{
+   climbing.start=performance.now();
+   $('climbInfo').textContent=`초록색 구간에 맞춰 오르기 · ${climbing.steps}/${CLIMB_STEPS}`;
+ }
+}
+function updateRockClimbing(dt){
+ const btn=$('jumpBtn');
+ if(mode!=='game'||inTent){btn.classList.add('hide');return}
+ if(climbing){btn.classList.remove('hide');
+   $('climbPanel').classList.remove('hide');
+   $('climbNeedle').style.left=(climbPhase()*99)+'%';
+   btn.textContent='오르기';btn.classList.add('climbAvailable');
+   return;
+ }
+ if(onRock){btn.classList.remove('hide');btn.textContent='내려가기';btn.classList.add('climbAvailable');return}
+ const rock=nearestClimbableRock();
+ btn.classList.toggle('hide',!IS_TOUCH&&!rock);
+ btn.textContent=rock?'오르기':'점프';btn.classList.toggle('climbAvailable',!!rock);
+ $('climbPanel').classList.add('hide');
+}
 /* ================= GAME LOOP ================= */
 let clock=0,lastRespawnCheck=-10;
 function updateGame(dt){
-  // 시간 / 야생동물 / 공유 채집 재생성
   syncKST();syncWeather();updateRain(dt);
   const fainted=updFaint();if(!fainted&&!inTent)updateAnimals(dt);else if(boarAlertActive){$('boarWarning').classList.add('hide');boarAlertActive=false;}
-  // Newly discovered fruits fall from the canopy and settle on the forest floor.
   for(const c of chunks.values())for(const it of c.items)if(it.kind==='fruit'&&it.mesh&&it.fall!==false){
     const age=Math.max(0,(Date.now()-it.born)/1000),u=Math.min(1,age/2.8);
     it.mesh.position.y=it.groundY+1.8*(1-u)*(1-u);
     if(u<1)it.mesh.rotation.z=u*3.3;
   }
-
   if(Math.floor(clock)%5===0&&clock-lastRespawnCheck>5){lastRespawnCheck=clock;refreshRespawns()}
-
-  // 입력: 누른 쪽을 보고 걷기 (달리기 없음)
   const up=(keys.KeyW||keys.ArrowUp)?1:0,dn=(keys.KeyS||keys.ArrowDown)?1:0,lf=(keys.KeyA||keys.ArrowLeft)?1:0,rt=(keys.KeyD||keys.ArrowRight)?1:0;
   const fwd=up-dn-joy.y,str=rt-lf+joy.x;
   const rot=(keys.KeyQ?1:0)-(keys.KeyE?1:0);if(rot){camYaw+=rot*dt*1.8;lastDrag=clock}
-  const busy=fainted||me.mode==='dig'||me.mode==='joy'||inTent;
+  const busy=fainted||me.mode==='dig'||me.mode==='joy'||inTent||!!climbing||!!onRock;
   let moveAmt=0,mvx=0,mvz=0;
   if(!busy&&(Math.abs(fwd)>.08||Math.abs(str)>.08)){target=null;pending=null;
     const fx=Math.sin(camYaw),fz=Math.cos(camYaw),rx=Math.sin(camYaw-Math.PI/2),rz=Math.cos(camYaw-Math.PI/2);
@@ -2964,19 +2999,17 @@ function updateGame(dt){
     const d=nx-pathX(nz);if(Math.abs(d)>58)nx=pathX(nz)+Math.sign(d)*58;if(nz>34)nz=34;
     if(H(nx,nz)-P.y<.9||P.air){const q=collide(nx,nz);P.x=q.x;P.z=q.z}}
   P.speed=Math.abs(moveAmt);
-  const gy=H(P.x,P.z);
+  const gy=(climbing||onRock)?P.y:H(P.x,P.z);
   if(P.air){P.vy-=14*dt;P.y+=P.vy*dt;if(P.y<=gy){P.y=gy;P.air=false;P.vy=0}}else P.y=lerp(P.y,gy,1-Math.exp(-dt*25));
-  // 동작 상태: knocked-out hikers remain prone for everyone in the room.
   if(fainted){me.mode='faint'}
   else if(me.mode==='dig'){if(!hitDone&&me.t>DIG_T*.62){hitDone=true;if(curAct)impact(curAct)}if(me.mode==='dig'&&me.t>=DIG_T){me.mode='idle';me.t=0;if(queued){const q=queued;queued=null;if(nearTo(q.pos,2.6))swing(q)}}}
   else if(me.mode==='joy'){joyT-=dt;if(joyT<=0){me.mode='idle';me.t=0}}
+  else if(climbing)me.mode='climb';
   else me.mode=moveAmt?'walk':'idle';
   me.root.position.set(P.x,P.y+(fainted?.28:0),P.z);
-  me.root.rotation.x=lerp(me.root.rotation.x,fainted?-Math.PI/2:0,Math.min(1,dt*12));
+  me.root.rotation.x=lerp(me.root.rotation.x,fainted?-Math.PI/2:climbing?-.20:0,Math.min(1,dt*12));
   {let dh=P.h-me.root.rotation.y;dh=Math.atan2(Math.sin(dh),Math.cos(dh));me.root.rotation.y+=dh*Math.min(1,dt*14)}poseHiker(me,dt,fainted?0:P.speed);
-  // 호미질 맞은 식물만 흔들기
   for(const it of shaking){const m=it.mesh;if(!m||!m.parent){shaking.delete(it);continue}const u=m.userData;u.shake-=dt;if(u.shake>0)m.rotation.z=Math.sin(clock*60)*.36*u.shake;else{m.rotation.z=0;shaking.delete(it)}}
-  // 카메라: 나무에 가리면 살짝 떠오르고, 그래도 가리는 나무는 잠깐 숨김 (계산은 몇 프레임에 한 번)
   if(target&&clock-lastDrag>2){let dh=P.h-camYaw;dh=Math.atan2(Math.sin(dh),Math.cos(dh));if(Math.abs(dh)<1.4)camYaw+=dh*Math.min(1,dt*1.2)}
   const cy=camYaw,tx=P.x,ty=P.y+1.45,tz=P.z,dist=camDist;
   occT+=dt;if(occT>=PERF.occEvery){occT=0;let pick=null,bestK=0,bestP=camPitch;
@@ -2988,10 +3021,9 @@ function updateGame(dt){
   let cxp=tx-Math.sin(cy)*dist*Math.cos(effPitch),czp=tz-Math.cos(cy)*dist*Math.cos(effPitch),cyp=ty+dist*Math.sin(effPitch);
   const gcy=H(cxp,czp)+.7;if(cyp<gcy)cyp=gcy;
   camera.position.lerp(v3.set(cxp,cyp,czp),1-Math.exp(-dt*10));camera.lookAt(tx+Math.sin(cy)*3,ty+1.1,tz+Math.cos(cy)*3);
-  // 주변 정리
   updateChunks(P.x,P.z,false,dt);
   for(let i=pulls.length-1;i>=0;i--){const p=pulls[i];p.t+=dt;const k=clamp(p.t/.7,0,1);p.m.position.y=p.y0+ease(k)*p.d;p.m.rotation.z=Math.sin(p.t*9)*.15*(1-k);if(p.t>1.1)p.m.scale.setScalar(Math.max(.001,1-(p.t-1.1)/.4));if(p.t>1.5){p.m.parent&&p.m.parent.remove(p.m);pulls.splice(i,1)}}
-  updateAnimalLookLabel(); updateTents();
+  updateAnimalLookLabel(); updateTents();updateRockClimbing(dt);
   updParticles(dt);updLabels(dt);updOthers(dt);updSky();updAmbience(dt);
   hudT+=dt;if(hudT>.25){hudT=0;updHud()}
   presT+=dt;if(presT>.25){presT=0;sendPresence(false)}
@@ -3001,10 +3033,7 @@ function updateGame(dt){
   if(foundTimer>0){foundTimer-=dt;if(foundTimer<=0)$('found').classList.remove('on')}
 }
 const pulls=[];let mapT=0,saveT=0,hudT=1,occT=1,occPitch=.26,effPitch=.26;
-
 /* ================= PORTABLE PLAYER RECORDS ================= */
-// GitHub Pages stays a single HTML file. Each profile is stored in this browser,
-// and a JSON file can move that record to a different device or browser.
 function profileNotice(message,error=false){const el=$('profileStatus');el.textContent=message;el.style.color=error?'#a1261d':'#1f2b28'}
 function numericPin(){const el=$('profilePin');el.value=el.value.replace(/\D/g,'').slice(0,4);return el.value}
 async function getCredential(){
@@ -3028,7 +3057,6 @@ function normalizeRecord(raw){
   if(raw&&raw.inv&&typeof raw.inv==='object'&&!Array.isArray(raw.inv))for(const [k,v] of Object.entries(raw.inv)){
     if(allow.has(k)&&Number.isFinite(v)&&v>=0)inv[k]=Math.min(100000,Math.floor(v));
   }
-  // Older saves can exceed 50; keep earned items intact but prevent new harvests until sold.
   const known={};
   if(raw&&raw.known&&typeof raw.known==='object'&&!Array.isArray(raw.known))for(const [k,v] of Object.entries(raw.known)){ if(allow.has(k)&&v)known[k]=1; }
   for(const k of Object.keys(inv)) known[k]=1;
@@ -3056,7 +3084,6 @@ function applyRecord(cred,progress){
 }
 function resolveProfile(cred){
   const existing=readProfileDoc(cred);if(existing)return {progress:existing.progress,origin:'기기 저장 기록'};
-  // Preserve the old, pre-PIN save exactly once when the player chooses its nickname.
   const adopted=localStorage.getItem('baekyaksan-legacy-migrated');
   if(!adopted&&legacySave.nick&&legacySave.nick.toLocaleLowerCase('ko-KR')===cred.nick.toLocaleLowerCase('ko-KR')){
     return {progress:{...legacySave,faintUntil:+(localStorage.getItem('baek_faint_until')||0)},origin:'이전 버전 기록'};
@@ -3179,11 +3206,10 @@ function frame(now){requestAnimationFrame(frame);
   if(mode==='intro')drawIntro(Math.min(.25,raw));else{updateGame(dt);if(inTent){syncTentChestButton();updateTentSeats(dt)}renderer.render(inTent?tentScene:scene,inTent?tentCam:camera)}}
 addEventListener('resize',onResize);addEventListener('resize',()=>{if(inTent)syncTentChestButton()});applyPerf();requestAnimationFrame(frame);
 $('ecoBtn').onclick=()=>{PERF.eco=!PERF.eco;applyPerf();chunkKey='';toast(PERF.eco?'절전 모드: 화질과 시야를 줄여 가볍게 돌립니다':'절전 모드 해제')};
-function jump(){if(mode==='game'&&Date.now()>=faintUntil&&!P.air&&me.mode!=='dig'){P.vy=5.2;P.air=true}}
-$('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();jump()});
+function jump(){if(mode==='game'&&!climbing&&!onRock&&!inTent&&Date.now()>=faintUntil&&!P.air&&me.mode!=='dig'){P.vy=5.2;P.air=true}}
+$('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();climbAct()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('visibilitychange',()=>{if(!AMB)return;if(document.hidden)AMB.a.suspend();else AMB.a.resume()});
-
 })();
 </script>
 </body>
