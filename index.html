@@ -57,13 +57,13 @@ canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
 .btn:hover{background:#fff}
 #toast{position:fixed;left:50%;top:76px;transform:translate(-50%,-10px);font-family:"Nanum Myeongjo",serif;font-weight:700;font-size:16px;letter-spacing:.08em;padding:10px 20px;border-radius:6px;background:rgba(244,239,227,.95);border:1px solid rgba(31,43,40,.3);opacity:0;transition:opacity .4s, transform .4s;pointer-events:none;z-index:7}
 #toast.on{opacity:1;transform:translate(-50%,0)}
-#found{position:fixed;left:50%;top:40%;transform:translate(-50%,-46%) scale(.92);width:min(320px,86vw);background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:18px 18px 20px;text-align:center;opacity:0;pointer-events:none;transition:opacity .35s ease, transform .45s cubic-bezier(.2,1.4,.4,1);z-index:9;box-shadow:0 30px 60px rgba(20,30,28,.28)}
+#found{position:fixed;left:50%;top:40%;transform:translate(-50%,-46%) scale(.92);width:min(320px,86vw);background:var(--paper);border:1.5px solid #1f2b28;border-radius:4px;padding:18px 18px 20px;text-align:center;opacity:0;pointer-events:none;transition:opacity .35s ease, transform .45s cubic-bezier(.2,1.4,.4,1);z-index:9;box-shadow:0 30px 60px rgba(20,30,28,.28);max-height:88dvh;overflow-y:auto}
 #found.on{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
 #found .tag{font-size:12px;letter-spacing:.3em;opacity:.65}
 #found h2{font-family:"Nanum Myeongjo",serif;font-weight:800;font-size:34px;letter-spacing:.12em;margin:4px 0 2px}
 #found .rar{color:var(--gold);letter-spacing:.2em;font-size:14px}
 #found p{font-size:14px;line-height:1.6;margin-top:8px;opacity:.85}
-#found canvas{position:static;width:180px;height:150px;margin:6px auto 0;display:block;background:radial-gradient(circle at 50% 60%, #fffaf0 0%, #ece4d0 70%);border-radius:50%}
+#found canvas{position:static;width:180px;height:240px;margin:6px auto 0;display:block;background:radial-gradient(circle at 50% 60%, #fffaf0 0%, #ece4d0 70%);border-radius:50%}
 #found.legend{border-color:#b8892b;box-shadow:0 0 0 4px rgba(201,162,74,.35),0 30px 60px rgba(20,30,28,.28)}
 #found.legend h2{color:#8a2a1a}
 #bag{position:fixed;inset:0;background:rgba(20,28,26,.45);display:flex;align-items:center;justify-content:center;z-index:10}
@@ -72,7 +72,7 @@ canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
 #bag h4{font-size:13px;letter-spacing:.3em;opacity:.6;margin:16px 0 8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
 .card{background:var(--hanji);border-radius:6px;padding:8px 6px 10px;text-align:center;border:1px solid rgba(31,43,40,.12)}
-.card canvas,.card img{position:static;width:96px;height:80px;display:block;margin:0 auto;object-fit:contain}
+.card canvas,.card img{position:static;width:96px;height:128px;display:block;margin:0 auto;object-fit:contain}
 .card.unk img{filter:brightness(0) opacity(.22)}
 .card .hb{font-size:10.5px;opacity:.6;margin-top:3px;line-height:1.35}
 .card .n{font-family:"Nanum Myeongjo",serif;font-weight:700;font-size:15px;margin-top:2px}
@@ -162,7 +162,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #knob{width:58px;height:58px;margin:-29px 0 0 -29px}
 #toast{top:calc(64px + env(safe-area-inset-top));font-size:13px;max-width:88vw;white-space:normal;text-align:center}
 #found{width:min(320px,88vw);padding:14px 14px 16px}
-#found canvas{width:160px;height:133px}
+#found canvas{width:160px;height:213px}
 #found h2{font-size:28px}
 #found p{font-size:13px}
 #bag .sheet{width:100vw;max-height:none;height:100%;border:none;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 12px calc(14px + env(safe-area-inset-bottom))}
@@ -252,6 +252,53 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #tentStatus{font-size:11px;top:calc(14px + env(safe-area-inset-top))}
 #tentChest{font-size:12px}
 #tentView .tentExitBtn{top:calc(12px + env(safe-area-inset-top));right:12px}}
+/* Mobile-only: 55% see-through control surfaces; preserve full opacity of text/icons. */
+@media (max-width:760px), (pointer:coarse){
+  #hud .plate,
+  #hud .btn,
+  #hud .btn:hover,
+  #pad button,
+  #pad button:active{
+    background:rgba(244,239,227,.45);
+    color:#17251e;
+    border-color:rgba(27,43,34,.6);
+    text-shadow:0 1px 2px rgba(255,255,255,.85);
+  }
+  #hud .plate #alt,
+  #hud .plate #clock,
+  #hud .plate #weather,
+  #hud .plate #count,
+  #hud .plate #people{
+    color:#17251e;
+    text-shadow:0 1px 2px rgba(255,255,255,.9);
+  }
+  #joy{
+    background:rgba(244,239,227,.45);
+    border-color:rgba(244,239,227,.7);
+  }
+  #knob{
+    background:rgba(244,239,227,.45);
+    border:1.5px solid rgba(24,41,32,.55);
+  }
+  #jumpBtn,
+  #jumpBtn:active{
+    background:rgba(244,239,227,.45);
+    border-color:rgba(31,43,40,.65);
+    color:#16271d;
+    text-shadow:0 1px 2px rgba(255,255,255,.85);
+  }
+  #jumpBtn.climbAvailable,
+  #jumpBtn.climbAvailable:active{
+    background:rgba(212,161,86,.45);
+    color:#30210d;
+    border-color:rgba(78,53,25,.7);
+  }
+  #ecoBtn.on{
+    background:rgba(112,154,107,.45);
+    border-color:rgba(37,85,49,.7);
+    color:#14291e;
+  }
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
@@ -319,7 +366,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 
 <div id="found">
   <div class="tag" id="fTag">채집 성공</div>
-  <canvas id="fCanvas" width="360" height="300"></canvas>
+  <canvas id="fCanvas" width="360" height="480"></canvas>
   <h2 id="fName">도라지</h2>
   <div class="rar" id="fRar">★</div>
   <p id="fDesc"></p><p id="fMeta" style="font-size:12px;opacity:.65;margin-top:4px"></p><button class="btn hide" id="fClose" style="margin-top:12px">닫기</button>
@@ -598,25 +645,53 @@ function persist(){
 }
 const totalCount=()=>Object.values(save.inv).reduce((a,b)=>a+b,0);
 const RESPAWN_MS=20*60*1000,sharedTaken=new Map();
+// Five-star resources retain the SAME unique slot ID and species, but each
+// successful pickup (or failed delicate dig) advances its deterministic location.
+// Store the counter separately from profile saves so older JSON files still load.
+const RARE_WORLD_KEY='baekyaksan-rare-locations-v1',rareMoves=new Map(),rareDirtyChunks=new Set();
+try{
+ const data=JSON.parse(localStorage.getItem(RARE_WORLD_KEY)||'[]');
+ if(Array.isArray(data))for(const row of data.slice(-4000)){
+   if(!Array.isArray(row)||typeof row[0]!=='string'||row[0].length>90||
+      !Number.isInteger(row[1])||row[1]<1||row[1]>100000||
+      !Number.isFinite(row[2]))continue;
+   rareMoves.set(row[0],{cycle:row[1],until:row[2]});
+   if(row[2]>Date.now()&&row[2]<Date.now()+RESPAWN_MS+15000)sharedTaken.set(row[0],row[2]);
+ }
+}catch(e){}
+function saveRareMoves(){try{localStorage.setItem(RARE_WORLD_KEY,JSON.stringify([...rareMoves].slice(-4000).map(([id,s])=>[id,s.cycle,s.until])))}catch(e){}}
+function updateRareMove(id,cycle,until){
+ if(!Number.isInteger(cycle)||cycle<1||cycle>100000||typeof id!=='string'||id.length>90)return false;
+ const old=rareMoves.get(id);
+ if(old&&(old.cycle>cycle||(old.cycle===cycle&&old.until>=until)))return false;
+ rareMoves.set(id,{cycle,until});rareDirtyChunks.add(id.split(':')[0]);saveRareMoves();return true;
+}
 save.taken={};
 function takenUntil(id){const end=sharedTaken.get(id)||0;if(end<=Date.now()){if(end)sharedTaken.delete(id);return 0}return end}
-function markTaken(id,until,broadcast=false){
+function markTaken(id,until,broadcast=false,rareType=null,remoteCycle=null){
  if(typeof id!=='string'||id.length>90||!Number.isFinite(until)||until<Date.now()||until>Date.now()+RESPAWN_MS+15000)return;
- if((sharedTaken.get(id)||0)>=until)return;
+ const prev=sharedTaken.get(id)||0;
+ // An incoming packet carries the authoritative cycle for this peer event.
+ // Without an incoming cycle only locally harvested five-star items advance.
+ let cycle=remoteCycle;
+ if(rareType&&itemInfo(rareType)?.rar===5&&prev<until){
+   cycle=(rareMoves.get(id)?.cycle||0)+1;
+ }
+ if(Number.isInteger(cycle)&&cycle>0)updateRareMove(id,cycle,until);
+ if(prev>=until)return;
  sharedTaken.set(id,until);
  for(const c of chunks.values())for(let i=c.items.length-1;i>=0;i--){const it=c.items[i];if(it.id!==id)continue;
    if(it.mesh&&it.mesh.parent)it.mesh.parent.remove(it.mesh);c.items.splice(i,1)}
- if(broadcast)netPublish('harvest',{resource:id,until});
+ if(broadcast)netPublish('harvest',{resource:id,until,...(cycle?{rareCycle:cycle}:{})});
 }
-function refreshRespawns(){const now=Date.now(),expired=new Set();
+function refreshRespawns(){const now=Date.now(),expired=new Set(rareDirtyChunks);
+ rareDirtyChunks.clear();
  for(const [id,end] of sharedTaken)if(end<=now){sharedTaken.delete(id);expired.add(id.split(':')[0])}
  if(!expired.size)return;
- // Only the chunks containing respawned resources are rebuilt. Do not
- // discard the entire mountain every time one herb becomes available again.
- for(const key of expired){const c=chunks.get(key);if(!c)continue;
-   disposeChunk(c);
- }
- chunkKey='';chunkQueue=[];updateChunks(P.x,P.z,false,0);
+ // Rebuild only affected loaded chunks, keeping normal 1-4 star slots intact.
+ let touched=false;
+ for(const key of expired){const c=chunks.get(key);if(!c)continue;disposeChunk(c);touched=true}
+ if(touched){chunkKey='';chunkQueue=[];updateChunks(P.x,P.z,false,0)}
 }
 const JACKETS=[0x2f56b0,0xc0392b,0x2e7d4f,0xe08a1e,0x6a4a9a,0x4a4e55];
 const ALT_K=2.5;                      // world unit → displayed metres
@@ -1089,8 +1164,124 @@ const summit=makeMountain(900,1700,999,0x3a544e,0xf8f8f4,{seg:20,hs:14,fog:false
 // horizontal cloudSea planes looked like solid ground at elevation 600m and
 // players could walk straight through them. No flat cloud surfaces are used.
 const skyPuffs=[];{const r=rngOf(88);for(let i=0;i<22;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,transparent:true,depthWrite:false,opacity:.8,fog:false}));const s=60+r()*90;sp.scale.set(s*2,s,1);sp.userData={a:r()*Math.PI*2,d:260+r()*400,y:40+r()*120,v:.004+r()*.01};scene.add(sp);sp.visible=!IOS_CLOUD_SAFE;skyPuffs.push(sp)}}
-const stars=(()=>{const n=600,p=new Float32Array(n*3),r=rngOf(4);for(let i=0;i<n;i++){const u=r()*2-1,a=r()*Math.PI*2,s=Math.sqrt(1-u*u);p[i*3]=Math.cos(a)*s*1500;p[i*3+1]=Math.abs(u)*1500+100;p[i*3+2]=Math.sin(a)*s*1500}
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xfffff0,size:2.2,sizeAttenuation:false,transparent:true,opacity:0,fog:false,depthWrite:false}));scene.add(m);return m})();
+/* ---------- night sky: image-textured stars and brief shooting-star trails ---------- */
+// Tiny images are drawn into textures once, then rendered in a handful of
+// point-cloud batches. No additional ground, fog planes or external files.
+const nightStarTex=canvasTex(64,64,(g)=>{
+  g.clearRect(0,0,64,64);
+  const glow=g.createRadialGradient(32,32,0,32,32,30);
+  glow.addColorStop(0,'rgba(255,255,255,1)');
+  glow.addColorStop(.12,'rgba(255,255,250,.96)');
+  glow.addColorStop(.30,'rgba(241,246,255,.52)');
+  glow.addColorStop(.68,'rgba(225,235,255,.08)');
+  glow.addColorStop(1,'rgba(225,235,255,0)');
+  g.fillStyle=glow;g.fillRect(0,0,64,64);
+  g.strokeStyle='rgba(255,255,255,.38)';g.lineWidth=1;
+  g.beginPath();g.moveTo(32,10);g.lineTo(32,54);g.moveTo(10,32);g.lineTo(54,32);g.stroke();
+});
+const meteorTex=canvasTex(256,48,(g)=>{
+  g.clearRect(0,0,256,48);
+  // A long transparent tail with the white-hot head near its right tip.
+  const halo=g.createLinearGradient(0,0,256,0);
+  halo.addColorStop(0,'rgba(135,183,255,0)');
+  halo.addColorStop(.34,'rgba(158,201,255,.16)');
+  halo.addColorStop(.78,'rgba(215,235,255,.50)');
+  halo.addColorStop(.94,'rgba(255,255,248,.95)');
+  halo.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=halo;g.beginPath();g.moveTo(0,24);g.lineTo(241,9);g.lineTo(252,24);g.lineTo(241,39);g.closePath();g.fill();
+  const core=g.createLinearGradient(0,0,256,0);
+  core.addColorStop(0,'rgba(255,255,255,0)');
+  core.addColorStop(.44,'rgba(210,231,255,.13)');
+  core.addColorStop(.85,'rgba(244,251,255,.86)');
+  core.addColorStop(.96,'rgba(255,255,255,1)');
+  core.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=core;g.fillRect(4,22,247,4);
+  const head=g.createRadialGradient(242,24,0,242,24,13);
+  head.addColorStop(0,'rgba(255,255,255,1)');
+  head.addColorStop(.35,'rgba(241,248,255,.7)');
+  head.addColorStop(1,'rgba(210,231,255,0)');
+  g.fillStyle=head;g.fillRect(228,10,28,28);
+});
+const stars=new THREE.Group(),starLayers=[],starRng=rngOf(40429);
+{
+  // Count remains reasonable on low-end phones: 12 GPU point-cloud draws.
+  const n=IOS_CLOUD_SAFE?1500:1950,batches=12,positions=Array.from({length:batches},()=>[]);
+  for(let i=0;i<n;i++){
+    const a=starRng()*Math.PI*2,u=.075+starRng()*.92,s=Math.sqrt(1-u*u),radius=1200;
+    positions[i%batches].push(Math.cos(a)*s*radius,u*radius,Math.sin(a)*s*radius);
+  }
+  for(let i=0;i<batches;i++){
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(positions[i],3));
+    const mat=new THREE.PointsMaterial({
+      map:nightStarTex,color:[0xfff7e5,0xdde9ff,0xfffaf0][i%3],
+      size:i%7===0?5:i%3===0?3.6:2.6,sizeAttenuation:false,
+      transparent:true,opacity:0,depthWrite:false,fog:false,
+      blending:THREE.AdditiveBlending
+    });
+    const points=new THREE.Points(geo,mat);points.frustumCulled=false;stars.add(points);
+    starLayers.push({material:mat,phase:starRng()*Math.PI*2,speed:.42+starRng()*.65,base:.63+starRng()*.27});
+  }
+  scene.add(stars);
+}
+const shootingStars=[];
+for(let i=0;i<3;i++){
+  const material=new THREE.SpriteMaterial({map:meteorTex,transparent:true,opacity:0,
+    depthWrite:false,fog:false,blending:THREE.AdditiveBlending});
+  const sprite=new THREE.Sprite(material);sprite.visible=false;scene.add(sprite);
+  shootingStars.push({sprite,material,age:0,life:1.1,start:new THREE.Vector3(),delta:new THREE.Vector3()});
+}
+const _meteorForward=new THREE.Vector3(),_meteorRight=new THREE.Vector3();
+const meteorRng=rngOf(20636);
+let skyBlinkTime=0,meteorWait=2.5;
+function launchShootingStar(){
+  const o=shootingStars.find(v=>!v.sprite.visible);if(!o)return;
+  camera.getWorldDirection(_meteorForward);_meteorForward.y=0;
+  if(_meteorForward.lengthSq()<.001)_meteorForward.set(0,0,-1);
+  _meteorForward.normalize();_meteorRight.set(-_meteorForward.z,0,_meteorForward.x);
+  const sign=meteorRng()<.50?1:-1;
+  const dist=670,across=(meteorRng()-.5)*350;
+  o.start.set(P.x+_meteorForward.x*dist+_meteorRight.x*across,
+    P.y+150+meteorRng()*180,
+    P.z+_meteorForward.z*dist+_meteorRight.z*across);
+  o.delta.set(_meteorRight.x*(180+meteorRng()*130)*sign,-(26+meteorRng()*55),
+    _meteorRight.z*(180+meteorRng()*130)*sign);
+  o.life=.78+meteorRng()*.58;o.age=0;
+  o.sprite.position.copy(o.start);
+  o.sprite.scale.set(120+meteorRng()*65,5.5+meteorRng()*3,1);
+  o.material.rotation=sign>0?-.27:Math.PI+.27;
+  o.material.opacity=0;o.sprite.visible=true;
+}
+function updateNightSky(dt){
+  const night=SKYNOW.night;
+  const inCloud=clamp(1-Math.abs(P.y-CLOUD_Y)/28,0,1);
+  const clear=clamp(1-inCloud*.95-weatherCloud*.65-weatherRain*.30,0,1);
+  const peak=clamp((P.y*ALT_K-1400)/1100,0,1);
+  const strength=!inTent?night*clear:0;
+  stars.visible=strength>.015;
+  stars.position.set(P.x,P.y,P.z);
+  skyBlinkTime+=dt;
+  for(const p of starLayers){
+    // Different stars brighten and fade out of step: slow, natural twinkling.
+    const flicker=.62+.38*Math.sin(skyBlinkTime*p.speed+p.phase)**2;
+    p.material.opacity=strength*p.base*flicker*(.82+peak*.18);
+  }
+  for(const o of shootingStars){
+    if(!o.sprite.visible)continue;
+    o.age+=dt;const t=clamp(o.age/o.life,0,1);
+    o.sprite.position.copy(o.start).addScaledVector(o.delta,t);
+    o.material.opacity=strength*Math.min(1,t*7,(1-t)*5)*(.75+peak*.25);
+    if(t>=1||strength<.02){o.sprite.visible=false;o.material.opacity=0}
+  }
+  if(strength<.30){meteorWait=Math.min(meteorWait,3.0);return}
+  meteorWait-=dt;
+  if(meteorWait<=0){
+    launchShootingStar();
+    // Sometimes two meteors pass in quick succession, particularly at the summit.
+    meteorWait=meteorRng()<(.14+peak*.28)?(.4+meteorRng()*.8):
+      (11-peak*6)*( .72+meteorRng()*.65 );
+  }
+}
 /* ---------- shared geometries ---------- */
 const LEAF=keep(new THREE.SphereGeometry(1,6,4));LEAF.translate(0,0,1);
 const BALL=keep(new THREE.SphereGeometry(1,8,6));
@@ -1604,8 +1795,12 @@ function placeFlora(c,r,ox,oz,grp){
     let S=0;const fits=new Array(SPECIES.length);for(let k=0;k<SPECIES.length;k++){const f=SPECIES[k].ab*fitOf(SPECIES[k],e);fits[k]=f;S+=f}
     if(S<=0||u>clamp(S/(S+30),0,1)*.9)continue;
     let pick=u2*S,idx=0;for(;idx<fits.length-1;idx++){pick-=fits[idx];if(pick<=0)break}
-    const sp=SPECIES[idx],id=`${c.key}:f${i}`;if(takenUntil(id))continue;
-    const m=makePlantMesh(sp,v);m.position.set(x,H(x,z)-.02,z);m.rotation.y=r()*6.28;
+    const sp=SPECIES[idx],id=`${c.key}:f${i}`,rotation=r()*6.28;
+    // An unavailable slot still counts: harvesting must not change the
+    // seeded number/species of future plants in this or neighboring chunks.
+    if(Math.abs(x-pathX(z))<19)c.trailSeedCount=(c.trailSeedCount||0)+1;
+    if(takenUntil(id))continue;
+    const m=makePlantMesh(sp,v);m.position.set(x,H(x,z)-.02,z);m.rotation.y=rotation;
     const it={kind:'herb',type:sp.id,id,hits:0,need:sp.need,mesh:m};m.userData.item=it;grp.add(m);c.items.push(it);
   }
 }
@@ -1614,8 +1809,8 @@ function placeFlora(c,r,ox,oz,grp){
 // meshes, journal and harvesting. They are NOT non-collectible previews.
 function ensureTrailFlora(c,r,ox,oz,grp){
   if(oz<SUMMIT_Z-CH||oz>48||Math.abs(ox-pathX(oz))>CH*1.2)return;
-  let found=0;
-  for(const it of c.items){if(it.kind==='herb'&&it.mesh&&
+  let found=c.trailSeedCount||0;
+  for(const it of c.items){if(it.kind==='herb'&&it.mesh&& !it.id.includes(':f')&&
     Math.abs(it.mesh.position.x-pathX(it.mesh.position.z))<19)found++}
   if(found>=2)return;
   const target=2-found;
@@ -1629,10 +1824,12 @@ function ensureTrailFlora(c,r,ox,oz,grp){
     if(total<=0)continue;
     let roll=r()*total,sp=options[options.length-1][0];
     for(const entry of options){roll-=entry[1];if(roll<=0){sp=entry[0];break}}
-    const id=`${c.key}:trail${n}`;if(takenUntil(id))continue;
-    const m=makePlantMesh(sp,Math.floor(r()*3));m.position.set(x,H(x,z)-.02,z);m.rotation.y=r()*Math.PI*2;
+    const id=`${c.key}:trail${n}`,variant=Math.floor(r()*3),rotation=r()*Math.PI*2;
+    added++; // reserve this slot even while its harvested item is absent
+    if(takenUntil(id))continue;
+    const m=makePlantMesh(sp,variant);m.position.set(x,H(x,z)-.02,z);m.rotation.y=rotation;
     const item={kind:'herb',type:sp.id,id,hits:0,need:sp.need,mesh:m};
-    m.userData.item=item;grp.add(m);c.items.push(item);added++;
+    m.userData.item=item;grp.add(m);c.items.push(item);
   }
 }
 /* 물길: 물 띠와 물가 돌 */
@@ -1649,9 +1846,12 @@ function placeStreams(c,r,ox,oz,grp){
 }
 /* ---------- 도감 아이콘: 3D 모델을 그대로 렌더 (땅속 뿌리까지) ---------- */
 let iconR=null,iconScene=null,iconCam=null;const iconCache={};
-function iconInit(){if(iconR)return;const cv=document.createElement('canvas');cv.width=240;cv.height=200;
-  iconR=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true,preserveDrawingBuffer:true});iconR.setPixelRatio(1);iconR.setSize(240,200,false);iconR.setClearColor(0,0);
-  iconScene=new THREE.Scene();iconScene.add(new THREE.HemisphereLight(0xffffff,0x6a5a40,.75));const d=new THREE.DirectionalLight(0xfff4e0,.6);d.position.set(2,4,3);iconScene.add(d);iconCam=new THREE.PerspectiveCamera(30,1.2,.01,100)}
+function iconInit(){if(iconR)return;const cv=document.createElement('canvas');cv.width=240;cv.height=320;
+  iconR=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true,preserveDrawingBuffer:true});iconR.setPixelRatio(1);iconR.setSize(240,320,false);iconR.setClearColor(0,0);
+  iconScene=new THREE.Scene();iconScene.add(new THREE.HemisphereLight(0xffffff,0x6a5a40,.75));const d=new THREE.DirectionalLight(0xfff4e0,.6);d.position.set(2,4,3);iconScene.add(d);
+  // Add vertical room without zooming out: retain the previous 240x200 frame's horizontal field of view.
+  const tallFov=2*Math.atan(Math.tan(30*Math.PI/360)*(320/200))*180/Math.PI;
+  iconCam=new THREE.PerspectiveCamera(tallFov,240/320,.01,100)}
 const FRUITS={
  acorn:{name:'도토리',rar:1,desc:'참나무 아래에서 줍는 가을의 열매.',hab:'참나무 숲 바닥',color:0x8c5a2d},
  chestnut:{name:'밤',rar:2,desc:'밤나무 아래 떨어진 단단한 갈색 밤.',hab:'밤나무 아래 산기슭',color:0x793e26},
@@ -1724,7 +1924,10 @@ function renderIcon(kind,type){
   if(kind==='herb'&&SPI[type].root){const soil=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(sz.x,sz.z)*1.6+.1,Math.max(-box.min.y,.02)+.04),new THREE.MeshBasicMaterial({color:0x6b4f32,transparent:true,opacity:.28}));soil.position.set(ctr.x,(box.min.y-.02)/2,ctr.z-Math.max(sz.z,.05)*.6);grp.add(soil);
     const line=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(sz.x,sz.z)*1.6+.1,.006),new THREE.MeshBasicMaterial({color:0x4a3a26}));line.position.set(ctr.x,0,ctr.z-Math.max(sz.z,.05)*.6+.001);grp.add(line)}
   iconScene.add(grp);
-  const R=Math.max(sz.x,sz.y*1.1,sz.z)*.6+.01;iconCam.position.set(ctr.x+R*.9,ctr.y+R*.55,ctr.z+R*2.5);iconCam.lookAt(ctr);grp.children.forEach(o=>{if(o.isMesh&&o.geometry.type==='PlaneGeometry')o.quaternion.copy(iconCam.quaternion)});
+  // Original model scale and camera distance, now rendered inside a taller frame.
+  const R=Math.max(sz.x,sz.y*1.1,sz.z)*.6+.01;
+  iconCam.position.set(ctr.x+R*.9,ctr.y+R*.55,ctr.z+R*2.5);iconCam.lookAt(ctr);
+  grp.children.forEach(o=>{if(o.isMesh&&o.geometry.type==='PlaneGeometry')o.quaternion.copy(iconCam.quaternion)});
   iconR.render(iconScene,iconCam);return iconR.domElement;
 }
 function iconURL(kind,type){const k=kind+':'+type;if(!iconCache[k])iconCache[k]=renderIcon(kind,type).toDataURL();return iconCache[k]}
@@ -1923,10 +2126,11 @@ function placeRockPlants(c,r,grp){
    const type=spec?spec.id:'seogi';if(type==='seogi'&&moist<.26)continue;
    const ang=r()*Math.PI*2,rr=rock.r*(.13+r()*.25);
    const px=x+Math.cos(ang)*rr,pz=z+Math.sin(ang)*rr,py=rock.topY-.04;
-   const id=`${c.key}:rock${i}`;if(takenUntil(id))continue;
+   const id=`${c.key}:rock${i}`,variant=Math.floor(r()*3),rotation=r()*Math.PI*2;
+   if(takenUntil(id))continue;
    const isMush=type==='seogi';
-   const mesh=isMush?mush3D(type):makePlantMesh(spec,Math.floor(r()*3));
-   mesh.position.set(px,py,pz);mesh.rotation.y=r()*Math.PI*2;
+   const mesh=isMush?mush3D(type):makePlantMesh(spec,variant);
+   mesh.position.set(px,py,pz);mesh.rotation.y=rotation;
    if(isMush)mesh.scale.setScalar(1.4);
    const it={kind:isMush?'mush':'herb',type,id,hits:0,need:isMush?MUSH[type].need:spec.need,mesh,rock};
    mesh.userData.item=it;grp.add(mesh);c.items.push(it);
@@ -1934,8 +2138,9 @@ function placeRockPlants(c,r,grp){
 }
 function placeExtraMushrooms(c,r,grp,nearStart){
  const mk=(type,id,x,y,z,sc=1)=>{
+   const rotation=r()*6.28;
    if(takenUntil(id)||nearStart(x,z,4))return;
-   const m=mush3D(type);m.position.set(x,y,z);m.rotation.y=r()*6.28;m.scale.setScalar(sc);
+   const m=mush3D(type);m.position.set(x,y,z);m.rotation.y=rotation;m.scale.setScalar(sc);
    const it={kind:'mush',type,id,hits:0,need:MUSH[type].need,mesh:m};m.userData.item=it;grp.add(m);c.items.push(it);
  };
  for(let i=0;i<c.trees.length;i++){
@@ -1950,6 +2155,84 @@ function placeExtraMushrooms(c,r,grp,nearStart){
    else if(broad&&alt>180&&alt<1250&&e.moist>.38&&r()<.25)mk('norugung',`${c.key}:xm${i}`,t.x,t.y+1.15*t.s,t.z,1.25);
    else if(pine&&alt>200&&alt<1500&&e.moist>.25&&r()<.2)mk('kkotsongi',`${c.key}:xm${i}`,x,H(x,z)+.03,z,1.35);
    else if(oak&&alt>140&&alt<1300&&e.moist>.25&&r()<.24)mk('ipsae',`${c.key}:xm${i}`,x,H(x,z)+.03,z,1.45);
+ }
+}
+/* ---------- five-star resource migration: preserve slot counts and habitats ---------- */
+function rareSlotSeed(id,cycle){let h=2166136261;const str=id+'#'+cycle;
+ for(let i=0;i<str.length;i++)h=Math.imul(h^str.charCodeAt(i),16777619);
+ return h>>>0;
+}
+function relocateRareInChunk(c){
+ const cx=c.cx,cz=c.cz,trees=c.trees||[],rocks=c.rocks||[];
+ for(const it of c.items){
+   const info=itemInfo(it.type),m=it.mesh,cycle=rareMoves.get(it.id)?.cycle||0;
+   if(!info||info.rar!==5||!cycle||!m)continue;
+   const r=rngOf(rareSlotSeed(it.id,cycle)),sp=SPI[it.type],origin=m.position.clone();
+   let candidate=null;
+   const minMove=(it.rock||sp?.rock||it.type==='seogi')?1.1:
+     (sp?.onTree||it.tree||it.type==='sanghwang'||['songi','neungi','kkotsongi'].includes(it.type))?1.4:3.5;
+   const accept=(x,y,z,score,hostRock=null)=>{
+     if(x<cx*CH+1||x>(cx+1)*CH-1||z<cz*CH+1||z>(cz+1)*CH-1)return;
+     if(Math.hypot(x-origin.x,z-origin.z)<minMove||streamD(x,z)<2.3)return;
+     if(Math.hypot(x-pathX(24),z-24)<5)return;
+     if(c.items.some(other=>other!==it&&other.mesh&&Math.hypot(x-other.mesh.position.x,z-other.mesh.position.z)<1.5))return;
+     if(!candidate||score>candidate.score)candidate={x,y,z,score,hostRock};
+   };
+   if(it.rock||sp?.rock||it.type==='seogi'){
+     // Lichens and rock-dwelling herbs must remain attached to a real rock.
+     const atop=!!it.rock;
+     const options=rocks.filter(k=>k.mesh&&(!atop||k.climbable)&&
+       (!sp||(k.groundY*ALT_K>=sp.alt[0]&&k.groundY*ALT_K<=sp.alt[1])));
+     for(let k=0;k<85&&options.length;k++){
+       const rock=options[Math.floor(r()*options.length)],a=r()*Math.PI*2;
+       const rr=atop?rock.r*(.16+r()*.52):rock.r+.5+r()*.8;
+       const x=rock.x+Math.cos(a)*rr,z=rock.z+Math.sin(a)*rr;
+       const e=envAt(x,z,c);if(it.type==='seogi'&&e.moist<.25)continue;
+       if(sp&&sp.W==='moist'&&e.moist<.17)continue;
+       if(!atop&&e.inRock)continue;
+       accept(x,atop?rock.topY-.04:H(x,z)-.02,z,1+r()*.2+(rock!==it.rock?.3:0),atop?rock:null);
+     }
+   }else if(sp?.onTree||it.tree||it.type==='sanghwang'||['songi','neungi','kkotsongi'].includes(it.type)){
+     const kind=sp?.onTree==='pine'||['songi','kkotsongi'].includes(it.type)?'pine':
+       sp?.onTree==='oak'||it.type==='neungi'?'oak':null;
+     const options=trees.filter(t=>t.s>.42&&(!kind||t.kind===kind));
+     for(let k=0;k<90&&options.length;k++){
+       const t=options[Math.floor(r()*options.length)],a=r()*Math.PI*2;
+       const rr=sp?.onTree?.25*t.s:it.type==='sanghwang'?.37*t.s:.6+r()*1.35;
+       const x=t.x+Math.sin(a)*rr,z=t.z+Math.cos(a)*rr;
+       const e=envAt(x,z,c);
+       if(sp&&(e.alt<sp.alt[0]||e.alt>sp.alt[1]))continue;
+       if(it.type==='songi'&&(e.alt<180||e.alt>1500||e.moist>.75))continue;
+       if(it.type==='neungi'&&(e.alt<200||e.alt>1500||e.moist<.2))continue;
+       if(it.type==='kkotsongi'&&(e.alt<200||e.alt>1500||e.moist<.15))continue;
+       const y=sp?.onTree?t.y+Math.min(2.1*t.s,2.5):
+         it.type==='sanghwang'?t.y+.65+r()*.65:H(x,z)+.04;
+       accept(x,y,z,1+r()*.2+(t!==it.tree?.2:0));
+     }
+   }else{
+     // Select another real, unoccupied spot satisfying the original species'
+     // altitude, light, water and rock-edge habitat suitability.
+     for(let k=0;k<100;k++){
+       const x=cx*CH+2+r()*(CH-4),z=cz*CH+2+r()*(CH-4);
+       const e=envAt(x,z,c);if(e.inRock||Math.abs(x-pathX(z))>53)continue;
+       const fit=sp?fitOf(sp,e):0;
+       if(fit<.025)continue;
+       accept(x,H(x,z)-.02,z,fit+r()*.01);
+     }
+   }
+   if(!candidate){
+     // An isolated habitat may have only one suitable rock/tree. Pick a
+     // different angle nearby instead of inventing a new species or slot.
+     const x=origin.x+(r()<.5?-1:1)*(3.5+r()*1.5),z=origin.z+(r()<.5?-1:1)*(3.5+r()*1.5);
+     if(!it.rock&&Math.floor(x/CH)===cx&&Math.floor(z/CH)===cz){
+       const e=envAt(x,z,c);if(!e.inRock&&(!sp||fitOf(sp,e)>.012))candidate={x,y:H(x,z)-.02,z};
+     }
+   }
+   if(candidate){
+     m.position.set(candidate.x,candidate.y,candidate.z);
+     if(it.rock&&candidate.hostRock)it.rock=candidate.hostRock;
+     if(it.tree)it.tree=null; // moved item no longer linked to its old host
+   }
  }
 }
 /* ---------- world chunks ---------- */
@@ -2040,7 +2323,8 @@ function buildChunk(cx,cz){
     (t.kind==='pine'?pines:oaks).push(t);c.trees.push(t);
     if(t.s>.5&&r()<.24){const mt=pickW(MUSH,COMMON_MUSH_KEYS,r(),1+altHere/600);const a=r()*6.28,rr=(t.kind==='pine'?.39:.43)*t.s;
       const it={kind:'mush',type:mt,id:`${c.key}:m${i}`,hits:0,need:MUSH[mt].need,tree:t};
-      if(!takenUntil(it.id)){const m=mush3D(mt);m.position.set(x+Math.cos(a)*rr,t.y+.55+r()*.75,z+Math.sin(a)*rr);m.rotation.y=Math.atan2(Math.cos(a),Math.sin(a));m.scale.setScalar(1.6);it.mesh=m;t.mush=m;m.userData.item=it;grp.add(m);c.items.push(it)}}}
+      const placeY=t.y+.55+r()*.75;
+      if(!takenUntil(it.id)){const m=mush3D(mt);m.position.set(x+Math.cos(a)*rr,placeY,z+Math.sin(a)*rr);m.rotation.y=Math.atan2(Math.cos(a),Math.sin(a));m.scale.setScalar(1.6);it.mesh=m;t.mush=m;m.userData.item=it;grp.add(m);c.items.push(it)}}}
   const snowy=altHere>1550;
   const inst=(geo,mat,list,colFn)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,mat,list.length);im.frustumCulled=false;const o=new THREE.Object3D();
     list.forEach((t,i)=>{o.position.set(t.x,t.y,t.z);o.rotation.set(t.lean,t.rot,0);o.scale.setScalar(t.s);o.updateMatrix();im.setMatrixAt(i,o.matrix);(t.inst||(t.inst=[])).push({im,i,m:o.matrix.clone()});if(colFn)im.setColorAt(i,colFn(t,i))});
@@ -2058,8 +2342,9 @@ function buildChunk(cx,cz){
     const a=H(t.x,t.z)*ALT_K;
     const type=t.kind==='pine'&&a>=1200&&a<=2050?'gyeousolip':t.kind==='oak'&&a>=850&&a<=1650?'gyeousari':null;
     if(!type)continue;
-    const sp=SPI[type],id=`${c.key}:winter${i}`;if(takenUntil(id))continue;
-    const ang=r()*6.28,mesh=makePlantMesh(sp,Math.floor(r()*3));
+    const sp=SPI[type],id=`${c.key}:winter${i}`,ang=r()*6.28,variant=Math.floor(r()*3);
+    if(takenUntil(id))continue;
+    const mesh=makePlantMesh(sp,variant);
     const off=.27*t.s;mesh.position.set(t.x+Math.sin(ang)*off,t.y+Math.min(2.1*t.s,2.5),t.z+Math.cos(ang)*off);
     mesh.rotation.y=ang;
     const it={kind:'herb',type,id,hits:0,need:sp.need,mesh,tree:t};mesh.userData.item=it;grp.add(mesh);c.items.push(it);
@@ -2109,6 +2394,7 @@ function buildChunk(cx,cz){
     if(e.alt>1250||e.light<.43||e.moist<.16||e.moist>.89||e.nearTree>12||e.nearTree<1.3||e.slope>2.0||r()>.52)continue;
     putFruit('wildberry',c.key+':berry'+i,x,z,false);
   }
+  relocateRareInChunk(c);
   scene.add(grp);chunks.set(c.key,c);return c;
 }
 function disposeChunk(c){
@@ -2352,7 +2638,7 @@ function collect(kind,type,pos,it){
   const info=kind==='herb'?HERBS[type]:kind==='fruit'?FRUITS[type]:MUSH[type];
   if(it&&takenUntil(it.id))return;
   if(totalCount()>=bagLimit()){ floatMsg(pos,'가방이 가득 찼다'); toast(`등산가방은 현재 ${bagLimit()}개까지 담을 수 있습니다. 텐트에서 판매하거나 가방을 확장하세요.`); tone(220,.24,'triangle',.055,.85); return; }
-  if(it){markTaken(it.id,Date.now()+RESPAWN_MS,true);if(it.mesh&&it.mesh.parent){if(kind==='herb'){const sp=SPI[type];pulls.push({m:it.mesh,t:0,y0:it.mesh.position.y,d:(sp.root?sp.root.len+(sp.root.deep?.15:.05):0)+.25})}else it.mesh.parent.remove(it.mesh)}for(const c of chunks.values()){const i=c.items.indexOf(it);if(i>=0)c.items.splice(i,1)}}
+  if(it){markTaken(it.id,Date.now()+RESPAWN_MS,true,type);if(it.mesh&&it.mesh.parent){if(kind==='herb'){const sp=SPI[type];pulls.push({m:it.mesh,t:0,y0:it.mesh.position.y,d:(sp.root?sp.root.len+(sp.root.deep?.15:.05):0)+.25})}else it.mesh.parent.remove(it.mesh)}for(const c of chunks.values()){const i=c.items.indexOf(it);if(i>=0)c.items.splice(i,1)}}
   save.inv[type]=(save.inv[type]||0)+1; save.known=save.known||{}; save.known[type]=1; recordHerbHarvest(type,info,kind==='herb'&&!!it);persist();
   me.mode='joy';me.t=0;joyT=2.3;curAct=null;queued=null;
   burst(new THREE.Vector3(pos.x,pos.y+.4,pos.z),info.rar>=4?40:20,info.rar>=4);hearts(new THREE.Vector3(P.x,P.y+2.1,P.z));
@@ -2434,7 +2720,7 @@ function buildBag(){
       const img=document.createElement('img');img.src=iconURL(cat==='fruit'?'fruit':cat==='mush'?'mush':'herb',key);img.alt='';c.appendChild(img);
       const n=document.createElement('div');n.className='n';n.textContent=known?info.name:'???';
       const cc=document.createElement('div');cc.className='c';
-      cc.textContent=!known?`${'★'.repeat(info.rar)} · 아직 못 찾음`:have?`${have}개 · ${'★'.repeat(info.rar)}`:`현재 0개 · 판매함`;
+      cc.textContent=!known?`${'★'.repeat(info.rar)} · 아직 못 찾음`:`${have}개 · ${'★'.repeat(info.rar)}`;
       c.appendChild(n);c.appendChild(cc);
       if(known&&info.hab){const hb=document.createElement('div');hb.className='hb';hb.textContent=info.hab+' · '+info.desc;c.appendChild(hb)}
       if(known){c.classList.add('click');c.onclick=()=>showInfoCard(cat==='fruit'?'fruit':cat==='mush'?'mush':'herb',key,true)}
@@ -2592,7 +2878,9 @@ function netCleanup(){const now=Date.now();if(now-lastPeerCleanup<1500)return;la
   updatePeople();
 }
 function shareHarvestSnapshot(){const items=[...sharedTaken].filter(([k,v])=>v>Date.now());
- for(let i=0;i<items.length;i+=12)netPublish('harvestSync',{items:items.slice(i,i+12)});
+ for(let i=0;i<items.length;i+=12)netPublish('harvestSync',{items:items.slice(i,i+12).map(([id,until])=>[id,until,rareMoves.get(id)?.cycle||0])});
+ const moved=[...rareMoves].slice(-1200);
+ for(let i=0;i<moved.length;i+=12)netPublish('rareSync',{items:moved.slice(i,i+12).map(([id,s])=>[id,s.cycle,s.until])});
 }
 function netHello(){netPublish('hello',{name:cleanNick(save.nick)})}
 function tryNetJoin(){if(!mqttOnline||netJoined||netChecking)return;netChecking=true;netJoinTime=Date.now();netHello();
@@ -2617,8 +2905,21 @@ function connectRoom(){
       let d;try{d=JSON.parse(data.toString())}catch(e){return}
       if(!d||typeof d.id!=='string'||d.id===myId||!/^[a-zA-Z0-9]{8,18}$/.test(d.id))return;
       if(d.type==='bye'){netDrop(d.id);return}
-      if(d.type==='harvest'){if(typeof d.resource==='string')markTaken(d.resource,+d.until,false);return}
-      if(d.type==='harvestSync'){if(Array.isArray(d.items))for(const e of d.items)if(Array.isArray(e)&&e.length===2)markTaken(e[0],+e[1],false);return}
+      if(d.type==='harvest'){if(typeof d.resource==='string')markTaken(d.resource,+d.until,false,null,d.rareCycle);return}
+      if(d.type==='harvestSync'){
+        if(Array.isArray(d.items))for(const e of d.items)if(Array.isArray(e)&&e.length>=2)
+          markTaken(e[0],+e[1],false,null,+e[2]||null);
+        return;
+      }
+      if(d.type==='rareSync'){
+        if(Array.isArray(d.items))for(const e of d.items){
+          if(!Array.isArray(e)||e.length!==3||typeof e[0]!=='string')continue;
+          const until=+e[2];if(!Number.isFinite(until)||until<0||until>Date.now()+RESPAWN_MS+15000)continue;
+          updateRareMove(e[0],+e[1],until);
+          if(until>Date.now())markTaken(e[0],until,false,null,+e[1]);
+        }
+        return;
+      }
       if(d.type==='radio'){if(typeof d.msg==='string'&&d.msg.length<=180)showRadioLine(cleanNick(d.name)||'산객',d.msg);return}
       if(d.type==='boarDisperse'){
         const peer=others.get(d.id);
@@ -2853,7 +3154,9 @@ function updSky(){
   }
   // The WebGL canvas has alpha, so empty sky pixels would otherwise expose
   // the old pale-green gradient even after foreground geometry has faded.
-  const mistAmount=clamp(.55+inCloud*.50,0,1);
+  // On clear nights leave the upper sky deep navy so the stars are visible;
+  // clouds and rain still bring the neutral grey-white mist back naturally.
+  const mistAmount=clamp(lerp(.55,.12,night)+inCloud*.86+weatherCloud*.22+weatherRain*.15,0,1);
   _skyFogTop.set(S.top).lerp(scene.fog.color,mistAmount);
   _skyFogBottom.set(S.bot).lerp(scene.fog.color,mistAmount);
   const key=S.top+S.bot+Math.round(mistAmount*100)+'-'+Math.round(weatherCloud*20)+'-'+Math.round(weatherRain*20);
@@ -2874,7 +3177,7 @@ function updSky(){
   if(el>-.05){sun.position.set(P.x+az*95,P.y+25+Math.max(el,0)*110,P.z+45);sun.intensity=S.sun*(1-weatherCloud*.27-weatherRain*.30);sun.color.setHex(el<.3?0xffc890:0xfff0d8)}
   else{sun.position.set(P.x-az*80,P.y+25-el*100,P.z+30);sun.intensity=.16*night;sun.color.setHex(0x9fb0ff)}
   sun.target.position.set(P.x,P.y,P.z);
-  stars.material.opacity=night;stars.position.set(P.x,0,P.z);
+  stars.position.set(P.x,P.y,P.z);
   lamp.intensity=night*1.3;lamp.position.set(P.x,P.y+1.75,P.z);lamp.target.position.set(P.x+Math.sin(P.h)*8,P.y-.6,P.z+Math.cos(P.h)*8);
   for(const m of farMts){const u=m.userData;m.position.set(P.x+Math.cos(u.a)*u.dist,u.y0,P.z+Math.sin(u.a)*u.dist)}
   summit.position.set(P.x,P.y-1250,P.z-1500);
@@ -3035,8 +3338,8 @@ for(const k in CARE)if(HERBS[k])HERBS[k].care=CARE[k];
 function careFail(tg){
   const it=tg.item;if(!it||takenUntil(it.id))return;
   queued=null;pending=null;curAct=null;it.hits=0;
-  markTaken(it.id,Date.now()+RESPAWN_MS,true);
-  floatMsg(tg.pos,'캐기 실패… 약초가 사라졌다 ㅠㅠ');toast('뿌리가 끊어져 채집 실패! 현실 시간 20분 뒤 다시 찾아보자.');
+  markTaken(it.id,Date.now()+RESPAWN_MS,true,it.type);
+  floatMsg(tg.pos,'캐기 실패… 약초가 사라졌다 ㅠㅠ');toast('뿌리가 끊어져 채집에 실패했다…');
   tone(180,.35,'triangle',.06,.6);
 }
 const shaking=new Set();
@@ -3599,7 +3902,7 @@ function updateGame(dt){
   updateChunks(P.x,P.z,false,dt);
   for(let i=pulls.length-1;i>=0;i--){const p=pulls[i];p.t+=dt;const k=clamp(p.t/.7,0,1);p.m.position.y=p.y0+ease(k)*p.d;p.m.rotation.z=Math.sin(p.t*9)*.15*(1-k);if(p.t>1.1)p.m.scale.setScalar(Math.max(.001,1-(p.t-1.1)/.4));if(p.t>1.5){p.m.parent&&p.m.parent.remove(p.m);pulls.splice(i,1)}}
   updateAnimalLookLabel(); updateTents();updateRockClimbing(dt);
-  updParticles(dt);updLabels(dt);updOthers(dt);updateMyRankTag();updSky();updateFireflies();updAmbience(dt);
+  updParticles(dt);updLabels(dt);updOthers(dt);updateMyRankTag();updSky();updateNightSky(dt);updateFireflies();updAmbience(dt);
   hudT+=dt;if(hudT>.25){hudT=0;updHud()}
   presT+=dt;if(presT>.25){presT=0;sendPresence(false)}
   if(mapOpen){mapT+=dt;if(mapT>.15){mapT=0;drawMap()}}
