@@ -193,6 +193,14 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #saveConfirm .saveConfirmActions button:focus-visible{outline:3px solid #c9a24a;outline-offset:2px}
 #saveConfirm .saveLocationTip{font-size:11px;color:#5d6856;line-height:1.7;margin:13px 0 0;word-break:keep-all}
 .bagMeta{margin:8px 0 14px;font-size:13px;opacity:.78;line-height:1.7}
+#campPanel{position:fixed;bottom:calc(144px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(356px,calc(100vw - 28px));z-index:15;background:rgba(35,42,34,.94);color:#f5ead4;border:1px solid rgba(224,187,121,.66);border-radius:14px;padding:14px 15px;box-shadow:0 8px 25px #0008;text-align:center;pointer-events:auto}
+#campPanel h3{font-family:"Nanum Myeongjo",serif;font-size:19px;margin:0 0 8px}
+#campDetail{font-size:13px;line-height:1.7;white-space:pre-line;margin:6px 0 11px}
+#campPanel .campActions{display:flex;justify-content:center;flex-wrap:wrap;gap:7px}
+#campPanel button{padding:9px 12px;border-radius:8px;min-height:42px;font:700 13px "Gowun Dodum",sans-serif;border:1px solid #bbaa84;color:#27342a;background:#efe5cc;cursor:pointer}
+#campPanel button:disabled{opacity:.45;cursor:not-allowed}
+#mealBuff{font-size:11px;color:#f0d7a2;margin-top:4px;font-weight:700}
+@media(max-width:760px){#campPanel{bottom:calc(146px + env(safe-area-inset-bottom));padding:12px}#campPanel button{font-size:12px}}
 #tentView{position:fixed;inset:0;z-index:45;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:16px}
 #tentView .tentExitBtn{position:absolute;top:16px;right:16px;z-index:3}
 #tentStatus{position:absolute;top:18px;left:18px;z-index:3;color:#efe7d4;background:rgba(0,0,0,.28);padding:7px 11px;border:1px solid rgba(255,255,255,.15);border-radius:999px;font-size:12px;letter-spacing:.04em}
@@ -334,7 +342,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
     <div id="alt"><small>해발</small>0m</div>
     <div id="clock"></div>
     <div id="weather" style="font-size:12px;margin-top:3px;opacity:.85"></div>
-    <div id="count">채집 0</div>
+    <div id="count">채집 0</div><div id="mealBuff" class="hide">🍲 산속 한 끼의 힘</div>
     <div id="people" class="hide"></div>
   </div>
   <div class="btns">
@@ -363,6 +371,10 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 <div id="boarWarning" class="hide" role="status" aria-live="polite"><strong>⚠ 야생동물 주의</strong>어디선가 고약한 냄새가 난다…<br>멧돼지가 가까이 있을지도 모른다!</div>
 <div id="rareSense" class="hide" role="status" aria-live="polite"><strong>🌿 약초꾼의 눈썰미</strong>산을 읽는 눈이 속삭인다…<br>이 근처에 예사롭지 않은 산의 보물이 숨어 있다.</div>
 <div id="toast"></div>
+<div id="campPanel" class="hide" role="dialog" aria-label="캠프파이어 요리">
+  <h3>🔥 산속의 화덕</h3><div id="campDetail"></div>
+  <div class="campActions"><button id="campFuelBtn" type="button">나뭇가지 넣기</button><button id="campCookBtn" type="button">🍳 요리하기</button><button id="campCloseBtn" type="button">닫기</button></div>
+</div>
 <div id="radioToast" class="hide"></div><div id="radioPanel" class="hide"><div class="radioHead">📻 산객 무전기 <button id="radioClose" class="btn">닫기</button></div><div id="radioChoices"></div><div id="radioLog"></div></div>
 <div id="faintOverlay" class="hide"><div class="faintSymbol">✦</div><h2>잠시 정신을 잃었습니다</h2><p id="faintMessage">산짐승을 피해 쉬고 있습니다.</p><div id="faintCountdown"></div><small>현실 시간 3분 동안 움직일 수 없습니다.</small></div>
 <div id="joy" class="hide"><div id="knob"></div></div>
@@ -646,6 +658,7 @@ function thud(){ if(!soundOn) return; const a=ac(); if(!a) return;
 function chime(rar){const base=[392,494,587,784,988]; const n=rar>=4?5:3; for(let i=0;i<n;i++) tone(base[i],.62,'sine',.057,1,i*.11); if(rar>=4) tone(1175,1,'sine',.026,1,.55)}
 /* ================= 3D MAIN ================= */
 const SAVE3='baekyaksan3d-v1'; // Old single-browser record; kept for one-time migration.
+const TWIG_KEY='fallenTwig',MEAL_SPEED_MULT=1.32,MEAL_JUMP_MULT=1.175;
 const PROFILE_STORE_PREFIX='baekyaksan-profile-v2:', PROFILE_APP='baekyaksan3d', PROFILE_FORMAT=2;
 let save={inv:{},known:{},won:0,taken:{},nick:'',color:0,pos:null,bagCap:10,stats:{}};
 try{const s=JSON.parse(localStorage.getItem(SAVE3)||'null');if(s&&s.inv)save=Object.assign(save,s)}catch(e){}
@@ -653,14 +666,15 @@ const legacySave=JSON.parse(JSON.stringify(save));
 let activeProfileKey='',activeCredential=null;
 function profileProgress(){
   const pos=(typeof P!=='undefined'&&mode==='game')?{x:+P.x.toFixed(2),z:+P.z.toFixed(2)}:save.pos;
-  return {inv:save.inv,known:save.known||{},won:+save.won||0,color:save.color|0,pos,faintUntil:Math.max(0,faintUntil||0),bagCap:bagLimit(),stats:save.stats||{},highestRank:playerRank};
+  return {inv:save.inv,known:save.known||{},won:+save.won||0,color:save.color|0,pos,faintUntil:Math.max(0,faintUntil||0),bagCap:bagLimit(),stats:save.stats||{},highestRank:playerRank,mealBuffUntil:+save.mealBuffUntil||0};
 }
 function profileDocument(cred,progress){return {app:PROFILE_APP,format:PROFILE_FORMAT,profile:{name:cred.nick,verifier:cred.verifier},progress,updatedAt:Date.now()}}
 function persist(){
   if(!activeCredential||!activeProfileKey)return;
   try{localStorage.setItem(activeProfileKey,JSON.stringify(profileDocument(activeCredential,profileProgress())))}catch(e){console.warn('백약산 기록을 기기에 저장하지 못했습니다.',e)}
 }
-const totalCount=()=>Object.values(save.inv).reduce((a,b)=>a+b,0);
+const totalCount=()=>Object.values(save.inv).reduce((a,b)=>a+(Number.isFinite(b)?b:0),0);
+function mealBoosted(){return (+save.mealBuffUntil||0)>Date.now()}
 const RESPAWN_MS=20*60*1000,sharedTaken=new Map();
 // Five-star resources retain the SAME unique slot ID and species, but each
 // successful pickup (or failed delicate dig) advances its deterministic location.
@@ -808,6 +822,130 @@ function tent3D(styleIdx=0){
   };
   return {group:g,hit,palette:pal};
 }
+
+/* ---------------- Every tent has an independent, interactive campfire ---------------- */
+const CAMP_FIRE_MS=3*60*1000,CAMP_FUEL_N=10,CAMP_SAVE_KEY='baekyaksan-campfires-v1';
+const campStates=new Map();
+try{const rows=JSON.parse(localStorage.getItem(CAMP_SAVE_KEY)||'[]');if(Array.isArray(rows))for(const row of rows){
+  if(!Array.isArray(row)||!/^tent-\d{1,2}$/.test(row[0]||''))continue;
+  const fuel=Number.isInteger(row[1])?clamp(row[1],0,9):0;
+  const until=Number.isFinite(row[2])&&row[2]>Date.now()&&row[2]<Date.now()+CAMP_FIRE_MS+5000?row[2]:0;
+  const stamp=Number.isFinite(row[3])?row[3]:0;
+  campStates.set(row[0],{fuel:until?0:fuel,fireUntil:until,updatedAt:stamp});
+}}catch(e){}
+function storeCampStates(){try{localStorage.setItem(CAMP_SAVE_KEY,JSON.stringify([...campStates].map(([id,s])=>[id,s.fuel,s.fireUntil,s.updatedAt])))}catch(e){}}
+function campState(t){if(!campStates.has(t.id))campStates.set(t.id,{fuel:0,fireUntil:0,updatedAt:0});return campStates.get(t.id)}
+function updateCampState(tid,fuel,until,stamp,share){
+ if(!/^tent-\d{1,2}$/.test(tid)||!Number.isInteger(fuel)||fuel<0||fuel>9||!Number.isFinite(until)||!Number.isFinite(stamp))return;
+ if(until>Date.now()+CAMP_FIRE_MS+5000||stamp>Date.now()+120000)return;
+ const old=campStates.get(tid);if(old&&old.updatedAt>stamp)return;
+ campStates.set(tid,{fuel:until>Date.now()?0:fuel,fireUntil:until>Date.now()?until:0,updatedAt:stamp});storeCampStates();
+ if(share)netPublish('fireState',{camp:tid,fuel,fireUntil:until,updatedAt:stamp});
+}
+function makeTentCampfire(t){
+ const g=new THREE.Group(),rock=M(0x777168),wood=M(0x60452c),char=M(0x342c25),iron=M(0x454747),orange=M(0xf09a42,{emissive:0x6e2700,emissiveIntensity:.5}),yellow=M(0xffd16a,{emissive:0x8c4c0c,emissiveIntensity:.55});
+ const add=(geo,mat,x,y,z)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);g.add(o);return o};
+ const angle=t.mesh.rotation.y,dx=Math.cos(angle)*4.25+Math.sin(angle)*.9,dz=-Math.sin(angle)*4.25+Math.cos(angle)*.9;
+ const x=t.x+dx,z=t.z+dz;g.position.set(x,H(x,z)+.07,z);
+ for(let i=0;i<9;i++){const a=i*Math.PI*2/9,m=add(new THREE.DodecahedronGeometry(.25,0),rock,Math.cos(a)*.76,.11,Math.sin(a)*.76);m.scale.set(1.1,.66,.7);m.rotation.y=a}
+ for(let i=0;i<3;i++){const o=add(new THREE.CylinderGeometry(.105,.14,1.2,6),i===2?char:wood,0,.17,0);o.rotation.z=Math.PI/2;o.rotation.y=i*Math.PI/3}
+ const flames=new THREE.Group();g.add(flames);
+ for(let i=0;i<6;i++){const a=i*Math.PI*2/6,h=.5+(i%3)*.13;const f=new THREE.Mesh(new THREE.ConeGeometry(.16,h,4),i%2?orange:yellow);f.position.set(Math.cos(a)*.2,.32+h*.3,Math.sin(a)*.2);flames.add(f)}
+ const glow=new THREE.PointLight(0xff9d4c,0,10,2);glow.position.set(0,.62,0);g.add(glow);
+ // The hit area is larger than the stone ring for reliable mobile tapping.
+ const hit=add(new THREE.CylinderGeometry(1.1,1.1,1.22,12),new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false,colorWrite:false}),0,.55,0);
+ const pan=new THREE.Group();g.add(pan);pan.position.y=.68;pan.visible=false;
+ const bowl=new THREE.Mesh(new THREE.CylinderGeometry(.52,.44,.11,12),iron);pan.add(bowl);
+ const food=new THREE.Group();food.position.y=.09;pan.add(food);
+ const handle=new THREE.Mesh(new THREE.CylinderGeometry(.052,.052,.85,6),iron);handle.position.set(.84,.03,0);handle.rotation.z=Math.PI/2;pan.add(handle);
+ const stand=add(new THREE.CylinderGeometry(.59,.59,.045,12),iron,0,.53,0);stand.visible=false;
+ scene.add(g);g.visible=false;
+ const camp={tent:t,group:g,hit,flames,glow,pan,food,handle,stand,x,z,y:g.position.y};g.userData.campfire=t;hit.userData.campfire=t;
+ return camp;
+}
+let selectedCamp=null,cooking=null;
+function cookIngredientKeys(){return [...HERB_KEYS,...MUSH_KEYS,...Object.keys(FRUITS),...HONEY_KEYS].filter(k=>(save.inv[k]||0)>0&&(itemInfo(k)?.rar||0)>=4)}
+function closeCampPanel(){$('campPanel').classList.add('hide');selectedCamp=null}
+function showCampPanel(t){if(!t||!t.camp||Date.now()<faintUntil||cooking||inTent)return;
+ if(!nearTo(t.camp,5)){target={x:t.camp.x,z:t.camp.z,stop:3.0};pending={kind:'camp',tent:t};toast('캠프파이어 가까이로 이동합니다');return}
+ selectedCamp=t;$('campPanel').classList.remove('hide');refreshCampPanel();}
+function campTimeLeft(end){const seconds=Math.ceil(Math.max(0,end-Date.now())/1000);return `${Math.floor(seconds/60)}분 ${String(seconds%60).padStart(2,'0')}초`}
+function refreshCampPanel(){if(!selectedCamp)return;const c=campState(selectedCamp),lit=c.fireUntil>Date.now(),avail=save.inv[TWIG_KEY]||0,materials=cookIngredientKeys();
+ $('campDetail').textContent=lit?`🔥 모닥불 타는 중 · 남은 ${campTimeLeft(c.fireUntil)}\n🍳 4~5성 재료 ${materials.length}종 보유 · 요리 시 3~4종 자동 사용`:
+ `🪵 불 피울 준비 ${c.fuel}/${CAMP_FUEL_N}개 · 가방의 나뭇가지 ${avail}개\n빈 나무를 두드려 나뭇가지를 모아 보세요.`;
+ $('campFuelBtn').classList.toggle('hide',lit);$('campFuelBtn').disabled=lit||!avail;
+ $('campFuelBtn').textContent=`나뭇가지 넣기 (${c.fuel}/10)`;
+ $('campCookBtn').classList.toggle('hide',!lit);$('campCookBtn').disabled=!lit||materials.length<3||c.fireUntil-Date.now()<14000||!!cooking;
+ if(lit&&materials.length<3)$('campDetail').textContent+='\n※ 종류가 다른 4~5성 재료 3종 이상 필요';
+}
+function addCampFuel(){if(!selectedCamp||cooking)return;const t=selectedCamp,c=campState(t),now=Date.now();if(c.fireUntil>now)return;
+ const have=save.inv[TWIG_KEY]||0;if(!have){toast('나뭇가지가 부족합니다 · 빈 나무를 두드려 보세요');return}
+ const use=Math.min(have,CAMP_FUEL_N-c.fuel);if(use<=0)return;
+ save.inv[TWIG_KEY]=have-use;if(!save.inv[TWIG_KEY])delete save.inv[TWIG_KEY];
+ const fuel=c.fuel+use,fireUntil=fuel>=CAMP_FUEL_N?now+CAMP_FIRE_MS:0;
+ updateCampState(t.id,fireUntil?0:fuel,fireUntil,now,true);
+ persist();hudKey='';setGreens(me,totalCount());refreshCampPanel();
+ if(fireUntil){toast('🔥 나뭇가지 열 개! 모닥불이 3분 동안 타오릅니다');chime(3)}else toast(`🪵 나뭇가지 ${use}개를 넣었다 · ${fuel}/10`);
+}
+function cookPosition(c){const dx=c.x-c.tent.x,dz=c.z-c.tent.z,d=Math.hypot(dx,dz)||1;return {x:c.x+dx/d*1.55,z:c.z+dz/d*1.55}}
+function requestCampCook(){if(!selectedCamp||cooking)return;const t=selectedCamp,c=campState(t);
+ if(c.fireUntil-Date.now()<14000){toast('불이 곧 꺼집니다. 다시 불을 피워주세요');refreshCampPanel();return}
+ if(cookIngredientKeys().length<3){toast('요리에는 서로 다른 4~5성 채집물 3종 이상이 필요합니다');return}
+ closeCampPanel();const spot=cookPosition(t.camp);
+ if(Math.hypot(P.x-spot.x,P.z-spot.z)<.55)beginCampCook(t);
+ else{target={...spot,stop:.5};pending={kind:'cook',tent:t};toast('🍳 모닥불 앞으로 이동해 요리를 시작합니다')}
+}
+function beginCampCook(t){if(cooking||inTent||Date.now()<faintUntil)return;
+ const state=campState(t);if(state.fireUntil-Date.now()<12000){toast('모닥불이 꺼져 요리할 수 없습니다');return}
+ const available=cookIngredientKeys();if(available.length<3){toast('4~5성 재료가 3종 이상 필요합니다');return}
+ // Fisher–Yates shuffle; consume one unit of 3 or 4 DISTINCT resources.
+ for(let i=available.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]]}
+ const chosen=available.slice(0,available.length>=4&&Math.random()<.5?4:3);
+ for(const key of chosen){save.inv[key]--;if(save.inv[key]===0)delete save.inv[key]}
+ cooking={tent:t,started:clock,ingredients:chosen,visibleFood:0};
+ target=null;pending=null;joy.x=joy.y=0;me.mode='cook';me.t=0;me.cookTime=0;
+ P.h=Math.atan2(t.camp.x-P.x,t.camp.z-P.z);
+ persist();hudKey='';setGreens(me,totalCount());
+ toast(`🍳 요리 시작 · ${chosen.map(k=>itemInfo(k).name).join(' + ')}`);
+ sendPresence(true);
+}
+function finishCampCook(){if(!cooking)return;
+ const camp=cooking.tent.camp;camp.pan.visible=false;camp.food.clear();camp.stand.visible=false;
+ cooking=null;me.mode='idle';me.t=0;me.cookTime=0;
+ save.mealBuffUntil=Date.now()+GAME_DAY_MS;persist();hudKey='';
+ hearts(new THREE.Vector3(P.x,P.y+1.85,P.z));chime(4);
+ toast('🍲 산속의 한 끼! 게임 시간 하루 동안 이동 +32%, 점프 +38%');
+ sendPresence(true);
+}
+function tickCampCooking(dt){if(!cooking)return;const c=cooking.tent.camp,elapsed=clock-cooking.started;
+ const stage=elapsed<2.1?0:elapsed<5.9?1:elapsed<8.5?2:3;
+ me.cookTime=elapsed;me.cookStage=stage;me.mode='cook';
+ const want=Math.atan2(c.x-P.x,c.z-P.z);P.h=want;
+ c.pan.visible=elapsed>1.2&&elapsed<9.4;c.stand.visible=c.pan.visible;
+ c.pan.rotation.z=stage===2?Math.sin(elapsed*9)*.11:0;
+ const wanted=stage===0?0:stage===1?Math.min(cooking.ingredients.length,Math.floor((elapsed-2.1)/.7)+1):cooking.ingredients.length;
+ while(cooking.visibleFood<wanted){const i=cooking.visibleFood++,cols=[0x679146,0xb0793d,0xd19d54,0x864b3a],a=i*2.4;
+  const f=new THREE.Mesh(new THREE.IcosahedronGeometry(.13,0),M(cols[i%cols.length]));f.position.set(Math.sin(a)*.22,.02+((i%2)*.06),Math.cos(a)*.22);c.food.add(f)}
+ if(elapsed>=11.1)finishCampCook();
+}
+function updateCampfires(dt){const now=Date.now();for(const t of tents){if(!t.camp)continue;const c=t.camp,s=campState(t),d=Math.hypot(P.x-c.x,P.z-c.z);
+  c.group.visible=mode==='game'&&!inTent&&d<155;
+  const burning=now<s.fireUntil;c.flames.visible=burning;
+  c.glow.intensity=burning&&d<50?.45+.14*Math.sin(clock*11)**2:0;
+  if(burning){c.flames.scale.setScalar(.9+.12*Math.sin(clock*8));c.flames.rotation.y+=dt*.35}
+  if(!cooking||cooking.tent!==t){c.pan.visible=false;c.stand.visible=false}
+ }
+ if(selectedCamp){const t=selectedCamp;
+  if(inTent||Math.hypot(P.x-t.camp.x,P.z-t.camp.z)>6||Date.now()<faintUntil)closeCampPanel();
+  else if(Math.floor(clock*2)%2===0&&clock-(updateCampfires.lastUI||0)>.4){updateCampfires.lastUI=clock;refreshCampPanel()}
+ }
+ tickCampCooking(dt);
+}
+$('campFuelBtn').addEventListener('click',addCampFuel);
+$('campCookBtn').addEventListener('click',requestCampCook);
+$('campCloseBtn').addEventListener('click',closeCampPanel);
+addEventListener('keydown',e=>{if(e.code==='Escape')closeCampPanel()});
+
 const tents=[];const tentHintWorld=new THREE.Vector3();
 function zForAltitude(targetAlt){
   let z=-targetAlt/(ALT_K*.22), alt=H(pathX(z),z)*ALT_K;
@@ -835,7 +973,7 @@ function ensureTents(){
     scene.add(group);
     const label=document.createElement('div');label.className='nametag';label.textContent='⛺ 쉼터 · 클릭하여 들어가기';label.style.display='none';$('labels').appendChild(label);
     const tent={id:'tent-'+idx,x:px,y:py,z:pz,alt:Math.round(py*ALT_K),mesh:group,hit:made.hit,label,style:styleIdx,palette:made.palette};
-    group.userData.tent=tent; made.hit.userData.tent=tent; tents.push(tent);
+    group.userData.tent=tent; made.hit.userData.tent=tent; tent.camp=makeTentCampfire(tent); tents.push(tent);
     idx++; targetAlt += 500+r()*200;
   }
 }
@@ -918,6 +1056,7 @@ function reconcileTentOccupants(){
  changeTent(false,null);
 }
 function tentSetVisible(enter,t){
+ if(enter)closeCampPanel();
  inTent=enter; activeTent=enter?t:null; target=null; pending=null;joy.x=joy.y=0;
  $('tentView').classList.toggle('hide',!enter);
  $('sellPanel').classList.add('hide');$('bagUpgradePanel').classList.add('hide');selectedSellKey='';
@@ -1439,6 +1578,14 @@ function poseHiker(h,dt,speed){
   else if(h.mode==='dig'){const k=h.t/DIG_T;aR=k<.5?lerp(.1,-2.7,ease(k/.5)):k<.7?lerp(-2.7,-.55,(k-.5)/.2):-.55;aL=k<.5?lerp(0,-1.2,k*2):-.4;lean=k>.5?.45:.1;lL=.3;lR=-.2;hd=.2}
   else if(h.mode==='joy'){const k=h.t;by=Math.abs(Math.sin(k*7))*.42*Math.max(0,1-k/2.2);aL=-2.85+Math.sin(k*16)*.15;aR=-2.85-Math.sin(k*16)*.15;aLz=-.45;aRz=.45;lL=-.5*Math.abs(Math.sin(k*7));lR=lL;lean=-.12;hd=-.25}
   else if(h.mode==='climb'){const st=(climbing?.steps||0),w=Math.sin(clock*5+st*1.6);lL=-.55+w*.4;lR=-.55-w*.4;aL=-2.35-w*.4;aR=-2.35+w*.4;lean=.38;by=.06;}
+  else if(h.mode==='cook'){
+    const k=h.cookTime||h.t||0,stage=h.cookStage??(k<2.1?0:k<5.9?1:k<8.5?2:3);
+    lL=.06;lR=-.06;lean=stage===3?.16:.25;
+    if(stage===0){aL=-1.2-Math.sin(k*4)*.2;aR=-1.7-Math.sin(k*4)*.25}
+    else if(stage===1){aL=-.7;aR=-1.5-Math.abs(Math.sin(k*6))*.55;aRz=-.3}
+    else if(stage===2){aL=-.7;aR=-1.8+Math.sin(k*10)*.28;aRz=-.3}
+    else{aL=-.5;aR=-2.15+Math.sin(k*9)*.3;hd=-.18;lean=.08}
+  }
   else if(h.mode==='sit'){lL=-1.28;lR=-1.28;aL=-.36;aR=-.36;aLz=.10;aRz=-.10;by=-.36;lean=.08;hd=-.06}
   else if(h.mode==='faint'){lL=.13;lR=-.18;aL=-.25;aR=-.35;aLz=.9;aRz=-.9;lean=0;hd=-.12;by=0}
   const f=1-Math.exp(-dt*(h.mode==='dig'?40:14));
@@ -2796,7 +2943,7 @@ let joyT=0;
 const v3=new THREE.Vector3();
 function nearTo(p,r){return Math.hypot(p.x-P.x,p.z-P.z)<r}
 function act(tg){
-  if(Date.now()<faintUntil||climbing||me.mode==='joy'||(tg.item&&takenUntil(tg.item.id)))return;
+  if(Date.now()<faintUntil||cooking||climbing||me.mode==='joy'||(tg.item&&takenUntil(tg.item.id)))return;
   if(tg.item&&tg.item.rock&&onRock!==tg.item.rock){
     const rock=tg.item.rock;
     toast('바위 위에 붙어 있다. 근처에서 오르기 버튼을 이용하자.');
@@ -2829,7 +2976,27 @@ function impact(tg){
     if(it.mesh){it.mesh.userData.shake=.3;shaking.add(it)}
     if(it.hits>=it.need){collect(it.kind,it.type,tg.pos,it)}else{pip(tg.pos,it.hits,it.need);if(it.hits===1&&((it.kind==='herb'&&HERBS[it.type].care)||it.kind==='honey'))setTimeout(()=>floatMsg(tg.pos,it.kind==='honey'?'벌들이 예민하다… 천천히':'뿌리가 여리다… 천천히'),350)}
   }else if(tg.kind==='tree'){
-    const t=tg.tree;if(t.searched){floatMsg(tg.pos,'이미 살펴본 나무');return}
+    const t=tg.tree;
+    // Trees without any attached, available collectible are 'empty trees'.
+    const hostChunk=chunks.get(t.id.split(':')[0]);
+    const attached=!!hostChunk?.items.some(it=>it.mesh&&it.mesh.parent&&(it.tree===t||
+      ((it.type==='sanghwang'||it.type==='norugung'||SPI[it.type]?.onTree)&&Math.hypot(it.mesh.position.x-t.x,it.mesh.position.z-t.z)<.8)));
+    if(!attached){
+      // Preserve the original four-tap hidden-mushroom search as well as new twigs.
+      if(!t.searched){
+        t.hits=(t.hits||0)+1;
+        if(t.hits>=4){t.searched=true;
+          if(Math.random()<.4){const mt=pickW(MUSH,COMMON_MUSH_KEYS,Math.random(),1+P.y*ALT_K/600);collect('mush',mt,tg.pos,null);return}
+        }
+      }
+      if(totalCount()>=bagLimit()){toast('나뭇가지를 담을 가방 공간이 부족합니다');return}
+      const now=Date.now();if(!t.twigReady||now>=t.twigReady){t.twigHits=(t.twigHits||0)+1;
+        if(t.twigHits>=2){t.twigHits=0;t.twigReady=now+30000;save.inv[TWIG_KEY]=(save.inv[TWIG_KEY]||0)+1;persist();hudKey='';setGreens(me,totalCount());
+          floatMsg(tg.pos,'🪵 나뭇가지 +1');tone(390,.16,'triangle',.08);return}
+        pip(tg.pos,t.twigHits,2);return}
+      floatMsg(tg.pos,'떨어질 마른 가지가 없다…');return;
+    }
+    if(t.searched){floatMsg(tg.pos,'이미 살펴본 나무');return}
     t.hits++;for(let i=0;i<6;i++){if(parts.length>=MAXP)parts.shift();parts.push({x:t.x+(Math.random()-.5)*3,y:t.y+4*t.s,z:t.z+(Math.random()-.5)*3,vx:(Math.random()-.5),vy:-.2,vz:(Math.random()-.5),t:0,life:2,c:new THREE.Color(0x5e8f3e)})}
     if(t.hits>=4){t.searched=true;if(Math.random()<.4){const mt=pickW(MUSH,COMMON_MUSH_KEYS,Math.random(),1+P.y*ALT_K/600);collect('mush',mt,tg.pos,null)}else{floatMsg(tg.pos,'버섯은 없었다…');tone(220,.25,'triangle',.06,.8)}}
     else pip(tg.pos,t.hits,4);
@@ -2891,12 +3058,12 @@ canvas.addEventListener('pointermove',e=>{if(!ptr||ptr.id!==e.pointerId)return;c
   if(ptr.drag){camYaw-=dx*.006;camPitch=clamp(camPitch+dy*.004,.05,1.1);lastDrag=clock}ptr.x=e.clientX;ptr.y=e.clientY});
 canvas.addEventListener('pointerup',e=>{if(!ptr||ptr.id!==e.pointerId)return;const wasDrag=ptr.drag;ptr=null;if(wasDrag||mode!=='game')return;clickAt(e.clientX,e.clientY)});
 canvas.addEventListener('wheel',e=>{camDist=clamp(camDist+e.deltaY*.005,4,15);e.preventDefault()},{passive:false});
-function clickAt(sx,sy){if(Date.now()<faintUntil||inTent)return;
+function clickAt(sx,sy){if(Date.now()<faintUntil||inTent||cooking)return;
   ndc.set(sx/W*2-1,-(sy/Hh)*2+1);ray.setFromCamera(ndc,camera);
   const objs=[];for(const c of chunks.values()){for(const it of c.items)if(it.mesh)objs.push(it.mesh);objs.push(...c.treeMeshes,c.ground)}
-  for(const t of tents)if(t.mesh.visible)objs.push(t.mesh);
+  for(const t of tents){if(t.mesh.visible)objs.push(t.mesh);if(t.camp?.group.visible)objs.push(t.camp.group)}
   const hits=ray.intersectObjects(objs,true);if(!hits.length)return;
-  for(const h of hits){let o=h.object;while(o&&!o.userData.item&&!o.userData.tent)o=o.parent;if(o&&o.userData.tent){const t=o.userData.tent, pos=t.mesh.position.clone(); if(nearTo(pos,3.1)) openTent(t); else{target={x:pos.x,z:pos.z,stop:2.4}; pending={kind:'tent',tent:t,pos};} hideHint(); return;} if(o&&o.userData.item){const it=o.userData.item;act({kind:it.kind,item:it,pos:it.mesh.position.clone()});hideHint();return}}
+  for(const h of hits){let o=h.object;while(o&&!o.userData.item&&!o.userData.tent&&!o.userData.campfire)o=o.parent;if(o?.userData.campfire){showCampPanel(o.userData.campfire);hideHint();return;}if(o&&o.userData.tent){const t=o.userData.tent, pos=t.mesh.position.clone(); if(nearTo(pos,3.1)) openTent(t); else{target={x:pos.x,z:pos.z,stop:2.4}; pending={kind:'tent',tent:t,pos};} hideHint(); return;} if(o&&o.userData.item){const it=o.userData.item;act({kind:it.kind,item:it,pos:it.mesh.position.clone()});hideHint();return}}
   for(const h of hits){let o=h.object;while(o&&!o.userData.item&&!o.userData.tent&&!o.userData.trees&&!o.userData.terrain)o=o.parent;if(!o)continue;
     if(o.userData.tent){const t=o.userData.tent,pos=t.mesh.position.clone(); if(nearTo(pos,3.1)) openTent(t); else{target={x:pos.x,z:pos.z,stop:2.4}; pending={kind:'tent',tent:t,pos};} hideHint(); return}
     if(o.userData.item){const it=o.userData.item;act({kind:it.kind,item:it,pos:it.mesh.position.clone()});hideHint();return}
@@ -2920,6 +3087,8 @@ let lastMile=-1,toastT=0;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');toastT=3}
 let hudKey='';
 function updHud(){const alt=Math.max(0,Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K))),ph=phaseOf(gameMin/60),ck=clockText(),k=alt+'|'+ck+'|'+totalCount()+'|'+discoveredCount()+'|'+bagLimit()+'|'+playerRank;if(k!==hudKey){hudKey=k;$('alt').innerHTML=`<small>해발</small>${alt.toLocaleString()}m`;$('clock').textContent=`산속 시간 · ${ph} · ${ck}`;$('count').textContent=`가방 ${totalCount()}/${bagLimit()} · 도감 ${discoveredCount()}/${HERB_KEYS.length+MUSH_KEYS.length+Object.keys(FRUITS).length+HONEY_KEYS.length}종`}
+  const buff=$('mealBuff'),active=mealBoosted();buff.classList.toggle('hide',!active);
+  if(active)buff.textContent=`🍲 산속 한 끼 · 속도 +32% · 점프 +38% · 남은 ${Math.ceil((save.mealBuffUntil-Date.now())/60000)}분`;
   const m=Math.floor(alt/300);if(lastMile<0)lastMile=m;if(m>lastMile){lastMile=m;toast(`해발 ${m*300}m — ${MILES[Math.min(MILES.length-1,m-1)]}`);tone(392,.4,'sine',.06);tone(587,.6,'sine',.05,1,.15)}}
 $('bagBtn').onclick=()=>{buildBag();$('bag').classList.remove('hide')};
 $('bagClose').onclick=()=>$('bag').classList.add('hide');
@@ -2929,6 +3098,8 @@ function buildBag(){
   const meta=document.createElement('div');meta.className='bagMeta';
   meta.textContent=`가방 최대 ${bagLimit()}개 · 현재 ${totalCount()}/${bagLimit()}개 · 정산금 ${won(+save.won||0)} · 텐트에서 최대 110칸까지 10단계로 확장할 수 있습니다.`;
   host.appendChild(meta);
+  const twigs=document.createElement('div');twigs.className='bagMeta';twigs.textContent=`🪵 나뭇가지 ${save.inv[TWIG_KEY]||0}개 · 빈 나무를 두드려 획득 · 도감 제외 · 캠프파이어 10개 필요`;
+  host.appendChild(twigs);
   const groups=[['root','뿌리·덩이 약초 (땅속)'],['leaf','산나물'],['herb','약초'],['mush','산속 버섯'],['fruit','숲에서 떨어지는 열매'],['honey','야생 벌꿀']];
   for(const [cat,title] of groups){
     const keys=cat==='fruit'?Object.keys(FRUITS):cat==='mush'?MUSH_KEYS:cat==='honey'?HONEY_KEYS:HERB_KEYS.filter(k=>HERBS[k].cat===cat);
@@ -3078,7 +3249,7 @@ function netPublish(type,extra){if(!mqttOnline||!mqttClient)return;
   const packet=Object.assign({id:myId,type,joined:netJoinTime,t:Date.now()},extra||{});
   try{mqttClient.publish(MQTT_TOPIC+type+'/'+myId,JSON.stringify(packet),{qos:0,retain:false})}catch(e){}
 }
-function netState(){const act=Date.now()<faintUntil?'f':me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':'i';
+function netState(){const act=Date.now()<faintUntil?'f':me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':me.mode==='cook'?'c':'i';
   return {x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:act,c:save.color|0,n:cleanNick(save.nick),alt:Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K)),g:Math.min(6,totalCount()),lv:playerRank,tent:inTent&&activeTent?activeTent.id:''};}
 function updatePeople(){
   const count=netJoined?1+[...peerSeen.values()].filter(v=>Date.now()-v.seen<11000).length:0;
@@ -3099,6 +3270,8 @@ function netCleanup(){const now=Date.now();if(now-lastPeerCleanup<1500)return;la
 }
 function shareHarvestSnapshot(){const items=[...sharedTaken].filter(([k,v])=>v>Date.now());
  for(let i=0;i<items.length;i+=12)netPublish('harvestSync',{items:items.slice(i,i+12).map(([id,until])=>[id,until,rareMoves.get(id)?.cycle||0])});
+ const fireRows=[...campStates].map(([id,s])=>[id,s.fuel,s.fireUntil,s.updatedAt]);
+ for(let i=0;i<fireRows.length;i+=10)netPublish('fireSync',{items:fireRows.slice(i,i+10)});
  const moved=[...rareMoves].slice(-1200);
  for(let i=0;i<moved.length;i+=12)netPublish('rareSync',{items:moved.slice(i,i+12).map(([id,s])=>[id,s.cycle,s.until])});
 }
@@ -3140,6 +3313,14 @@ function connectRoom(){
         }
         return;
       }
+      if(d.type==='fireState'){
+       updateCampState(d.camp,+d.fuel,+d.fireUntil,+d.updatedAt,false);return;
+      }
+      if(d.type==='fireSync'){
+       if(Array.isArray(d.items))for(const e of d.items)if(Array.isArray(e)&&e.length===4)
+        updateCampState(e[0],+e[1],+e[2],+e[3],false);
+       return;
+      }
       if(d.type==='radio'){if(typeof d.msg==='string'&&d.msg.length<=180)showRadioLine(cleanNick(d.name)||'산객',d.msg);return}
       if(d.type==='boarDisperse'){
         const peer=others.get(d.id);
@@ -3172,7 +3353,7 @@ function upOther(p){
     o={av,el,headLamp,lampLens,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',nick:''};others.set(p.peer,o)}
   o.tx=+s.x;o.tz=+s.z;o.ty=Number.isFinite(+s.y)?+s.y:H(o.tx,o.tz);o.th=+s.h||0;
   o.rank=Number.isInteger(s.lv)?clamp(s.lv,1,RANKS.length):1;o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);o.tent=typeof s.tent==='string'&&/^tent-\d{1,2}$/.test(s.tent)?s.tent:'';o.color=Number.isInteger(s.c)?s.c:0;setGreens(o.av,+s.g|0);
-  const md=s.a==='f'?'faint':s.a==='w'?'walk':s.a==='d'?'dig':s.a==='j'?'joy':'idle';if(md!==o.mode){o.mode=md;o.av.mode=md;o.av.t=0}
+  const md=s.a==='f'?'faint':s.a==='w'?'walk':s.a==='d'?'dig':s.a==='j'?'joy':s.a==='c'?'cook':'idle';if(md!==o.mode){o.mode=md;o.av.mode=md;o.av.t=0}
   o.el.textContent=rankLabel(o.rank)+'\n'+(o.mode==='faint'?'💤 ':'')+(o.nick||'산객');
 }
 let presT=0;
@@ -3816,7 +3997,7 @@ function refreshAnimals(){clearExpiredBoarZones();const near=new Set();const cx=
 const FAINT_MS=3*60*1000;
 let faintUntil=0,faintReason='';
 try{faintUntil=Math.min(+(localStorage.getItem('baek_faint_until')||0),Date.now()+FAINT_MS)}catch(e){faintUntil=0}
-function faintAnimal(spec){if(Date.now()<faintUntil)return;climbing=null;onRock=null;$('climbPanel').classList.add('hide');const faintDuration=spec.durationMs||FAINT_MS;faintUntil=Date.now()+faintDuration;faintReason=spec.name;
+function faintAnimal(spec){if(Date.now()<faintUntil)return;if(cooking){const c=cooking.tent.camp;c.pan.visible=false;c.stand.visible=false;c.food.clear();cooking=null;}closeCampPanel();climbing=null;onRock=null;$('climbPanel').classList.add('hide');const faintDuration=spec.durationMs||FAINT_MS;faintUntil=Date.now()+faintDuration;faintReason=spec.name;
  try{localStorage.setItem('baek_faint_until',String(faintUntil))}catch(e){}persist();
  target=null;pending=null;joy.x=0;joy.y=0;me.mode='faint';me.t=0;$('faintOverlay').classList.remove('hide');
  faintSoundVolume(faintDuration);
@@ -4070,7 +4251,7 @@ function climbFail(){
  faintAnimal({name:'바위 추락',fall:true});
 }
 function climbAct(){
- if(Date.now()<faintUntil||inTent)return;
+ if(Date.now()<faintUntil||inTent||cooking)return;
  if(onRock){
    const rock=onRock,dx=P.x-rock.x,dz=P.z-rock.z,len=Math.hypot(dx,dz)||1;
    P.x=rock.x+dx/len*(rock.r+1.8);P.z=rock.z+dz/len*(rock.r+1.8);P.y=H(P.x,P.z);
@@ -4125,27 +4306,27 @@ function updateGame(dt){
   const up=(keys.KeyW||keys.ArrowUp)?1:0,dn=(keys.KeyS||keys.ArrowDown)?1:0,lf=(keys.KeyA||keys.ArrowLeft)?1:0,rt=(keys.KeyD||keys.ArrowRight)?1:0;
   const fwd=up-dn-joy.y,str=rt-lf+joy.x;
   const rot=(keys.KeyQ?1:0)-(keys.KeyE?1:0);if(rot){camYaw+=rot*dt*1.8;lastDrag=clock}
-  const busy=fainted||me.mode==='dig'||me.mode==='joy'||inTent||!!climbing;
+  const busy=fainted||me.mode==='dig'||me.mode==='joy'||!!cooking||inTent||!!climbing;
   let moveAmt=0,mvx=0,mvz=0;
   if(!busy&&(Math.abs(fwd)>.08||Math.abs(str)>.08)){target=null;pending=null;
     const fx=Math.sin(camYaw),fz=Math.cos(camYaw),rx=Math.sin(camYaw-Math.PI/2),rz=Math.cos(camYaw-Math.PI/2);
     mvx=fx*fwd+rx*str;mvz=fz*fwd+rz*str;const l=Math.hypot(mvx,mvz)||1;moveAmt=Math.min(1,l);mvx/=l;mvz/=l;
     const wantH=Math.atan2(mvx,mvz);let dh=wantH-P.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));P.h+=dh*Math.min(1,dt*12);if(Math.abs(dh)>1.6)moveAmt*=.35}
   else if(!busy&&target){const dx=target.x-P.x,dz=target.z-P.z,d=Math.hypot(dx,dz);
-    if(d<target.stop){target=null;if(pending){const pd=pending;pending=null;if(pd.kind==='tent')openTent(pd.tent);else swing(pd)}}
+    if(d<target.stop){target=null;if(pending){const pd=pending;pending=null;if(pd.kind==='tent')openTent(pd.tent);else if(pd.kind==='camp')showCampPanel(pd.tent);else if(pd.kind==='cook')beginCampCook(pd.tent);else swing(pd)}}
     else{const want=Math.atan2(dx,dz);let dh=want-P.h;dh=Math.atan2(Math.sin(dh),Math.cos(dh));P.h+=dh*Math.min(1,dt*8);moveAmt=Math.abs(dh)<1.2?1:.15;mvx=Math.sin(P.h);mvz=Math.cos(P.h)}}
   if(inTent){moveAmt=0; mvx=mvz=0;}
   if(moveAmt){
     if(onRock){
       // Walk freely within this boulder's safe upper surface.
-      const speed=2.55,limit=onRock.r*rockWalkLimit;
+      const speed=2.55*(mealBoosted()?MEAL_SPEED_MULT:1),limit=onRock.r*rockWalkLimit;
       let nx=P.x+mvx*moveAmt*speed*dt,nz=P.z+mvz*moveAmt*speed*dt;
       const dx=nx-onRock.x,dz=nz-onRock.z,d=Math.hypot(dx,dz);
       if(d>limit){nx=onRock.x+dx/d*limit;nz=onRock.z+dz/d*limit}
       P.x=nx;P.z=nz;
       if(target&&Math.hypot(target.x-onRock.x,target.z-onRock.z)>limit+1)target=null;
     }else{
-      const slope=H(P.x+mvx*.6,P.z+mvz*.6)-P.y,spd=4.0*clamp(1-slope*.35,.6,1.15);
+      const slope=H(P.x+mvx*.6,P.z+mvz*.6)-P.y,spd=4.0*(mealBoosted()?MEAL_SPEED_MULT:1)*clamp(1-slope*.35,.6,1.15);
       let nx=P.x+mvx*moveAmt*spd*dt,nz=P.z+mvz*moveAmt*spd*dt;
       const d=nx-pathX(nz);if(Math.abs(d)>58)nx=pathX(nz)+Math.sign(d)*58;if(nz>34)nz=34;if(nz<SUMMIT_Z+2)nz=SUMMIT_Z+2;
       if(H(nx,nz)-P.y<.9||P.air){const q=collide(nx,nz);P.x=q.x;P.z=q.z}
@@ -4158,6 +4339,7 @@ function updateGame(dt){
   if(fainted){me.mode='faint'}
   else if(me.mode==='dig'){if(!hitDone&&me.t>DIG_T*.62){hitDone=true;if(curAct)impact(curAct)}if(me.mode==='dig'&&me.t>=DIG_T){me.mode='idle';me.t=0;if(queued){const q=queued;queued=null;if(nearTo(q.pos,2.6))swing(q)}}}
   else if(me.mode==='joy'){joyT-=dt;if(joyT<=0){me.mode='idle';me.t=0}}
+  else if(cooking)me.mode='cook';
   else if(climbing)me.mode='climb';
   else me.mode=moveAmt?'walk':'idle';
   me.root.position.set(P.x,P.y+(fainted?.28:0),P.z);
@@ -4178,7 +4360,7 @@ function updateGame(dt){
   updateChunks(P.x,P.z,false,dt);
   for(let i=pulls.length-1;i>=0;i--){const p=pulls[i];p.t+=dt;const k=clamp(p.t/.7,0,1);p.m.position.y=p.y0+ease(k)*p.d;p.m.rotation.z=Math.sin(p.t*9)*.15*(1-k);if(p.t>1.1)p.m.scale.setScalar(Math.max(.001,1-(p.t-1.1)/.4));if(p.t>1.5){p.m.parent&&p.m.parent.remove(p.m);pulls.splice(i,1)}}
   updateRareSense(dt);
-  updateAnimalLookLabel(); updateTents();updateRockClimbing(dt);
+  updateAnimalLookLabel(); updateTents();updateCampfires(dt);updateRockClimbing(dt);
   updParticles(dt);updLabels(dt);updOthers(dt);updateMyRankTag();updSky();updateNightSky(dt);updateFireflies();updAmbience(dt);
   hudT+=dt;if(hudT>.25){hudT=0;updHud()}
   presT+=dt;if(presT>.25){presT=0;sendPresence(false)}
@@ -4248,13 +4430,13 @@ function validProfileDoc(doc,cred){return !!doc&&doc.app===PROFILE_APP&&doc.form
   doc.profile.verifier===cred.verifier&&doc.progress&&typeof doc.progress==='object'}
 function readProfileDoc(cred){try{const doc=JSON.parse(localStorage.getItem(cred.key)||'null');return validProfileDoc(doc,cred)?doc:null}catch(e){return null}}
 function normalizeRecord(raw){
-  const inv={};const allow=new Set([...Object.keys(HERBS),...Object.keys(MUSH),...Object.keys(FRUITS),...HONEY_KEYS]);
+  const inv={};const allow=new Set([...Object.keys(HERBS),...Object.keys(MUSH),...Object.keys(FRUITS),...HONEY_KEYS,TWIG_KEY]);
   if(raw&&raw.inv&&typeof raw.inv==='object'&&!Array.isArray(raw.inv))for(const [k,v] of Object.entries(raw.inv)){
     if(allow.has(k)&&Number.isFinite(v)&&v>=0)inv[k]=Math.min(100000,Math.floor(v));
   }
   const known={};
   if(raw&&raw.known&&typeof raw.known==='object'&&!Array.isArray(raw.known))for(const [k,v] of Object.entries(raw.known)){ if(allow.has(k)&&v)known[k]=1; }
-  for(const k of Object.keys(inv)) known[k]=1;
+  for(const k of Object.keys(inv))if(k!==TWIG_KEY) known[k]=1;
   const wonValue=Number.isFinite(raw?.won)?Math.max(0,Math.floor(raw.won)):0;
   const color=Number.isInteger(raw?.color)?clamp(raw.color,0,JACKETS.length-1):0;
   let pos=null;const p=raw?.pos;
@@ -4268,8 +4450,8 @@ function normalizeRecord(raw){
   if(old&&old.harvestedTypes&&typeof old.harvestedTypes==='object')for(const k of Object.keys(old.harvestedTypes))if(allow.has(k)&&old.harvestedTypes[k])harvestedTypes[k]=1;
   // Old saves recorded discoveries but not lifetime harvests: discovered species
   // prove at least one earlier successful harvest; previous sold quantities cannot be recovered.
-  for(const k of Object.keys(known))harvestedTypes[k]=1;
-  const held=Object.values(inv).reduce((sum,n)=>sum+n,0);
+  for(const k of Object.keys(known))if(k!==TWIG_KEY)harvestedTypes[k]=1;
+  const held=Object.entries(inv).reduce((sum,[k,n])=>sum+(k===TWIG_KEY?0:n),0);
   const statNumber=(v,minimum)=>Number.isFinite(v)?Math.max(minimum,Math.min(10000000,Math.floor(v))):minimum;
   const stats={
     totalCollected:statNumber(old?.totalCollected,held),
@@ -4278,12 +4460,13 @@ function normalizeRecord(raw){
     harvestedTypes
   };
   const highestRank=Number.isInteger(raw?.highestRank)?clamp(raw.highestRank,1,RANKS.length):1;
-  return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0,bagCap:safeCap,stats,highestRank};
+  const mealBuffUntil=Number.isFinite(raw?.mealBuffUntil)?clamp(raw.mealBuffUntil,0,Date.now()+20*60*1000):0;
+  return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0,bagCap:safeCap,stats,highestRank,mealBuffUntil};
 }
 function setSwatchSelection(){[...$('swatches').children].forEach((b,i)=>b.classList.toggle('on',i===(save.color|0)))}
 function applyRecord(cred,progress){
   const v=normalizeRecord(progress);
-  save={inv:v.inv,known:v.known||{},won:+v.won||0,taken:{},nick:cred.nick,color:v.color,pos:v.pos,bagCap:v.bagCap,stats:v.stats};
+  save={inv:v.inv,known:v.known||{},won:+v.won||0,taken:{},nick:cred.nick,color:v.color,pos:v.pos,bagCap:v.bagCap,stats:v.stats,mealBuffUntil:v.mealBuffUntil};
   playerRank=Math.max(earnedRank(),v.highestRank);save.highestRank=playerRank;
   P.x=v.pos?v.pos.x:pathX(24);P.z=v.pos?v.pos.z:24;P.y=H(P.x,P.z);
   P.h=Math.PI;P.speed=0;P.vy=0;P.air=false;camYaw=P.h;
@@ -4546,7 +4729,7 @@ function frame(now){requestAnimationFrame(frame);
   }}
 addEventListener('resize',onResize);addEventListener('resize',()=>{if(inTent)syncTentChestButton()});applyPerf();requestAnimationFrame(frame);
 $('ecoBtn').onclick=()=>{PERF.eco=!PERF.eco;applyPerf();chunkKey='';toast(PERF.eco?'절전 모드: 화질과 시야를 줄여 가볍게 돌립니다':'절전 모드 해제')};
-function jump(){if(mode==='game'&&!climbing&&!onRock&&!inTent&&Date.now()>=faintUntil&&!P.air&&me.mode!=='dig'){P.vy=5.2;P.air=true}}
+function jump(){if(mode==='game'&&!climbing&&!onRock&&!inTent&&Date.now()>=faintUntil&&!P.air&&me.mode!=='dig'&&!cooking){P.vy=5.2*(mealBoosted()?MEAL_JUMP_MULT:1);P.air=true}}
 $('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();climbAct()});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('visibilitychange',()=>{if(!AMB)return;if(document.hidden)AMB.a.suspend();else AMB.a.resume()});
