@@ -123,7 +123,14 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #bagUpgradePanel p{font-size:13px;line-height:1.85;margin:7px 0 14px}
 #bagUpgradePanel .buyActions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 #bagUpgradePanel .buyActions button{min-height:44px}
-@media(max-width:760px){#bagUpgradeBtn{top:calc(69px + env(safe-area-inset-top));font-size:12px;padding:8px 10px}}
+/* Lantern upgrades sit directly below backpack upgrades in the tent. */
+#lanternUpgradeBtn{position:absolute;top:calc(107px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));z-index:3;font-size:13px;padding:9px 12px;border-color:#e8d29b;background:rgba(27,43,31,.9);color:#f4efe3;pointer-events:auto}
+#lanternUpgradePanel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:auto;width:min(370px,92vw);max-height:85dvh;overflow:auto;background:#f4efe3;border:1.5px solid #415e44;border-radius:12px;padding:20px;color:#1f2b28;text-align:center;box-shadow:0 14px 38px #0008}
+#lanternUpgradePanel h3{font-family:"Nanum Myeongjo",serif;font-size:21px;margin-bottom:12px}
+#lanternUpgradePanel p{font-size:13px;line-height:1.85;margin:7px 0 14px;white-space:pre-line}
+#lanternUpgradePanel .buyActions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#lanternUpgradePanel .buyActions button{min-height:44px}
+@media(max-width:760px){#bagUpgradeBtn{top:calc(69px + env(safe-area-inset-top));font-size:12px;padding:8px 10px}#lanternUpgradeBtn{top:calc(112px + env(safe-area-inset-top));font-size:12px;padding:8px 10px}}
 #people{margin-top:6px;font-size:12px;opacity:.85}
 #joy{position:fixed;left:22px;bottom:26px;width:120px;height:120px;border-radius:50%;background:rgba(244,239,227,.35);border:1.5px solid rgba(244,239,227,.8);z-index:6;touch-action:none}
 #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(244,239,227,.9);box-shadow:0 4px 12px rgba(0,0,0,.2)}
@@ -240,7 +247,7 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
 #tentChest{min-height:44px;min-width:104px}
 #sellPanel{max-height:calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}}
 #tentView{background:transparent;pointer-events:none;z-index:45;padding:0;display:block}
-#tentView .tentExitBtn,#tentStatus,#tentChest,#tentCash,#sellPanel,#bagUpgradeBtn,#bagUpgradePanel{pointer-events:auto}
+#tentView .tentExitBtn,#tentStatus,#tentChest,#tentCash,#sellPanel,#bagUpgradeBtn,#bagUpgradePanel,#lanternUpgradeBtn,#lanternUpgradePanel{pointer-events:auto}
 #tentStatus{max-width:65vw;font-weight:700;background:rgba(27,31,25,.8)}
 #tentChest{position:absolute;z-index:2;bottom:auto;left:50%;top:60%;transform:translate(-50%,-50%);width:auto;min-width:104px;height:auto;min-height:43px;padding:9px 12px;border:1px solid #e5ce94;border-radius:20px;white-space:nowrap;background:rgba(31,43,40,.9);color:#fff3d6;font:700 13px "Gowun Dodum",sans-serif;box-shadow:0 6px 20px #0006}
 #tentChest:before,#tentChest:after{display:none}
@@ -415,6 +422,11 @@ body{background:linear-gradient(#b9d3df,#eef1e7)}
     <h3>🎒 등산가방 확장</h3><p id="bagUpgradeInfo"></p>
     <div class="buyActions"><button id="bagUpgradeBuy" class="btn" type="button">확장 구매</button><button id="bagUpgradeClose" class="btn" type="button">닫기</button></div>
   </section>
+  <button id="lanternUpgradeBtn" class="btn" type="button">🔦 랜턴 1단계</button>
+  <section id="lanternUpgradePanel" class="hide" role="dialog" aria-modal="true" aria-label="랜턴 업그레이드 구매">
+    <h3>🔦 산행 랜턴 업그레이드</h3><p id="lanternUpgradeInfo"></p>
+    <div class="buyActions"><button id="lanternUpgradeBuy" class="btn" type="button">업그레이드 구매</button><button id="lanternUpgradeClose" class="btn" type="button">닫기</button></div>
+  </section>
   <section id="sellPanel" class="hide" role="dialog" aria-modal="true" aria-labelledby="sellTitle">
     <h3 id="sellTitle">산행 물품 판매</h3>
     <p id="sellHelp">채집한 약초·나물·버섯·열매를 선택하세요. 게임 내 단가는 한국 시장의 상대적 가격을 참고해 조정한 가상 가격입니다.</p>
@@ -498,6 +510,13 @@ const BAG_LEVELS=[10,20,30,40,50,60,70,80,90,100,110];
 // Ten sequential upgrades, beginning at 50,000 won; each tier costs about 1.7x the previous one.
 const BAG_UPGRADE_COST={20:50000,30:85000,40:145000,50:246000,60:418000,70:711000,80:1209000,90:2055000,100:3494000,110:5940000};
 const BAG_MAX=BAG_LEVELS[BAG_LEVELS.length-1],BAG_STAGE_COUNT=BAG_LEVELS.length-1;
+const LANTERN_PRICES={2:200000,3:500000};
+const LANTERN_SPECS={
+  1:{range:26,angle:.62,intensity:1.3,decay:1.4,aim:8},
+  2:{range:37,angle:.78,intensity:1.75,decay:1.25,aim:11.5},
+  3:{range:49,angle:.88,intensity:2.15,decay:1.12,aim:15}
+};
+function lanternLevel(){return Number.isInteger(save.lanternLevel)&&save.lanternLevel>=1&&save.lanternLevel<=3?save.lanternLevel:1}
 function bagLimit(){return BAG_LEVELS.includes(save.bagCap)?save.bagCap:10}
 const MARKET_PRICE={
   sansam:95000,deodeok:2200,doraji:1400,dunggule:1200,gomchwi:1100,chamchwi:850,gosari:850,dallae:650,naengi:550,ssuk:400,
@@ -660,13 +679,13 @@ function chime(rar){const base=[392,494,587,784,988]; const n=rar>=4?5:3; for(le
 const SAVE3='baekyaksan3d-v1'; // Old single-browser record; kept for one-time migration.
 const TWIG_KEY='fallenTwig',MEAL_SPEED_MULT=1.32,MEAL_JUMP_MULT=1.175;
 const PROFILE_STORE_PREFIX='baekyaksan-profile-v2:', PROFILE_APP='baekyaksan3d', PROFILE_FORMAT=2;
-let save={inv:{},known:{},won:0,taken:{},nick:'',color:0,pos:null,bagCap:10,stats:{}};
+let save={inv:{},known:{},won:0,taken:{},nick:'',color:0,pos:null,bagCap:10,lanternLevel:1,stats:{}};
 try{const s=JSON.parse(localStorage.getItem(SAVE3)||'null');if(s&&s.inv)save=Object.assign(save,s)}catch(e){}
 const legacySave=JSON.parse(JSON.stringify(save));
 let activeProfileKey='',activeCredential=null;
 function profileProgress(){
   const pos=(typeof P!=='undefined'&&mode==='game')?{x:+P.x.toFixed(2),z:+P.z.toFixed(2)}:save.pos;
-  return {inv:save.inv,known:save.known||{},won:+save.won||0,color:save.color|0,pos,faintUntil:Math.max(0,faintUntil||0),bagCap:bagLimit(),stats:save.stats||{},highestRank:playerRank,mealBuffUntil:+save.mealBuffUntil||0};
+  return {inv:save.inv,known:save.known||{},won:+save.won||0,color:save.color|0,pos,faintUntil:Math.max(0,faintUntil||0),bagCap:bagLimit(),lanternLevel:lanternLevel(),stats:save.stats||{},highestRank:playerRank,mealBuffUntil:+save.mealBuffUntil||0};
 }
 function profileDocument(cred,progress){return {app:PROFILE_APP,format:PROFILE_FORMAT,profile:{name:cred.nick,verifier:cred.verifier},progress,updatedAt:Date.now()}}
 function persist(){
@@ -1221,8 +1240,8 @@ function tentSetVisible(enter,t){
  if(enter)closeCampPanel();
  inTent=enter; activeTent=enter?t:null; target=null; pending=null;joy.x=joy.y=0;
  $('tentView').classList.toggle('hide',!enter);
- $('sellPanel').classList.add('hide');$('bagUpgradePanel').classList.add('hide');selectedSellKey='';
- if(enter){tentMat.canvas.color.setHex(t.palette.cloth);tentMat.back.color.setHex(t.palette.door);$('tentStatus').textContent=`⛺ 백약산 쉼터 · 해발 ${t.alt.toLocaleString()}m`;updateTentMoney();buildSellGrid();syncTentChestButton();}
+ $('sellPanel').classList.add('hide');$('bagUpgradePanel').classList.add('hide');$('lanternUpgradePanel').classList.add('hide');selectedSellKey='';
+ if(enter){tentMat.canvas.color.setHex(t.palette.cloth);tentMat.back.color.setHex(t.palette.door);$('tentStatus').textContent=`⛺ 백약산 쉼터 · 해발 ${t.alt.toLocaleString()}m`;updateTentMoney();refreshLanternUpgrade();buildSellGrid();syncTentChestButton();}
  $('hud').classList.toggle('hide',enter);
  if(IS_TOUCH){$('joy').classList.toggle('hide',enter);$('jumpBtn').classList.toggle('hide',enter)}
  $('labels').style.visibility=enter?'hidden':'visible';
@@ -1255,17 +1274,38 @@ function refreshBagUpgrade(){
  $('bagUpgradeBuy').textContent=next?`${next}개 확장 · ${won(cost)}`:'확장 완료';
  $('bagUpgradeBtn').textContent='🎒 가방 '+cap+'칸';
 }
-function openBagUpgrade(){if(!inTent)return;closeSellPanel();refreshBagUpgrade();$('bagUpgradePanel').classList.remove('hide')}
+function openBagUpgrade(){if(!inTent)return;closeSellPanel();$('lanternUpgradePanel').classList.add('hide');refreshBagUpgrade();$('bagUpgradePanel').classList.remove('hide')}
 function buyBagUpgrade(){
  if(!inTent)return;const cap=bagLimit(),next=cap+10;
  if(next>BAG_MAX){toast(`가방은 이미 최대 ${BAG_MAX}칸입니다`);return}
  const price=BAG_UPGRADE_COST[next];if((+save.won||0)<price){toast('정산금이 부족합니다 · '+won(price)+' 필요');refreshBagUpgrade();return}
- save.won-=price;save.bagCap=next;persist();hudKey='';updateTentMoney();refreshBagUpgrade();
+ save.won-=price;save.bagCap=next;persist();hudKey='';updateTentMoney();refreshBagUpgrade();refreshLanternUpgrade();
  toast(`🎒 가방 ${next}칸으로 확장! ${won(price)} 사용`);
 }
 $('bagUpgradeBtn').addEventListener('click',openBagUpgrade);
 $('bagUpgradeClose').addEventListener('click',()=>$('bagUpgradePanel').classList.add('hide'));
 $('bagUpgradeBuy').addEventListener('click',buyBagUpgrade);
+function refreshLanternUpgrade(){
+ const lv=lanternLevel(),next=lv<3?lv+1:null,cost=next?LANTERN_PRICES[next]:0;
+ const effects=lv===1?'기본 랜턴 · 전방 조명':lv===2?'전방이 더 넓고 멀리 밝아짐':'전방 최대 조명 + 가방 뒤 작은 랜턴';
+ const nextEffect=next===2?'2단계: 전방 빛의 폭과 거리가 늘어납니다.':'3단계: 전방 조명이 더 강해지고, 가방 뒤쪽에도 작은 랜턴이 켜집니다.';
+ $('lanternUpgradeInfo').textContent=next?`현재 ${lv}/3단계 · ${effects}\n\n${nextEffect}\n구매 비용 ${won(cost)} · 보유 금액 ${won(+save.won||0)}\n※ 순서대로 구매할 수 있습니다.`:`3/3단계 완료 · ${effects}\n최대 단계입니다!`;
+ $('lanternUpgradeBuy').classList.toggle('hide',!next);
+ $('lanternUpgradeBuy').disabled=!!next&&(+save.won||0)<cost;
+ $('lanternUpgradeBuy').textContent=next?`${next}단계 구매 · ${won(cost)}`:'업그레이드 완료';
+ $('lanternUpgradeBtn').textContent=`🔦 랜턴 ${lv}단계`;
+}
+function openLanternUpgrade(){if(!inTent)return;closeSellPanel();$('bagUpgradePanel').classList.add('hide');refreshLanternUpgrade();$('lanternUpgradePanel').classList.remove('hide')}
+function buyLanternUpgrade(){
+ if(!inTent)return;const lv=lanternLevel(),next=lv+1;
+ if(next>3){toast('랜턴은 이미 최고 단계입니다');return}
+ const cost=LANTERN_PRICES[next];if((+save.won||0)<cost){toast('정산금이 부족합니다 · '+won(cost)+' 필요');refreshLanternUpgrade();return}
+ save.won-=cost;save.lanternLevel=next;persist();updateTentMoney();refreshLanternUpgrade();
+ toast(`🔦 랜턴 ${next}단계 장착! ${won(cost)} 사용`);sendPresence(true);
+}
+$('lanternUpgradeBtn').addEventListener('click',openLanternUpgrade);
+$('lanternUpgradeClose').addEventListener('click',()=>$('lanternUpgradePanel').classList.add('hide'));
+$('lanternUpgradeBuy').addEventListener('click',buyLanternUpgrade);
 const SELL_CATEGORIES=[['all','전체'],['herb','약초'],['leaf','나물'],['mush','버섯'],['fruit','열매'],['honey','벌꿀']];
 let sellCategory='all';
 function sellableKeys(){return [...HERB_KEYS,...MUSH_KEYS,...Object.keys(FRUITS),...HONEY_KEYS].filter(k=>(save.inv[k]||0)>0)}
@@ -1279,7 +1319,7 @@ function filteredSellKeys(){const sort=$('sellSort').value;return sellableKeys()
 function openSellPanel(){
  if(!sellableKeys().length){toast('가방에 판매할 채집물이 없습니다');return}
  sellCategory='all';selectedSellKey='';$('sellSort').value='price_desc';
- $('bagUpgradePanel').classList.add('hide');$('sellPanel').classList.remove('hide');buildSellTabs();buildSellGrid();
+ $('bagUpgradePanel').classList.add('hide');$('lanternUpgradePanel').classList.add('hide');$('sellPanel').classList.remove('hide');buildSellTabs();buildSellGrid();
 }
 function closeSellPanel(){$('sellPanel').classList.add('hide');selectedSellKey=''}
 function buildSellGrid(){
@@ -1317,7 +1357,7 @@ function sellSelected(){
  save.known=save.known||{};save.known[key]=1;
  persist();hudKey='';updateTentMoney();setGreens(me,totalCount());
  selectedSellKey='';buildSellGrid();if(!$('bag').classList.contains('hide'))buildBag();
- toast(`${name} ${q}개 판매 · ${won(sum)} 획득`);refreshBagUpgrade();
+ toast(`${name} ${q}개 판매 · ${won(sum)} 획득`);refreshBagUpgrade();refreshLanternUpgrade();
 }
 /* ---------- low-poly 2-person tent room (same primitive / matte material language as herbs) ---------- */
 const tentScene=new THREE.Scene();tentScene.background=new THREE.Color(0x211b17);
@@ -1712,6 +1752,14 @@ function makeHiker(jacket){
   for(const s of [-1,1]){const mesh=box(.05,.2,.16,T(0x4a4f55,{transparent:true,opacity:.85}),bp,s*.205,-.15,.0);
     for(const y of [.12,-.02])box(.05,.016,.23,greyD,bp,s*.18,y,0)}               // side mesh pockets, compression straps
   box(.2,.06,.03,grey,bp,0,.36,.08);                                              // haul loop
+  // Optional stage-3 auxiliary lantern: a tiny framed glass lamp fixed to the pack's rear.
+  const backLantern=new THREE.Group();backLantern.position.set(0,-.08,-.235);bp.add(backLantern);
+  mk(new THREE.CylinderGeometry(.065,.078,.14,10),greyD,backLantern,0,0,-.012);
+  mk(new THREE.CylinderGeometry(.049,.049,.085,10),T(0xf1cb80,{emissive:0xe7a84d,emissiveIntensity:.8}),backLantern,0,0,-.065);
+  mk(new THREE.CylinderGeometry(.068,.068,.025,10),black,backLantern,0,.082,-.018);
+  mk(new THREE.TorusGeometry(.046,.009,5,10,Math.PI),grey,backLantern,0,.101,-.014).rotation.z=Math.PI/2;
+  const rearLight=new THREE.PointLight(0xffdd94,0,8.5,1.5);rearLight.position.set(0,-.015,-.18);rearLight.castShadow=false;backLantern.add(rearLight);
+  backLantern.visible=false;
   for(const s of [-1,1]){const st=box(.06,.5,.03,grey,torso,s*.12,.45,.2);st.rotation.x=-.12;const st2=box(.06,.16,.08,grey,torso,s*.12,.65,.08)}  // shoulder straps
   box(.44,.05,.05,greyD,torso,0,.1,-.24);                                         // hip belt
   const greens=new THREE.Group();greens.position.set(.2,-.06,0);bp.add(greens);   // herbs poke out of the side pocket
@@ -1729,7 +1777,7 @@ function makeHiker(jacket){
   const handle=mk(new THREE.CylinderGeometry(.022,.026,.3,8),wood,hoe,0,0,.1);handle.rotation.x=Math.PI/2;
   mk(new THREE.CylinderGeometry(.01,.01,.09,5),T(0x5a5a5a),hoe,0,-.02,.27).rotation.x=.5;
   const blade=mk(new THREE.ConeGeometry(.075,.15,3),T(0x9aa0a6),hoe,0,-.08,.3);blade.rotation.x=Math.PI;blade.scale.z=.3;
-  return {root,body,legL,legR,torso,head,armL,armR,stick,hoe,greens,mouth,phase:0,mode:'idle',t:0,nGreens:-1};
+  return {root,body,legL,legR,torso,head,armL,armR,stick,hoe,greens,mouth,backLantern,rearLight,phase:0,mode:'idle',t:0,nGreens:-1};
 }
 function setGreens(h,n){n=Math.min(6,n);if(h.nGreens===n)return;h.nGreens=n;while(h.greens.children.length)h.greens.remove(h.greens.children[0]);
   for(let i=0;i<n;i++){leafM(h.greens,0,0,(i-2.5)*.025,.2,.05,i*.5,1.3,M(i%2?0x5a8a3a:0x6fa046))}}
@@ -3427,7 +3475,7 @@ function netPublish(type,extra){if(!mqttOnline||!mqttClient)return;
   try{mqttClient.publish(MQTT_TOPIC+type+'/'+myId,JSON.stringify(packet),{qos:0,retain:false})}catch(e){}
 }
 function netState(){const act=Date.now()<faintUntil?'f':me.mode==='walk'?'w':me.mode==='dig'?'d':me.mode==='joy'?'j':me.mode==='cook'?'c':'i';
-  return {x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:act,c:save.color|0,n:cleanNick(save.nick),alt:Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K)),g:Math.min(6,totalCount()),lv:playerRank,tent:inTent&&activeTent?activeTent.id:''};}
+  return {x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),h:+P.h.toFixed(2),a:act,c:save.color|0,n:cleanNick(save.nick),alt:Math.min(SUMMIT_ALT,Math.round(P.y*ALT_K)),g:Math.min(6,totalCount()),lv:playerRank,lt:lanternLevel(),tent:inTent&&activeTent?activeTent.id:''};}
 function updatePeople(){
   const count=netJoined?1+[...peerSeen.values()].filter(v=>Date.now()-v.seen<11000).length:0;
   peopleCount=count;
@@ -3529,7 +3577,7 @@ function upOther(p){
     lampLens.position.set(0,1.77,.13);av.root.add(lampLens);
     o={av,el,headLamp,lampLens,x:s.x,y:s.y||H(s.x,s.z),z:s.z,h:s.h||0,tx:s.x,ty:s.y,tz:s.z,th:s.h||0,mode:'idle',nick:''};others.set(p.peer,o)}
   o.tx=+s.x;o.tz=+s.z;o.ty=Number.isFinite(+s.y)?+s.y:H(o.tx,o.tz);o.th=+s.h||0;
-  o.rank=Number.isInteger(s.lv)?clamp(s.lv,1,RANKS.length):1;o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);o.tent=typeof s.tent==='string'&&/^tent-\d{1,2}$/.test(s.tent)?s.tent:'';o.color=Number.isInteger(s.c)?s.c:0;setGreens(o.av,+s.g|0);
+  o.rank=Number.isInteger(s.lv)?clamp(s.lv,1,RANKS.length):1;o.nick=cleanNick(s.n);o.alt=Math.round(+s.alt||0);o.tent=typeof s.tent==='string'&&/^tent-\d{1,2}$/.test(s.tent)?s.tent:'';o.color=Number.isInteger(s.c)?s.c:0;o.lanternLevel=Number.isInteger(s.lt)?clamp(s.lt,1,3):1;setGreens(o.av,+s.g|0);
   const md=s.a==='f'?'faint':s.a==='w'?'walk':s.a==='d'?'dig':s.a==='j'?'joy':s.a==='c'?'cook':'idle';if(md!==o.mode){o.mode=md;o.av.mode=md;o.av.t=0}
   o.el.textContent=rankLabel(o.rank)+'\n'+(o.mode==='faint'?'💤 ':'')+(o.nick||'산객');
 }
@@ -3558,9 +3606,13 @@ function updOthers(dt){
     const far=Math.hypot(o.x-P.x,o.z-P.z);o.av.root.visible=far<220&&!o.tent;
     const night=skyAtHour(gameMin/60).night;
     const nearEnough=far<55;
-    o.headLamp.intensity=nearEnough&&!down&&!o.tent?night*1.3:0;
+    const tier=LANTERN_SPECS[o.lanternLevel||1];
+    o.headLamp.intensity=nearEnough&&!down&&!o.tent?night*tier.intensity:0;
+    o.headLamp.distance=tier.range;o.headLamp.angle=tier.angle;o.headLamp.decay=tier.decay;
     o.headLamp.position.set(o.x+Math.sin(o.h)*.12,o.y+1.75,o.z+Math.cos(o.h)*.12);
-    o.headLamp.target.position.set(o.x+Math.sin(o.h)*8,o.y-.6,o.z+Math.cos(o.h)*8);
+    o.headLamp.target.position.set(o.x+Math.sin(o.h)*tier.aim,o.y-.6,o.z+Math.cos(o.h)*tier.aim);
+    o.av.backLantern.visible=o.lanternLevel===3;
+    o.av.rearLight.intensity=nearEnough&&!down&&!o.tent&&o.lanternLevel===3?night*.72:0;
     o.headLamp.target.updateMatrixWorld();
     o.lampLens.material.opacity=night*.95;
     o.lampLens.visible=o.av.root.visible&&!down&&!o.tent&&night>.05;
@@ -3756,7 +3808,11 @@ function updSky(){
   else{sun.position.set(P.x-az*80,P.y+25-el*100,P.z+30);sun.intensity=.16*night;sun.color.setHex(0x9fb0ff)}
   sun.target.position.set(P.x,P.y,P.z);
   stars.position.set(P.x,P.y,P.z);
-  lamp.intensity=night*1.3;lamp.position.set(P.x,P.y+1.75,P.z);lamp.target.position.set(P.x+Math.sin(P.h)*8,P.y-.6,P.z+Math.cos(P.h)*8);
+  const lantern=LANTERN_SPECS[lanternLevel()];
+  lamp.intensity=night*lantern.intensity;lamp.distance=lantern.range;lamp.angle=lantern.angle;lamp.decay=lantern.decay;
+  lamp.position.set(P.x,P.y+1.75,P.z);lamp.target.position.set(P.x+Math.sin(P.h)*lantern.aim,P.y-.6,P.z+Math.cos(P.h)*lantern.aim);
+  me.backLantern.visible=lanternLevel()===3;
+  me.rearLight.intensity=lanternLevel()===3&&!inTent?night*.72:0;
   for(const m of farMts){const u=m.userData;m.position.set(P.x+Math.cos(u.a)*u.dist,u.y0,P.z+Math.sin(u.a)*u.dist)}
   summit.position.set(P.x,P.y-1250,P.z-1500);
   const shade=lerp(1,.22,night);
@@ -4622,6 +4678,7 @@ function normalizeRecord(raw){
   }
   const until=Number.isFinite(raw?.faintUntil)?clamp(raw.faintUntil,0,Date.now()+3*60*1000):0;
   const safeCap=BAG_LEVELS.includes(raw?.bagCap)?raw.bagCap:10;
+  const safeLantern=Number.isInteger(raw?.lanternLevel)&&raw.lanternLevel>=1&&raw.lanternLevel<=3?raw.lanternLevel:1;
   const old=raw&&raw.stats&&typeof raw.stats==='object'&&!Array.isArray(raw.stats)?raw.stats:null;
   const harvestedTypes={};
   if(old&&old.harvestedTypes&&typeof old.harvestedTypes==='object')for(const k of Object.keys(old.harvestedTypes))if(allow.has(k)&&old.harvestedTypes[k])harvestedTypes[k]=1;
@@ -4638,12 +4695,12 @@ function normalizeRecord(raw){
   };
   const highestRank=Number.isInteger(raw?.highestRank)?clamp(raw.highestRank,1,RANKS.length):1;
   const mealBuffUntil=Number.isFinite(raw?.mealBuffUntil)?clamp(raw.mealBuffUntil,0,Date.now()+20*60*1000):0;
-  return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0,bagCap:safeCap,stats,highestRank,mealBuffUntil};
+  return {inv,known,won:wonValue,color,pos,faintUntil:until>Date.now()?until:0,bagCap:safeCap,lanternLevel:safeLantern,stats,highestRank,mealBuffUntil};
 }
 function setSwatchSelection(){[...$('swatches').children].forEach((b,i)=>b.classList.toggle('on',i===(save.color|0)))}
 function applyRecord(cred,progress){
   const v=normalizeRecord(progress);
-  save={inv:v.inv,known:v.known||{},won:+v.won||0,taken:{},nick:cred.nick,color:v.color,pos:v.pos,bagCap:v.bagCap,stats:v.stats,mealBuffUntil:v.mealBuffUntil};
+  save={inv:v.inv,known:v.known||{},won:+v.won||0,taken:{},nick:cred.nick,color:v.color,pos:v.pos,bagCap:v.bagCap,lanternLevel:v.lanternLevel,stats:v.stats,mealBuffUntil:v.mealBuffUntil};
   playerRank=Math.max(earnedRank(),v.highestRank);save.highestRank=playerRank;
   P.x=v.pos?v.pos.x:pathX(24);P.z=v.pos?v.pos.z:24;P.y=H(P.x,P.z);
   P.h=Math.PI;P.speed=0;P.vy=0;P.air=false;camYaw=P.h;
