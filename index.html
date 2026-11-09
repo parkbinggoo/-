@@ -824,7 +824,7 @@ function tent3D(styleIdx=0){
 }
 
 /* ---------------- Every tent has an independent, interactive campfire ---------------- */
-const CAMP_FIRE_MS=3*60*1000,CAMP_FUEL_N=10,CAMP_SAVE_KEY='baekyaksan-campfires-v1';
+const CAMP_FIRE_MS=3*60*1000,CAMP_FUEL_N=6,CAMP_SAVE_KEY='baekyaksan-campfires-v1';
 // A deliberately unhurried cooking sequence; allow a few extra seconds of fire.
 const COOK_TIMES={take:3.4,place:5.8,ingredients:13.6,salt:17.6,wok:24.2,finish:26.2,fork:28.0,end:34.0};
 const COOK_FIRE_MIN_MS=39000;
@@ -833,15 +833,18 @@ function cookStageAt(elapsed){return elapsed<COOK_TIMES.take?0:elapsed<COOK_TIME
 const campStates=new Map();
 try{const rows=JSON.parse(localStorage.getItem(CAMP_SAVE_KEY)||'[]');if(Array.isArray(rows))for(const row of rows){
   if(!Array.isArray(row)||!/^tent-\d{1,2}$/.test(row[0]||''))continue;
-  const fuel=Number.isInteger(row[1])?clamp(row[1],0,9):0;
-  const until=Number.isFinite(row[2])&&row[2]>Date.now()&&row[2]<Date.now()+CAMP_FIRE_MS+5000?row[2]:0;
+  const savedFuel=Number.isInteger(row[1])?clamp(row[1],0,9):0;
+  const savedFire=Number.isFinite(row[2])&&row[2]>Date.now()&&row[2]<Date.now()+CAMP_FIRE_MS+5000?row[2]:0;
+  // Older saves may already contain 6–9 twigs: honor the new six-twig rule.
+  const until=savedFire||(savedFuel>=CAMP_FUEL_N?Date.now()+CAMP_FIRE_MS:0);
+  const fuel=until?0:clamp(savedFuel,0,CAMP_FUEL_N-1);
   const stamp=Number.isFinite(row[3])?row[3]:0;
   campStates.set(row[0],{fuel:until?0:fuel,fireUntil:until,updatedAt:stamp});
 }}catch(e){}
 function storeCampStates(){try{localStorage.setItem(CAMP_SAVE_KEY,JSON.stringify([...campStates].map(([id,s])=>[id,s.fuel,s.fireUntil,s.updatedAt])))}catch(e){}}
 function campState(t){if(!campStates.has(t.id))campStates.set(t.id,{fuel:0,fireUntil:0,updatedAt:0});return campStates.get(t.id)}
 function updateCampState(tid,fuel,until,stamp,share){
- if(!/^tent-\d{1,2}$/.test(tid)||!Number.isInteger(fuel)||fuel<0||fuel>9||!Number.isFinite(until)||!Number.isFinite(stamp))return;
+ if(!/^tent-\d{1,2}$/.test(tid)||!Number.isInteger(fuel)||fuel<0||fuel>=CAMP_FUEL_N||!Number.isFinite(until)||!Number.isFinite(stamp))return;
  if(until>Date.now()+CAMP_FIRE_MS+5000||stamp>Date.now()+120000)return;
  const old=campStates.get(tid);if(old&&old.updatedAt>stamp)return;
  campStates.set(tid,{fuel:until>Date.now()?0:fuel,fireUntil:until>Date.now()?until:0,updatedAt:stamp});storeCampStates();
@@ -887,19 +890,82 @@ function makeTentCampfire(t){
  return camp;
 }
 let selectedCamp=null,cooking=null;
-function cookIngredientKeys(){return [...HERB_KEYS,...MUSH_KEYS,...Object.keys(FRUITS),...HONEY_KEYS].filter(k=>(save.inv[k]||0)>0&&(itemInfo(k)?.rar||0)>=4)}
+// Exactly four different 1–4★ ingredients per meal. Never consume 5★ treasures,
+// branches, or an inedible pinecone as food; they remain in the backpack.
+const COOK_INGREDIENT_COUNT=4;
+function cookIngredientKeys(){return [...HERB_KEYS,...MUSH_KEYS,...Object.keys(FRUITS),...HONEY_KEYS].filter(k=>{
+ const stars=itemInfo(k)?.rar||0;
+ return (save.inv[k]||0)>0 && stars>=1 && stars<=4 && k!=='pinecone';
+})}
+// A set of prepared recipe titles: pick one from the best-matching family.
+// Every title reflects at least one actually consumed ingredient.
+function cookRecipeName(keys){
+ const group=pred=>keys.filter(pred);
+ const mushrooms=group(k=>!!MUSH[k]),leaves=group(k=>HERBS[k]?.cat==='leaf'),
+       roots=group(k=>!!HERBS[k]?.root||HERBS[k]?.cat==='root'),
+       honeys=group(k=>!!HONEY[k]),fruits=group(k=>!!FRUITS[k]),
+       herbs=group(k=>!!HERBS[k]&&!leaves.includes(k)&&!roots.includes(k));
+ const name=k=>itemInfo(k)?.name||'산나물';
+ const one=arr=>arr.length?name(arr[0]):name(keys[0]);
+ let titles;
+ if(honeys.length&&fruits.length)titles=[
+   `${one(fruits)}과 ${one(honeys)}의 숲속 팬구이`,
+   `${one(honeys)} 곁들인 ${one(fruits)} 산열매볶음`,
+   `${one(fruits)} 꿀향 산속 한 접시`];
+ else if(mushrooms.length>=2)titles=[
+   `${one(mushrooms)} 모둠버섯 볶음`,
+   `${one(mushrooms)} 숲향 팬구이`,
+   `${one(mushrooms)} 향긋한 산버섯 웍볶음`];
+ else if(mushrooms.length&&leaves.length)titles=[
+   `${one(leaves)}·${one(mushrooms)} 산채볶음`,
+   `${one(mushrooms)}과 ${one(leaves)} 숲속 팬볶음`,
+   `${one(leaves)} 버섯향 한 접시`];
+ else if(mushrooms.length&&roots.length)titles=[
+   `${one(roots)}·${one(mushrooms)} 뿌리채소 볶음`,
+   `${one(mushrooms)} 넣은 ${one(roots)} 산속 팬구이`,
+   `${one(roots)} 버섯향 웍볶음`];
+ else if(honeys.length)titles=[
+   `${one(honeys)} 향긋한 산채볶음`,
+   `${one(honeys)}로 맛낸 숲속 한 접시`,
+   `${one(honeys)} 꿀향 산나물 팬구이`];
+ else if(leaves.length>=2)titles=[
+   `${one(leaves)} 모둠 산나물 볶음`,
+   `${one(leaves)} 산채 한 접시`,
+   `${one(leaves)} 봄숲 팬볶음`];
+ else if(roots.length>=2)titles=[
+   `${one(roots)} 향긋한 뿌리약초 볶음`,
+   `${one(roots)} 산뿌리 팬구이`,
+   `${one(roots)} 숲속 모둠볶음`];
+ else if(fruits.length>=2)titles=[
+   `${one(fruits)} 가을숲 팬구이`,
+   `${one(fruits)} 모둠 열매볶음`,
+   `${one(fruits)} 산열매 한 접시`];
+ else if(leaves.length&&roots.length)titles=[
+   `${one(leaves)}·${one(roots)} 산나물볶음`,
+   `${one(roots)} 넣은 ${one(leaves)} 팬구이`,
+   `${one(leaves)} 향긋한 숲속 볶음`];
+ else if(herbs.length)titles=[
+   `${one(herbs)} 향긋한 산채볶음`,
+   `${one(herbs)} 백약산 모둠볶음`,
+   `${one(herbs)} 숲내음 팬구이`];
+ else titles=[
+   `${one(keys)} 백약산 모둠볶음`,
+   `${one(keys)} 향긋한 숲속 팬구이`,
+   `${one(keys)} 산속 한 접시`];
+ return titles[Math.floor(Math.random()*titles.length)];
+}
 function closeCampPanel(){$('campPanel').classList.add('hide');selectedCamp=null}
 function showCampPanel(t){if(!t||!t.camp||Date.now()<faintUntil||cooking||inTent)return;
  if(!nearTo(t.camp,5)){target={x:t.camp.x,z:t.camp.z,stop:3.0};pending={kind:'camp',tent:t};toast('캠프파이어 가까이로 이동합니다');return}
  selectedCamp=t;$('campPanel').classList.remove('hide');refreshCampPanel();}
 function campTimeLeft(end){const seconds=Math.ceil(Math.max(0,end-Date.now())/1000);return `${Math.floor(seconds/60)}분 ${String(seconds%60).padStart(2,'0')}초`}
 function refreshCampPanel(){if(!selectedCamp)return;const c=campState(selectedCamp),lit=c.fireUntil>Date.now(),avail=save.inv[TWIG_KEY]||0,materials=cookIngredientKeys();
- $('campDetail').textContent=lit?`🔥 모닥불 타는 중 · 남은 ${campTimeLeft(c.fireUntil)}\n🍳 4~5성 재료 ${materials.length}종 보유 · 요리 시 3~4종 자동 사용`:
+ $('campDetail').textContent=lit?`🔥 모닥불 타는 중 · 남은 ${campTimeLeft(c.fireUntil)}\n🍳 1~4성 채집물 ${materials.length}종 보유 · 서로 다른 4종을 1개씩 사용\n🌟 5성은 귀한 거니 지금 먹을 순 없지…`:
  `🪵 불 피울 준비 ${c.fuel}/${CAMP_FUEL_N}개 · 가방의 나뭇가지 ${avail}개\n빈 나무를 두드려 나뭇가지를 모아 보세요.`;
  $('campFuelBtn').classList.toggle('hide',lit);$('campFuelBtn').disabled=lit||!avail;
- $('campFuelBtn').textContent=`나뭇가지 넣기 (${c.fuel}/10)`;
- $('campCookBtn').classList.toggle('hide',!lit);$('campCookBtn').disabled=!lit||materials.length<3||c.fireUntil-Date.now()<COOK_FIRE_MIN_MS||!!cooking;
- if(lit&&materials.length<3)$('campDetail').textContent+='\n※ 종류가 다른 4~5성 재료 3종 이상 필요';
+ $('campFuelBtn').textContent=`나뭇가지 넣기 (${c.fuel}/${CAMP_FUEL_N})`;
+ $('campCookBtn').classList.toggle('hide',!lit);$('campCookBtn').disabled=!lit||materials.length<COOK_INGREDIENT_COUNT||c.fireUntil-Date.now()<COOK_FIRE_MIN_MS||!!cooking;
+ if(lit&&materials.length<COOK_INGREDIENT_COUNT)$('campDetail').textContent+='\n※ 1~4성 채집물이 서로 다른 종류로 4종 필요해';
 }
 function addCampFuel(){if(!selectedCamp||cooking)return;const t=selectedCamp,c=campState(t),now=Date.now();if(c.fireUntil>now)return;
  const have=save.inv[TWIG_KEY]||0;if(!have){toast('나뭇가지가 부족합니다 · 빈 나무를 두드려 보세요');return}
@@ -909,28 +975,29 @@ function addCampFuel(){if(!selectedCamp||cooking)return;const t=selectedCamp,c=c
  updateCampState(t.id,fireUntil?0:fuel,fireUntil,now,true);
  persist();hudKey='';setGreens(me,totalCount());
  if(fireUntil){closeCampPanel();toast('🔥 모닥불이 켜졌다! 불을 다시 누르면 요리할 수 있습니다');chime(3)}
- else{refreshCampPanel();toast(`🪵 나뭇가지 ${use}개를 넣었다 · ${fuel}/10`)};
+ else{refreshCampPanel();toast(`🪵 나뭇가지 ${use}개를 넣었다 · ${fuel}/${CAMP_FUEL_N}`)};
 }
 function cookPosition(c){const dx=c.x-c.tent.x,dz=c.z-c.tent.z,d=Math.hypot(dx,dz)||1;return {x:c.x+dx/d*1.18,z:c.z+dz/d*1.18}}
 function requestCampCook(){if(!selectedCamp||cooking)return;const t=selectedCamp,c=campState(t);
  if(c.fireUntil-Date.now()<COOK_FIRE_MIN_MS){toast('요리를 완성하기 전에 불이 꺼집니다. 다시 불을 피워주세요');refreshCampPanel();return}
- if(cookIngredientKeys().length<3){toast('요리에는 서로 다른 4~5성 채집물 3종 이상이 필요합니다');return}
+ if(cookIngredientKeys().length<COOK_INGREDIENT_COUNT){toast('🌟 5성은 귀한 거니 지금 먹을 순 없지… 1~4성 재료 4종을 모아 보자');return}
  closeCampPanel();const spot=cookPosition(t.camp);
  if(Math.hypot(P.x-spot.x,P.z-spot.z)<.24)beginCampCook(t);
  else{target={...spot,stop:.22};pending={kind:'cook',tent:t};toast('🍳 모닥불 앞으로 이동해 요리를 시작합니다')}
 }
 function beginCampCook(t){if(cooking||inTent||Date.now()<faintUntil)return;
  const state=campState(t);if(state.fireUntil-Date.now()<COOK_FIRE_MIN_MS){toast('요리할 시간이 부족합니다. 다시 불을 피워주세요');return}
- const available=cookIngredientKeys();if(available.length<3){toast('4~5성 재료가 3종 이상 필요합니다');return}
- // Fisher–Yates shuffle; consume one unit of 3 or 4 DISTINCT resources.
+ const available=cookIngredientKeys();if(available.length<COOK_INGREDIENT_COUNT){toast('1~4성 채집물이 서로 다른 종류로 4종 필요해');return}
+ // Fisher–Yates shuffle; use exactly one of each of four different resources.
+ // A 5★ item is never even included in the selection pool.
  for(let i=available.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]]}
- const chosen=available.slice(0,available.length>=4&&Math.random()<.5?4:3);
+ const chosen=available.slice(0,COOK_INGREDIENT_COUNT),recipeName=cookRecipeName(chosen);
  for(const key of chosen){save.inv[key]--;if(save.inv[key]===0)delete save.inv[key]}
- cooking={tent:t,started:clock,ingredients:chosen,visibleFood:0,lastStage:-1};
+ cooking={tent:t,started:clock,ingredients:chosen,recipeName,visibleFood:0,lastStage:-1};
  target=null;pending=null;joy.x=joy.y=0;me.mode='cook';me.t=0;me.cookTime=0;
  P.h=Math.atan2(t.camp.x-P.x,t.camp.z-P.z);
  persist();hudKey='';setGreens(me,totalCount());
- toast(`🍳 요리 시작 · ${chosen.map(k=>itemInfo(k).name).join(' + ')}`);
+ toast(`🍳 ${recipeName} 요리 시작 · 재료 4종 준비!`);
  sendPresence(true);
 }
 function clearCampCookingProps(c){
@@ -938,11 +1005,11 @@ function clearCampCookingProps(c){
  c.salt.visible=false;c.saltDust.visible=false;c.fork.visible=false;
 }
 function finishCampCook(){if(!cooking)return;
- const camp=cooking.tent.camp;clearCampCookingProps(camp);
+ const camp=cooking.tent.camp,recipeName=cooking.recipeName;clearCampCookingProps(camp);
  cooking=null;me.mode='idle';me.t=0;me.cookTime=0;me.cookStage=0;
  save.mealBuffUntil=Date.now()+GAME_DAY_MS;persist();hudKey='';
  hearts(new THREE.Vector3(P.x,P.y+1.85,P.z));chime(4);
- toast('🍲 산속의 한 끼! 게임 시간 하루 동안 속도, 점프 증가');
+ toast(`🍲 ${recipeName} 완성! 맛있게 먹었다 · 속도, 점프 증가`);
  sendPresence(true);
 }
 function tickCampCooking(dt){if(!cooking)return;
@@ -954,7 +1021,7 @@ function tickCampCooking(dt){if(!cooking)return;
  const smooth=u=>{u=clamp(u,0,1);return u*u*(3-2*u)};
  if(cooking.lastStage!==stage){
    cooking.lastStage=stage;
-   const text=['후라이팬을 꺼낸다…','🔥 후라이팬을 불 위에 얹는다.','🥬 산에서 캔 재료를 하나씩 넣는다.','🧂 소금을 톡톡 뿌린다.','🍳 후라이팬을 흔들며 볶는다!','따끈한 산속 요리 완성!','🍴 포크를 꺼낸다.','😋 맛있게 한 입씩 먹는다.'];
+   const text=['후라이팬을 꺼낸다…','🔥 후라이팬을 불 위에 얹는다.','🥬 산에서 캔 재료를 하나씩 넣는다.','🧂 소금을 톡톡 뿌린다.','🍳 후라이팬을 흔들며 볶는다!',`🍲 ${cooking.recipeName} 완성!`,'🍴 포크를 꺼낸다.','😋 맛있게 한 입씩 먹는다.'];
    if(stage>0)toast(text[stage]);
  }
  // Use the avatar's actual animated glove positions. Handle and utensils now follow
@@ -1019,10 +1086,14 @@ function tickCampCooking(dt){if(!cooking)return;
 function updateCampfires(dt){const now=Date.now();for(const t of tents){if(!t.camp)continue;const c=t.camp,s=campState(t),d=Math.hypot(P.x-c.x,P.z-c.z);
   c.group.visible=mode==='game'&&!inTent&&d<155;
   const burning=now<s.fireUntil;c.flames.visible=burning;
-  const night=SKYNOW.night; // Preserve daytime warmth, brighten the surrounding forest after dark.
-  c.glow.distance=10+9*night;
-  c.glow.decay=2-.5*night;
-  c.glow.intensity=burning&&d<38?( .45+2.10*night)+(.14+.28*night)*Math.sin(clock*11)**2:0;
+  // Sunlight fades gradually from late afternoon into dusk: the fire's
+  // illumination grows smoothly with the darkening sky, then fades at dawn.
+  // Keep its existing daytime warmth and only expand the light at night.
+  const dusk=clamp((.72-SKYNOW.sun)/.72,0,1);
+  const darkness=dusk*dusk*(3-2*dusk);
+  c.glow.distance=10+9*darkness;
+  c.glow.decay=2-.5*darkness;
+  c.glow.intensity=burning&&d<38?( .45+2.10*darkness)+(.14+.28*darkness)*Math.sin(clock*11)**2:0;
   if(burning){c.flames.scale.setScalar(.9+.12*Math.sin(clock*8));c.flames.rotation.y+=dt*.35}
   if(!cooking||cooking.tent!==t){c.pan.visible=false;c.salt.visible=false;c.saltDust.visible=false;c.fork.visible=false}
  }
@@ -3204,7 +3275,7 @@ function buildBag(){
   const meta=document.createElement('div');meta.className='bagMeta';
   meta.textContent=`가방 최대 ${bagLimit()}개 · 현재 ${totalCount()}/${bagLimit()}개 · 정산금 ${won(+save.won||0)} · 텐트에서 최대 110칸까지 10단계로 확장할 수 있습니다.`;
   host.appendChild(meta);
-  const twigs=document.createElement('div');twigs.className='bagMeta';twigs.textContent=`🪵 나뭇가지 ${save.inv[TWIG_KEY]||0}개 · 빈 나무를 두드려 획득 · 도감 제외 · 캠프파이어 10개 필요`;
+  const twigs=document.createElement('div');twigs.className='bagMeta';twigs.textContent=`🪵 나뭇가지 ${save.inv[TWIG_KEY]||0}개 · 빈 나무를 두드려 획득 · 도감 제외 · 캠프파이어 6개 필요`;
   host.appendChild(twigs);
   const groups=[['root','뿌리·덩이 약초 (땅속)'],['leaf','산나물'],['herb','약초'],['mush','산속 버섯'],['fruit','숲에서 떨어지는 열매'],['honey','야생 벌꿀']];
   for(const [cat,title] of groups){
